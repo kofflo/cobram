@@ -97,7 +97,7 @@ class League(Entity):
             gambler.add_to_league(self)
         for _, bet_tournament in self._bet_tournaments.items():
             if bet_tournament.is_open:
-                bet_tournament.add_gambler(gambler)
+                bet_tournament.add_gambler(gambler, force=True)
                 self._previous_year_scores[bet_tournament.year - 1][bet_tournament.name][gambler] = 0
         self._compute_ranking()
 
@@ -112,7 +112,7 @@ class League(Entity):
             gambler.remove_from_league(self)
         for _, bet_tournament in self._bet_tournaments.items():
             if bet_tournament.is_open:
-                bet_tournament.remove_gambler(gambler)
+                bet_tournament.remove_gambler(gambler, force=True)
         self._compute_ranking()
 
     def get_gamblers(self):

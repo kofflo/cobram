@@ -2,7 +2,11 @@ from pathlib import Path
 import os
 import csv
 
-import environment
+#import environment
+import requests
+
+
+URL = 'http://127.0.0.1:5000'
 
 
 _NUMBER_MATCHES_FOR_ROUND = {
@@ -12,10 +16,12 @@ _NUMBER_MATCHES_FOR_ROUND = {
 
 
 def entity_id_to_index(entity_name, id_):
-    getter = getattr(environment, 'get_{entity_name}s'.format(entity_name=entity_name))
-    all_entities = getter()
+    r = requests.get(url=URL + '/{entity_name}s'.format(entity_name=entity_name))
+    all_entities = r.json()
+#    getter = getattr(environment, 'get_{entity_name}s'.format(entity_name=entity_name))
+#    all_entities = getter()
     for entity_index, entity_id in all_entities.items():
-        if entity_id == id_:
+        if entity_id == list(id_):
             return entity_index
     else:
         return None
@@ -37,6 +43,16 @@ def player_name_surname_to_index(name, surname):
     return entity_id_to_index('player', (name, surname))
 
 
+def tournament_name_year_to_index(league_index, name, year):
+    r = requests.get(url=URL + '/leagues/{league_index}/tournaments'.format(league_index=league_index))
+    all_tournaments = r.json()
+    for tournaments_index, tournaments_id in all_tournaments.items():
+        if tournaments_id == [name, year]:
+            return tournaments_index
+    else:
+        return None
+
+
 def _indexes_to_match_id(round_index, match_index):
     round_code = chr(ord('A') + round_index)
     match_code = str(match_index + 1)
@@ -46,7 +62,8 @@ def _indexes_to_match_id(round_index, match_index):
 def add_gamblers_to_league(league_index, *gamblers):
     for (nickname, initial_score, *_) in gamblers:
         gambler_index = gambler_nickname_to_index(nickname)
-        environment.add_gambler_to_league(**{'league_index': league_index, 'gambler_index': gambler_index, 'initial_score': initial_score})
+        r = requests.post(URL + '/leagues/{league_index}/gamblers'.format(league_index=league_index), json={'gambler_index': gambler_index, 'initial_score': initial_score})
+#        environment.add_gambler_to_league(**{'league_index': league_index, 'gambler_index': gambler_index, 'initial_score': initial_score})
 
 
 def add_tournaments_to_league(league_index, gamblers, *tournaments):
@@ -57,32 +74,50 @@ def add_tournaments_to_league(league_index, gamblers, *tournaments):
                 gambler_index = gambler_nickname_to_index(nickname)
                 previous_year_scores[gambler_index] = scores[index]
         nation_index = nation_code_to_index(nation_code)
-        environment.add_tournament_to_league(
-            **{
-                'league_index': league_index,
-                'name': name,
-                'nation_index': nation_index,
-                'year': year,
-                'n_sets': n_sets,
-                'tie_breaker_5th': tie_breaker_5th,
-                'category': category,
-                'draw_type': draw_type,
-                'previous_year_scores': previous_year_scores
-            }
-        )
+        r = requests.post(URL + '/leagues/{league_index}/tournaments'.format(league_index=league_index),
+                          json={
+                              'league_index': league_index,
+                              'name': name,
+                              'nation_index': nation_index,
+                              'year': year,
+                              'n_sets': n_sets,
+                              'tie_breaker_5th': tie_breaker_5th,
+                              'category': category,
+                              'draw_type': draw_type,
+                              'previous_year_scores': previous_year_scores
+                          })
+        # environment.add_tournament_to_league(
+        #     **{
+        #         'league_index': league_index,
+        #         'name': name,
+        #         'nation_index': nation_index,
+        #         'year': year,
+        #         'n_sets': n_sets,
+        #         'tie_breaker_5th': tie_breaker_5th,
+        #         'category': category,
+        #         'draw_type': draw_type,
+        #         'previous_year_scores': previous_year_scores
+        #     }
+        # )
 
 
 def add_players_to_tournament(league_index, name, year, *players):
     for (player_name, player_surname, seed) in players:
+        tournament_index = tournament_name_year_to_index(league_index, name, year)
         player_index = player_name_surname_to_index(player_name, player_surname)
-        environment.add_player_to_tournament(
-            **{
-                'league_index': league_index,
-                'tournament_id': (name, year),
-                'player_index': player_index,
-                'seed': seed
-            }
-        )
+        r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/players'.format(league_index=league_index, tournament_index=tournament_index),
+                          json={
+                              'player_index': player_index,
+                              'seed': seed
+                          })
+        # environment.add_player_to_tournament(
+        #     **{
+        #         'league_index': league_index,
+        #         'tournament_id': (name, year),
+        #         'player_index': player_index,
+        #         'seed': seed
+        #     }
+        # )
 
 
 def read_results_file(name):
@@ -147,7 +182,10 @@ def rearrange_players(tournaments, players_list):
 
 def set_round_bets(league_index, tournament, gambler_index, round_index, scores, joker):
     name, year = tournament[0], tournament[2]
-    info = environment.get_tournament_info(**{'league_index': league_index, 'tournament_id': (name, year)})
+    tournament_index = tournament_name_year_to_index(league_index, name, year)
+    r = requests.get(url=URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=league_index, tournament_index=tournament_index))
+    info = r.json()
+#    info = environment.get_tournament_info(**{'league_index': league_index, 'tournament_id': (name, year)})
     draw_type = info['draw_type']
     number_matches_for_round = _NUMBER_MATCHES_FOR_ROUND[draw_type]
     number_rounds = len(number_matches_for_round)
@@ -168,21 +206,32 @@ def set_round_bets(league_index, tournament, gambler_index, round_index, scores,
         else:
             continue
         if scores[score_index]:
-            environment.set_match_score(
-                **{
-                    'league_index': league_index,
-                    'tournament_id': (name, year),
-                    'gambler_index': gambler_index,
-                    'match_id': match_id,
-                    'score': scores[score_index],
-                    'joker': (match_id == joker)
-                }
-            )
+            tournament_index = tournament_name_year_to_index(league_index, name, year)
+            r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match'.format(league_index=league_index, tournament_index=tournament_index),
+                              json={
+                                  'gambler_index': gambler_index,
+                                  'match_id': match_id,
+                                  'score': scores[score_index],
+                                  'joker': (match_id == joker)
+                              })
+            # environment.set_match_score(
+            #     **{
+            #         'league_index': league_index,
+            #         'tournament_id': (name, year),
+            #         'gambler_index': gambler_index,
+            #         'match_id': match_id,
+            #         'score': scores[score_index],
+            #         'joker': (match_id == joker)
+            #     }
+            # )
 
 
 def set_round_results(league_index, tournament, round_index, scores):
     name, year = tournament[0], tournament[2]
-    info = environment.get_tournament_info(**{'league_index': league_index, 'tournament_id': (name, year)})
+    tournament_index = tournament_name_year_to_index(league_index, name, year)
+    r = requests.get(url=URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=league_index, tournament_index=tournament_index))
+    info = r.json()
+#    info = environment.get_tournament_info(**{'league_index': league_index, 'tournament_id': (name, year)})
     draw_type = info['draw_type']
     number_matches_for_round = _NUMBER_MATCHES_FOR_ROUND[draw_type]
     number_rounds = len(number_matches_for_round)
@@ -204,21 +253,31 @@ def set_round_results(league_index, tournament, round_index, scores):
             continue
         match_score = scores[score_index]
         if match_score:
-            environment.set_match_score(
-                **{
-                    'league_index': league_index,
-                    'tournament_id': (name, year),
-                    'gambler_index': None,
-                    'match_id': match_id,
-                    'score': scores[score_index],
-                    'joker': None
-                }
-            )
+            tournament_index = tournament_name_year_to_index(league_index, name, year)
+            r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match'.format(league_index=league_index, tournament_index=tournament_index),
+                              json={
+                                  'gambler_index': None,
+                                  'match_id': match_id,
+                                  'score': scores[score_index],
+                                  'joker': None
+                              })
+            # environment.set_match_score(
+            #     **{
+            #         'league_index': league_index,
+            #         'tournament_id': (name, year),
+            #         'gambler_index': None,
+            #         'match_id': match_id,
+            #         'score': scores[score_index],
+            #         'joker': None
+            #     }
+            # )
 
 
 def test_season_2021():
 
-    coppa_cobram_index = environment.create_league(name="Coppa Cobram")
+#    coppa_cobram_index = environment.create_league(name="Coppa Cobram")
+    r = requests.post(URL + '/leagues', json={'name': 'Coppa Cobram'})
+    coppa_cobram_index = r.json()['league_index']
 
     gamblers_list = [
         ["Ciccio", 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
@@ -237,7 +296,8 @@ def test_season_2021():
     ]
 
     for gambler in gamblers_list:
-        environment.create_gambler(**{'nickname': gambler[0]})
+        r = requests.post(URL + '/gamblers', json={'nickname': gambler[0]})
+#        environment.create_gambler(**{'nickname': gambler[0]})
     add_gamblers_to_league(coppa_cobram_index, *gamblers_list)
 
     nations_list = [
@@ -271,7 +331,8 @@ def test_season_2021():
         ["The Netherlands", "NED"],
     ]
     for (name, code) in nations_list:
-        environment.create_nation(**{'name': name, 'code': code})
+        r = requests.post(URL + '/nations', json={'name': name, 'code': code})
+#        environment.create_nation(**{'name': name, 'code': code})
 
     tournaments = [
         ["Australian Open", "AUS", 2021, 5, 'TIE_BREAKER_AT_7', 'GRAND_SLAM', 'Draw16'],
@@ -361,7 +422,8 @@ def test_season_2021():
     ]
     for (name, surname, nation_code) in players_list:
         nation_index = nation_code_to_index(nation_code)
-        environment.create_player(**{'name': name, 'surname': surname, 'nation_index': nation_index})
+        r = requests.post(URL + '/players', json={'name': name, 'surname': surname, 'nation_index': nation_index})
+#        environment.create_player(**{'name': name, 'surname': surname, 'nation_index': nation_index})
 
     all_bets = {}
     for (nickname, *_) in gamblers_list:
@@ -388,146 +450,233 @@ def test_season_2021():
 
     all_players = rearrange_players(tournaments, read_players_file('Players'))
 
-    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+    r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    league_ranking = r.json()
+#    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
     print(league_ranking['ranking_scores'])
     print(league_ranking['yearly_scores'])
     print(league_ranking['winners'])
     print(league_ranking['last_tournament'])
 
-    for tournament_index, tournament in enumerate(tournaments):
+    for tournament_data_index, tournament in enumerate(tournaments):
 
         name, year = tournament[0], tournament[2]
         add_players_to_tournament(coppa_cobram_index, name, year, *all_players[name, year])
 
-        info = environment.get_tournament_info(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+        tournament_index = tournament_name_year_to_index(coppa_cobram_index, name, year)
+        r = requests.get(url=URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+        info = r.json()
+#        info = environment.get_tournament_info(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
         draw_type = info['draw_type']
 
         if draw_type == 'DrawRoundRobin':
             if tournament[0] == 'ATP Finals':
-                environment.add_alternate_to_group(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'player_index': player_name_surname_to_index("Jannik", "Sinner"),
-                        'group': "A"
-                    }
-                )
-                environment.add_alternate_to_group(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'player_index': player_name_surname_to_index("Cameron", "Norrie"),
-                        'group': "B"
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A1",
-                        'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
-                        'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A2",
-                        'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
-                        'player_2_index': player_name_surname_to_index("Matteo", "Berrettini")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A3",
-                        'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
-                        'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A4",
-                        'player_1_index': player_name_surname_to_index("Jannik", "Sinner"),
-                        'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A5",
-                        'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
-                        'player_2_index': player_name_surname_to_index("Jannik", "Sinner")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "A6",
-                        'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
-                        'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B1",
-                        'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
-                        'player_2_index': player_name_surname_to_index("Casper", "Ruud")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B2",
-                        'player_1_index': player_name_surname_to_index("Stefanos", "Tsitsipas"),
-                        'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B3",
-                        'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
-                        'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B4",
-                        'player_1_index': player_name_surname_to_index("Cameron", "Norrie"),
-                        'player_2_index': player_name_surname_to_index("Casper", "Ruud")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B5",
-                        'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
-                        'player_2_index': player_name_surname_to_index("Cameron", "Norrie")
-                    }
-                )
-                environment.add_players_to_match(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'match_id': "B6",
-                        'player_1_index': player_name_surname_to_index("Andrey", "Rublev"),
-                        'player_2_index': player_name_surname_to_index("Casper", "Ruud")
-                    }
-                )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/alternate'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'player_index': player_name_surname_to_index("Jannik", "Sinner"),
+                                      'group': "A"
+                                  })
+                # environment.add_alternate_to_group(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'player_index': player_name_surname_to_index("Jannik", "Sinner"),
+                #         'group': "A"
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/alternate'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'player_index': player_name_surname_to_index("Cameron", "Norrie"),
+                                      'group': "B"
+                                  })
+                # environment.add_alternate_to_group(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'player_index': player_name_surname_to_index("Cameron", "Norrie"),
+                #         'group': "B"
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A1",
+                                      'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                                      'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A1",
+                #         'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                #         'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A2",
+                                      'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
+                                      'player_2_index': player_name_surname_to_index("Matteo", "Berrettini")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A2",
+                #         'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
+                #         'player_2_index': player_name_surname_to_index("Matteo", "Berrettini")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A3",
+                                      'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                                      'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A3",
+                #         'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                #         'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A4",
+                                      'player_1_index': player_name_surname_to_index("Jannik", "Sinner"),
+                                      'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A4",
+                #         'player_1_index': player_name_surname_to_index("Jannik", "Sinner"),
+                #         'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A5",
+                                      'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                                      'player_2_index': player_name_surname_to_index("Jannik", "Sinner")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A5",
+                #         'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                #         'player_2_index': player_name_surname_to_index("Jannik", "Sinner")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "A6",
+                                      'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
+                                      'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "A6",
+                #         'player_1_index': player_name_surname_to_index("Alexander", "Zverev"),
+                #         'player_2_index': player_name_surname_to_index("Hubert", "Hurkacz")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B1",
+                                      'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                                      'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B1",
+                #         'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                #         'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B2",
+                                      'player_1_index': player_name_surname_to_index("Stefanos", "Tsitsipas"),
+                                      'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B2",
+                #         'player_1_index': player_name_surname_to_index("Stefanos", "Tsitsipas"),
+                #         'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B3",
+                                      'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                                      'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B3",
+                #         'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                #         'player_2_index': player_name_surname_to_index("Andrey", "Rublev")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B4",
+                                      'player_1_index': player_name_surname_to_index("Cameron", "Norrie"),
+                                      'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B4",
+                #         'player_1_index': player_name_surname_to_index("Cameron", "Norrie"),
+                #         'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B5",
+                                      'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                                      'player_2_index': player_name_surname_to_index("Cameron", "Norrie")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B5",
+                #         'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                #         'player_2_index': player_name_surname_to_index("Cameron", "Norrie")
+                #     }
+                # )
+                r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                  json={
+                                      'match_id': "B6",
+                                      'player_1_index': player_name_surname_to_index("Andrey", "Rublev"),
+                                      'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                                  })
+                # environment.add_players_to_match(
+                #     **{
+                #         'league_index': coppa_cobram_index,
+                #         'tournament_id': (name, year),
+                #         'match_id': "B6",
+                #         'player_1_index': player_name_surname_to_index("Andrey", "Rublev"),
+                #         'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                #     }
+                # )
 
         for round_index in range(4):
             for gambler in gamblers_list:
@@ -535,44 +684,62 @@ def test_season_2021():
                 gambler_bets = all_bets[gambler_nickname][tournament[0], tournament[2]]
                 gambler_id = gambler_nickname_to_index(gambler_nickname)
                 set_round_bets(coppa_cobram_index, tournament, gambler_id, round_index, gambler_bets,
-                               jokers[gambler_nickname][tournament_index])
+                               jokers[gambler_nickname][tournament_data_index])
             scores = results[tournament[0], tournament[2]]
             set_round_results(coppa_cobram_index, tournament, round_index, scores)
 
             if draw_type == 'DrawRoundRobin':
                 if tournament[0] == 'ATP Finals' and round_index == 1:
-                    environment.add_players_to_match(
-                        **{
-                            'league_index': coppa_cobram_index,
-                            'tournament_id': (name, year),
-                            'match_id': "C1",
-                            'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
-                            'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
-                        }
-                    )
-                    environment.add_players_to_match(
-                        **{
-                            'league_index': coppa_cobram_index,
-                            'tournament_id': (name, year),
-                            'match_id': "C2",
-                            'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
-                            'player_2_index': player_name_surname_to_index("Casper", "Ruud")
-                        }
-                    )
+                    r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                      json={
+                                          'match_id': "C1",
+                                          'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                                          'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
+                                      })
+                    # environment.add_players_to_match(
+                    #     **{
+                    #         'league_index': coppa_cobram_index,
+                    #         'tournament_id': (name, year),
+                    #         'match_id': "C1",
+                    #         'player_1_index': player_name_surname_to_index("Novak", "Djokovic"),
+                    #         'player_2_index': player_name_surname_to_index("Alexander", "Zverev")
+                    #     }
+                    # )
+                    r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/match_players'.format(league_index=coppa_cobram_index, tournament_index=tournament_index),
+                                      json={
+                                          'match_id': "C2",
+                                          'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                                          'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                                      })
+                    # environment.add_players_to_match(
+                    #     **{
+                    #         'league_index': coppa_cobram_index,
+                    #         'tournament_id': (name, year),
+                    #         'match_id': "C2",
+                    #         'player_1_index': player_name_surname_to_index("Daniil", "Medvedev"),
+                    #         'player_2_index': player_name_surname_to_index("Casper", "Ruud")
+                    #     }
+                    # )
 
-        environment.close_tournament(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+        tournament_index = tournament_name_year_to_index(coppa_cobram_index, name, year)
+        r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/close'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+#        environment.close_tournament(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
 
         print(name, year)
-        tournament_ranking = environment.get_tournament_ranking(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+        r = requests.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+        tournament_ranking = r.json()
+#        tournament_ranking = environment.get_tournament_ranking(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
         print(tournament_ranking['tournament_scores'])
         print(tournament_ranking['tournament_ranking_scores'])
-        league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+        r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+        league_ranking = r.json()
+#        league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
         print(league_ranking['ranking_scores'])
         print(league_ranking['yearly_scores'])
         print(league_ranking['winners'])
         print(league_ranking['last_tournament'])
 
-    environment.save("filesave.dat")
+    #environment.save("filesave.dat")
 
     # environment.add_tournament_to_league(
     #     **{
@@ -606,21 +773,25 @@ def test_season_2021():
 
     print("*****************************************************")
 
-    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+    r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    league_ranking = r.json()
+    #league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
     print(league_ranking['ranking_scores'])
     print(league_ranking['yearly_scores'])
     print(league_ranking['winners'])
     print(league_ranking['last_tournament'])
 
-    print("Tolgo Macchia *****************************************************")
-
-    gambler_index = gambler_nickname_to_index("Macchia")
-    environment.remove_gambler_from_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index})
-    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
-    print(league_ranking['ranking_scores'])
-    print(league_ranking['yearly_scores'])
-    print(league_ranking['winners'])
-    print(league_ranking['last_tournament'])
+#     print("Tolgo Macchia *****************************************************")
+#
+#     gambler_index = gambler_nickname_to_index("Macchia")
+#     environment.remove_gambler_from_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index})
+#     r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+#     league_ranking = r.json()
+# #    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+#     print(league_ranking['ranking_scores'])
+#     print(league_ranking['yearly_scores'])
+#     print(league_ranking['winners'])
+#     print(league_ranking['last_tournament'])
 
     # environment.load("filesave.dat")
     # league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
@@ -631,9 +802,14 @@ def test_season_2021():
     #
     print("Aggiungo Antani *****************************************************")
 
-    gambler_index = environment.create_gambler(**{'nickname': "Antani"})
-    environment.add_gambler_to_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index, 'initial_score': 0})
-    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+    r = requests.post(URL + '/gamblers', json={'nickname': "Antani"})
+    gambler_index = r.json()['gambler_index']
+#    gambler_index = environment.create_gambler(**{'nickname': "Antani"})
+    r = requests.post(URL + '/leagues/{league_index}/gamblers'.format(league_index=coppa_cobram_index), json={'gambler_index': gambler_index, 'initial_score': 0})
+#    environment.add_gambler_to_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index, 'initial_score': 0})
+    r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    league_ranking = r.json()
+#    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
     print(league_ranking['ranking_scores'])
     print(league_ranking['yearly_scores'])
     print(league_ranking['winners'])
@@ -653,15 +829,4 @@ def test_season_2021():
     #     print(environment.get_tournament_matches(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)}))
 
 
-    print(environment.get_players())
-#    print(environment.get_players(name="Dominic"))
-#    print(environment.get_players(surname="Sinner"))
-    italy = environment.get_nations(code="ITA")
-#    print(italy)
-    italy_index = next(iter(italy.keys()))
-#    print(italy_id)
-    print(environment.get_players(nation_index=italy_index))
-
 test_season_2021()
-
-import web

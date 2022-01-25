@@ -44,8 +44,8 @@ def get_leagues(name=None):
             if _apply_filter(league, name=name)}
 
 
-def get_league_info(league_index):
-    league = _get_league(league_index)
+def get_league_info(index):
+    league = _get_league(index)
     return {'name': league.name}
 
 
@@ -58,8 +58,8 @@ def get_players(name=None, surname=None, nation_index=None):
             if _apply_filter(player, name=name, surname=surname, nation=nation)}
 
 
-def get_player_info(player_index):
-    player = _get_player(player_index)
+def get_player_info(index):
+    player = _get_player(index)
     return {'name': player.id, 'surname': player.surname, 'nation': player.nation.code}
 
 
@@ -68,8 +68,8 @@ def get_gamblers(nickname=None):
             if _apply_filter(gambler, nickname=nickname)}
 
 
-def get_gambler_info(gambler_index):
-    gambler = _get_gambler(gambler_index)
+def get_gambler_info(index):
+    gambler = _get_gambler(index)
     return {'nickname': gambler.nickname}
 
 
@@ -78,27 +78,17 @@ def get_nations(name=None, code=None):
             if _apply_filter(nation, name=name, code=code)}
 
 
-def get_nation_info(nation_index):
-    nation = _get_nation(nation_index)
+def get_nation_info(index):
+    nation = _get_nation(index)
     return {'name': nation.name, 'code': nation.code}
 
 
 def create_league(name):
-    for league in _league_objects:
-        if not league.check_unique_attributes(name=name):
-            return None
-    league = League(name=name)
-    _league_objects.append(league)
-    return len(_league_objects) - 1
+    return create_entity('league', name=name)
 
 
 def create_nation(name, code):
-    for nation in _nation_objects:
-        if not nation.check_unique_attributes(name=name, code=code):
-            return None
-    nation = Nation(name=name, code=code)
-    _nation_objects.append(nation)
-    return len(_nation_objects) - 1
+    return create_entity('nation', name=name, code=code)
 
 
 def create_entity(entity_name, **attributes):
@@ -114,22 +104,11 @@ def create_entity(entity_name, **attributes):
 
 def create_gambler(nickname):
     return create_entity('gambler', nickname=nickname)
-    # for gambler in _gambler_objects:
-    #     if not gambler.check_unique_attributes(nickname=nickname):
-    #         return None
-    # gambler = Gambler(nickname=nickname)
-    # _gambler_objects.append(gambler)
-    # return len(_gambler_objects) - 1
 
 
 def create_player(name, surname, nation_index):
-    for player in _player_objects:
-        if not player.check_unique_attributes(name=name, surname=surname, nation_index=nation_index):
-            return None
     nation = _get_nation(nation_index)
-    player = Player(name=name, surname=surname, nation=nation)
-    _player_objects.append(player)
-    return len(_player_objects) - 1
+    return create_entity('player', name=name, surname=surname, nation=nation)
 
 
 def add_gambler_to_league(league_index, gambler_index, initial_score):
@@ -158,7 +137,7 @@ def get_gamblers_for_league(league_index):
 
 def get_tournaments_for_league(league_index):
     league = _get_league(league_index)
-    return [(tournament.name, tournament.year) for tournament in league.get_all_tournaments()]
+    return {index: (tournament.name, tournament.year) for index, tournament in enumerate(league.get_all_tournaments())}
 
 
 def add_tournament_to_league(league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type, previous_year_scores=None, ghost=False):
@@ -253,14 +232,22 @@ def close_tournament(league_index, tournament_id):
     league.close_tournament(name=name, year=year)
 
 
+def open_tournament(league_index, tournament_id):
+    league = _get_league(league_index)
+    name, year = tournament_id
+    league.open_tournament(name=name, year=year)
+
+
 def get_league_ranking(league_index):
     league = _get_league(league_index)
     ranking_scores, yearly_scores, winners, last_tournament = league.get_ranking()
     ranking_scores = {gambler.nickname: score for gambler, score in ranking_scores.items()}
     yearly_scores = {year: {gambler.nickname: score for gambler, score in year_scores.items()} for year, year_scores in yearly_scores.items()}
-    winners = {tournament: winner.nickname for tournament, winner in winners.items()}
+    all_tournaments = [(tournament.name, tournament.year) for tournament in league.get_all_tournaments()]
+    winners = {all_tournaments.index(tournament): winner.nickname for tournament, winner in winners.items()}
+    tournaments = {index: tournament for index, tournament in enumerate(all_tournaments)}
     last_tournament = (last_tournament.name, last_tournament.year) if last_tournament is not None else (None, None)
-    return {'ranking_scores': ranking_scores, 'yearly_scores': yearly_scores, 'winners': winners, 'last_tournament': last_tournament}
+    return {'ranking_scores': ranking_scores, 'yearly_scores': yearly_scores, 'winners': winners, 'tournaments': tournaments, 'last_tournament': last_tournament}
 
 
 def get_tournament_ranking(league_index, tournament_id):
@@ -315,37 +302,39 @@ def add_players_to_match(league_index, tournament_id, match_id, player_1_index, 
 
 
 def save(filename):
-    file = open(filename, 'wb')
-    pickler = pickle.Pickler(file)
-    pickler.dump(_league_objects)
-    pickler.dump(_player_objects)
-    pickler.dump(_gambler_objects)
-    pickler.dump(_nation_objects)
-    file.close()
+    with open(filename, 'wb') as file:
+        pickler = pickle.Pickler(file)
+        pickler.dump(_league_objects)
+        pickler.dump(_player_objects)
+        pickler.dump(_gambler_objects)
+        pickler.dump(_nation_objects)
 
 
 def load(filename):
     global _league_objects, _player_objects, _gambler_objects, _nation_objects
-    file = open(filename, 'rb')
-    unpickler = pickle.Unpickler(file)
-    _league_objects = unpickler.load()
-    _player_objects = unpickler.load()
-    _gambler_objects = unpickler.load()
-    _nation_objects = unpickler.load()
-    file.close()
+    with open(filename, 'rb') as file:
+        unpickler = pickle.Unpickler(file)
+        _league_temp = unpickler.load()
+        _player_temp = unpickler.load()
+        _gambler_temp = unpickler.load()
+        _nation_temp = unpickler.load()
+        _league_objects = _league_temp
+        _player_objects = _player_temp
+        _gambler_objects = _gambler_temp
+        _nation_objects = _league_objects
 
 
 def _get_gambler(gambler_index):
-    return _gambler_objects[gambler_index]
+    return _gambler_objects[int(gambler_index)]
 
 
 def _get_league(league_index):
-    return _league_objects[league_index]
+    return _league_objects[int(league_index)]
 
 
 def _get_nation(nation_index):
-    return _nation_objects[nation_index]
+    return _nation_objects[int(nation_index)]
 
 
 def _get_player(player_index):
-    return _player_objects[player_index]
+    return _player_objects[int(player_index)]

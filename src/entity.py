@@ -17,7 +17,6 @@ class Entity:
             else:
                 id_.append(attributes[key])
         if tuple(id_) == self.id:
-            print("same id")
             return False
         for key, value in attributes.items():
             if key in self._unique_attributes and value == getattr(self, key):
