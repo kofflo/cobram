@@ -155,7 +155,7 @@ def _league_ranking(index):
         return "Invalid entity index", 400
 
 
-@app.route('/leagues/<index>/gamblers', methods=['GET', 'POST'])
+@app.route('/leagues/<index>/gamblers', methods=['GET', 'POST', 'DELETE'])
 def _manage_league_gambler(index):
     try:
         index = int(index)
@@ -170,6 +170,14 @@ def _manage_league_gambler(index):
             json_parameters['league_index'] = index
             _check_args(json_parameters, signature(creator).parameters)
             creator(**json_parameters)
+            return "Success", 200
+        elif request.method == 'DELETE':
+            deleter = environment.remove_gambler_from_league
+            _check_args(request.args.keys(), [])
+            json_parameters = request.json
+            json_parameters['league_index'] = index
+            _check_args(json_parameters, signature(deleter).parameters)
+            deleter(**json_parameters)
             return "Success", 200
     except (IndexError, ValueError):
         return "Invalid entity index", 400

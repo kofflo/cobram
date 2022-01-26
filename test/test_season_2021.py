@@ -431,19 +431,19 @@ def test_season_2021():
 
     jokers = {
         #              AO    MI    MO    RO    PA    WI    OL    TO    CI    US    IW    PA    FI   AO
-        "Ciccio":    ['B2', 'A3', 'B4', 'B3', 'B3', 'A5', 'C2', 'A5', 'A4', 'A6', 'C2', 'A7', 'B5', None],
-        "Conte":     ['B2', 'C1', 'B4', 'B3', 'B3', 'B3', 'C2', 'C1', 'B2', 'B1', 'C2', 'B2', 'C2', None],
-        "Franki":    ['C2', 'A1', 'B1', 'D1', 'A2', 'A5', None, None, None, 'B1', None, None, None, None],
+        "Ciccio":    ['B2', 'A3', 'B4', 'B3', 'B3', 'A5', 'C2', 'A5', 'A4', 'A6', 'C2', 'A7', 'B5', 'B3'],
+        "Conte":     ['B2', 'C1', 'B4', 'B3', 'B3', 'B3', 'C2', 'C1', 'B2', 'B1', 'C2', 'B2', 'C2', 'B3'],
+        "Franki":    ['C2', 'A1', 'B1', 'D1', 'A2', 'A5', None, None, None, 'B1', None, None, None, 'B1'],
         "Giovanni":  ['D1', 'C1', 'D1', 'C2', 'B2', 'B1', 'C1', 'D1', 'C1', 'C2', None, None, 'D1', None],
         "Mimmo":     ['C1', 'D1', 'B4', 'C2', 'B4', 'D1', None, 'B1', None, None, None, None, 'D1', None],
         "Monci":     ['B2', 'B2', 'D1', 'B2', 'B3', 'B1', 'C2', 'C1', 'B2', 'B4', 'C2', 'B2', 'B6', None],
         "Zoo":       ['B2', 'A3', 'A5', 'A6', 'B3', 'B4', 'C2', 'A2', 'A4', 'B3', 'C1', 'A7', 'B6', None],
-        "Celli":     ['D1', 'B1', 'A1', 'B4', 'B2', 'B1', 'C1', 'C2', 'C1', 'B2', 'C1', 'A8', 'A2', None],
+        "Celli":     ['D1', 'B1', 'A1', 'B4', 'B2', 'B1', 'C1', 'C2', 'C1', 'B2', 'C1', 'A8', 'A2', 'B1'],
         "Simone":    ['A5', 'A3', 'A5', 'B2', None, 'A2', 'C2', 'B1', 'A7', 'C2', 'C2', None, 'D1', None],
         "Furone":    ['B2', 'B4', 'A1', 'C2', 'B2', 'B1', 'D1', 'C2', 'D1', None, 'C2', 'D1', 'D1', None],
-        "Muffo":     ['C1', 'A1', 'B1', 'C1', 'A7', 'B1', 'C1', 'B3', 'C1', 'B4', None, 'B2', 'C2', None],
+        "Muffo":     ['C1', 'A1', 'B1', 'C1', 'A7', 'B1', 'C1', 'B3', 'C1', 'B4', None, 'B2', 'C2', 'B4'],
         "Macchia":   ['D1', 'D1', 'C2', 'C1', 'D1', 'A4', 'C2', 'C2', 'C2', 'C2', 'B1', 'B2', 'D1', None],
-        "Francesco": [None, None, 'B4', 'A6', 'B3', 'B3', 'C2', 'C2', 'A4', 'A6', 'B3', 'A7', 'A4', None]
+        "Francesco": [None, None, 'B4', 'A6', 'B3', 'B3', 'C2', 'C2', 'A4', 'A6', 'B3', 'A7', 'A4', 'B1']
     }
 
     results = rearrange_results(tournaments, read_results_file('Results'))
@@ -741,35 +741,30 @@ def test_season_2021():
 
     #environment.save("filesave.dat")
 
-    # environment.add_tournament_to_league(
-    #     **{
-    #         'league_index': coppa_cobram_index,
-    #         'name': 'Australian Open',
-    #         'nation_index': nation_code_to_index('AUS'),
-    #         'year': 2022,
-    #         'n_sets': 5,
-    #         'tie_breaker_5th': 'TIE_BREAKER_AT_7',
-    #         'category': 'GRAND_SLAM',
-    #         'draw_type': 'Draw16',
-    #         'ghost': True
-    #     }
-    # )
-    # print("____________________")
-    # league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
-    # print(league_ranking['ranking_scores'])
-    # print(league_ranking['yearly_scores'])
-    # print(league_ranking['winners'])
-    # print(league_ranking['last_tournament'])
-    # print("____________________")
-    # environment.close_tournament(**{'league_index': coppa_cobram_index, 'tournament_id': ("Australian Open", 2022)})
-    # league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
-    # print(league_ranking['ranking_scores'])
-    # print(league_ranking['yearly_scores'])
-    # print(league_ranking['winners'])
-    # print(league_ranking['last_tournament'])
-    # print("____________________")
-    #
-    # environment.remove_tournament_from_league(**{'league_index': coppa_cobram_index, 'tournament_id': ("ATP Finals", 2021)})
+    # Apro AO 2022
+    tournament_index = tournament_name_year_to_index(coppa_cobram_index, "Australian Open", 2022)
+    r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/open'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    #        environment.close_tournament(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+
+    print("Tolgo Macchia *****************************************************")
+
+    gambler_index = gambler_nickname_to_index("Macchia")
+    r = requests.delete(URL + '/leagues/{league_index}/gamblers'.format(league_index=coppa_cobram_index), json={'gambler_index': gambler_index})
+    r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    league_ranking = r.json()
+#    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+    print(league_ranking['ranking_scores'])
+    print(league_ranking['yearly_scores'])
+    print(league_ranking['winners'])
+    print(league_ranking['last_tournament'])
+
+    tournament_index = tournament_name_year_to_index(coppa_cobram_index, "Australian Open", 2022)
+    r = requests.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    tournament_ranking = r.json()
+    #        tournament_ranking = environment.get_tournament_ranking(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+    print(tournament_ranking['tournament_scores'])
+    print(tournament_ranking['tournament_ranking_scores'])
+
 
     print("*****************************************************")
 
@@ -781,18 +776,6 @@ def test_season_2021():
     print(league_ranking['winners'])
     print(league_ranking['last_tournament'])
 
-#     print("Tolgo Macchia *****************************************************")
-#
-#     gambler_index = gambler_nickname_to_index("Macchia")
-#     environment.remove_gambler_from_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index})
-#     r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
-#     league_ranking = r.json()
-# #    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
-#     print(league_ranking['ranking_scores'])
-#     print(league_ranking['yearly_scores'])
-#     print(league_ranking['winners'])
-#     print(league_ranking['last_tournament'])
-
     # environment.load("filesave.dat")
     # league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
     # print(league_ranking['ranking_scores'])
@@ -800,20 +783,20 @@ def test_season_2021():
     # print(league_ranking['winners'])
     # print(league_ranking['last_tournament'])
     #
-    print("Aggiungo Antani *****************************************************")
-
-    r = requests.post(URL + '/gamblers', json={'nickname': "Antani"})
-    gambler_index = r.json()['gambler_index']
-#    gambler_index = environment.create_gambler(**{'nickname': "Antani"})
-    r = requests.post(URL + '/leagues/{league_index}/gamblers'.format(league_index=coppa_cobram_index), json={'gambler_index': gambler_index, 'initial_score': 0})
-#    environment.add_gambler_to_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index, 'initial_score': 0})
-    r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
-    league_ranking = r.json()
-#    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
-    print(league_ranking['ranking_scores'])
-    print(league_ranking['yearly_scores'])
-    print(league_ranking['winners'])
-    print(league_ranking['last_tournament'])
+#     print("Aggiungo Antani *****************************************************")
+#
+#     r = requests.post(URL + '/gamblers', json={'nickname': "Antani"})
+#     gambler_index = r.json()['gambler_index']
+# #    gambler_index = environment.create_gambler(**{'nickname': "Antani"})
+#     r = requests.post(URL + '/leagues/{league_index}/gamblers'.format(league_index=coppa_cobram_index), json={'gambler_index': gambler_index, 'initial_score': 0})
+# #    environment.add_gambler_to_league(**{'league_index': coppa_cobram_index, 'gambler_index': gambler_index, 'initial_score': 0})
+#     r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+#     league_ranking = r.json()
+# #    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})
+#     print(league_ranking['ranking_scores'])
+#     print(league_ranking['yearly_scores'])
+#     print(league_ranking['winners'])
+#     print(league_ranking['last_tournament'])
     #
     # print(environment.get_leagues())
     # print(environment.get_players())
