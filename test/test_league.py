@@ -12,30 +12,31 @@ class TestLeague(unittest.TestCase):
     def test_create_league(self):
         a_league = League(name="example")
         self.assertEqual(a_league.get_all_tournaments(), [])
-        self.assertEqual(a_league.get_open_tournaments(), [])
+        self.assertEqual(a_league.get_all_tournaments(is_open=True), [])
         self.assertEqual(a_league.get_gamblers(), [])
 
     def test_change_league(self):
         a_league = create_league()
-        bet_tournament = a_league.create_tournament(name="Roma", year=2022, nation=create_nation(), n_sets=3,
-                                                    category=TournamentCategory.MASTER_1000, draw_type=Draw16)
-        self.assertEqual(a_league.get_tournament(name="Roma", year=2022), bet_tournament)
+        bet_tournament_id = a_league.create_tournament(name="Roma", year=2022, nation=create_nation(), n_sets=3,
+                                                       category=TournamentCategory.MASTER_1000, draw_type=Draw16)
+        self.assertEqual(("Roma", 2022), bet_tournament_id)
         self.assertEqual(len(a_league.get_all_tournaments()), 1)
-        self.assertEqual(len(a_league.get_open_tournaments()), 1)
+        self.assertEqual(len(a_league.get_all_tournaments(is_open=True)), 1)
+        bet_tournament = a_league.get_tournament(tournament_id=bet_tournament_id)
         self.assertTrue(bet_tournament in a_league.get_all_tournaments())
         with self.assertRaises(LeagueException):
             a_league.create_tournament(name="Roma", year="2022", nation=create_nation(), n_sets=3,
                                        category=TournamentCategory.MASTER_1000, draw_type=Draw16)
-        a_league.close_tournament(name="Roma", year=2022)
-        self.assertFalse(a_league.get_tournament(name="Roma", year=2022).is_open)
+        a_league.close_tournament(tournament_id=("Roma", 2022))
+        self.assertFalse(a_league.get_tournament(tournament_id=("Roma", 2022)).is_open)
         self.assertEqual(len(a_league.get_all_tournaments()), 1)
-        self.assertEqual(len(a_league.get_open_tournaments()), 0)
-        a_league.open_tournament(name="Roma", year=2022)
-        self.assertTrue(a_league.get_tournament(name="Roma", year=2022).is_open)
+        self.assertEqual(len(a_league.get_all_tournaments(is_open=True)), 0)
+        a_league.open_tournament(tournament_id=("Roma", 2022))
+        self.assertTrue(a_league.get_tournament(tournament_id=("Roma", 2022)).is_open)
         with self.assertRaises(LeagueException):
-            a_league.open_tournament(name="Roma", year=2023)
+            a_league.open_tournament(tournament_id=("Roma", 2023))
         with self.assertRaises(LeagueException):
-            a_league.close_tournament(name="Roma", year=2023)
+            a_league.close_tournament(tournament_id=("Roma", 2023))
         a_league.create_tournament(name="Milano", year="2023", nation=create_nation(), n_sets="3",
                                    category=TournamentCategory.MASTER_1000, draw_type=Draw16)
         a_gambler = create_gambler()
@@ -49,10 +50,11 @@ class TestLeague(unittest.TestCase):
             a_league.add_gambler("a_gambler")
         with self.assertRaises(GamblerException):
             a_gambler.add_to_league(a_league)
-        milano = a_league.create_tournament(name="Milano", year=2024, nation=create_nation(), n_sets=3,
-                                            category=TournamentCategory.MASTER_1000, draw_type=Draw16)
-        self.assertEqual(a_league.get_tournament(name="Milano", year=2024), milano)
+        milano_id = a_league.create_tournament(name="Milano", year=2024, nation=create_nation(), n_sets=3,
+                                               category=TournamentCategory.MASTER_1000, draw_type=Draw16)
+        self.assertEqual(("Milano", 2024), milano_id)
         with self.assertRaises(LeagueException):
-            a_league.get_tournament(name="Londra", year=2021)
+            a_league.get_tournament(tournament_id=("Londra", 2021))
+        milano = a_league.get_tournament(tournament_id=milano_id)
         self.assertTrue(a_gambler.is_in_bet_tournament(milano))
         self.assertTrue(a_gambler in milano)

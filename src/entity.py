@@ -1,3 +1,10 @@
+import copy
+
+
+class EntityException(Exception):
+    pass
+
+
 class Entity:
 
     def __init__(self, *id_attributes, unique_attributes=None):
@@ -6,20 +13,28 @@ class Entity:
 
     @property
     def id(self):
-        return tuple(getattr(self, id_attribute) for id_attribute in self._id_attributes)
+        return {id_attribute: getattr(self, id_attribute) for id_attribute in self._id_attributes}
+
+    @property
+    def info(self):
+        raise NotImplementedError
 
     def check_unique_attributes(self, **attributes):
-        id_ = []
+        id_ = {}
         for key in self._id_attributes:
             if key not in attributes:
-                print("Missing id key")
                 return False
             else:
-                id_.append(attributes[key])
-        if tuple(id_) == self.id:
+                id_[key] = attributes[key]
+        if id_ == self.id:
             return False
         for key, value in attributes.items():
             if key in self._unique_attributes and value == getattr(self, key):
-                print("same unique")
                 return False
         return True
+
+    def copy(self):
+        return copy.copy(self)
+
+    def restore(self, old_entity):
+        raise NotImplementedError

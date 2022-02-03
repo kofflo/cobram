@@ -61,7 +61,7 @@ def _manage_entity(entity_name):
             args = _check_all_args(function=creator, source='JSON')
             new_id = creator(**args)
             if new_id is not None:
-                return {entity_name + '_index': new_id}, 201
+                return new_id, 201
             else:
                 return "Cannot create {entity_name}".format(entity_name=entity_name), 400
     except ArgumentError as e:
@@ -99,10 +99,11 @@ def _manage_entity_instance(entity_name, index):
             return getter(**args)
         elif request.method == "PUT":
             #        with admin_permission.require():
-            setter = getattr(environment, "update_{entity_name}_info".format(entity_name=entity_name))
-            _check_args(request.args.keys(), signature(setter).parameters)
+            setter = getattr(environment, "update_{entity_name}".format(entity_name=entity_name))
+            _check_args(request.args.keys(), [])
             json_parameters = request.json
-            _check_args(json_parameters, [])
+            json_parameters['index'] = index
+            _check_args(json_parameters, signature(setter).parameters)
             if setter(index, **request.args):
                 return "Entity update successful"
             else:
@@ -116,7 +117,7 @@ def _manage_entity_instance(entity_name, index):
             if delete(index):
                 return "Entity deletion successful"
             else:
-                return "Entity deletion not successful", 400
+                return "Entity deletion not successful", 409
     except (IndexError, ValueError):
         return "Invalid entity index", 400
     except ArgumentError as e:
@@ -192,9 +193,9 @@ def _manage_league_tournament(league_index):
         if league_index < 0:
             raise IndexError
         if request.method == 'GET':
-            return environment.get_tournaments_for_league(league_index)
+            return environment.get_tournaments(league_index)
         elif request.method == 'POST':
-            creator = environment.add_tournament_to_league
+            creator = environment.create_tournament
             _check_args(request.args.keys(), [])
             json_parameters = request.json
             json_parameters['league_index'] = league_index
@@ -217,7 +218,7 @@ def _manage_league_tournament_instance(league_index, tournament_index):
         if tournament_index < 0:
             raise IndexError
         if request.method == 'GET':
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             return environment.get_tournament_info(league_index, tournament_id)
     except (IndexError, ValueError):
         return "Invalid entity index", 400
@@ -233,7 +234,7 @@ def _tournament_ranking(league_index, tournament_index):
         if tournament_index < 0:
             raise IndexError
         if request.method == 'GET':
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             return environment.get_tournament_ranking(league_index, tournament_id)
     except (IndexError, ValueError):
         return "Invalid entity index", 400
@@ -252,7 +253,7 @@ def _tournament_open(league_index, tournament_index):
             _check_args(request.args.keys(), [])
             json_parameters = request.json
             _check_args(json_parameters, [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             environment.open_tournament(league_index, tournament_id)
             return "Success", 200
     except (IndexError, ValueError):
@@ -272,7 +273,7 @@ def _tournament_players(league_index, tournament_index):
             raise IndexError
         if request.method == 'POST':
             _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             json_parameters = request.json
             json_parameters['league_index'] = league_index
             json_parameters['tournament_id'] = tournament_id
@@ -285,7 +286,7 @@ def _tournament_players(league_index, tournament_index):
         return str(e), 400
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/match', methods=['POST'])
+@app.route('/leagues/<league_index>/tournaments/<tournament_index>/match', methods=['GET', 'POST'])
 def _tournament_match(league_index, tournament_index):
     try:
         league_index = int(league_index)
@@ -296,7 +297,7 @@ def _tournament_match(league_index, tournament_index):
             raise IndexError
         if request.method == 'POST':
             _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             json_parameters = request.json
             json_parameters['league_index'] = league_index
             json_parameters['tournament_id'] = tournament_id
@@ -320,7 +321,7 @@ def _tournament_match_players(league_index, tournament_index):
             raise IndexError
         if request.method == 'POST':
             _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             json_parameters = request.json
             json_parameters['league_index'] = league_index
             json_parameters['tournament_id'] = tournament_id
@@ -344,7 +345,7 @@ def _tournament_alternate(league_index, tournament_index):
             raise IndexError
         if request.method == 'POST':
             _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             json_parameters = request.json
             json_parameters['league_index'] = league_index
             json_parameters['tournament_id'] = tournament_id
@@ -370,7 +371,7 @@ def _tournament_close(league_index, tournament_index):
             _check_args(request.args.keys(), [])
             json_parameters = request.json
             _check_args(json_parameters, [])
-            tournament_id = environment.get_tournaments_for_league(league_index)[tournament_index]
+            tournament_id = environment.get_tournaments(league_index)[tournament_index]
             environment.close_tournament(league_index, tournament_id)
             return "Success", 200
     except (IndexError, ValueError):

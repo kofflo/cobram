@@ -1,8 +1,8 @@
-from entity import Entity
+from entity import Entity, EntityException
 import class_id_strings
 
 
-class PlayerException(Exception):
+class PlayerException(EntityException):
     pass
 
 
@@ -50,3 +50,12 @@ class Player(Entity):
         if not class_id_strings.check_class_id(input_nation, class_id_strings.NATION_ID):
             raise PlayerException(Player.INVALID_NATION_FOR_A_PLAYER)
         self._nation = input_nation
+
+    @property
+    def info(self):
+        return {'name': self.name, 'surname': self.surname, 'nation': self.nation}
+
+    def restore(self, old_player):
+        self.name = old_player.name
+        self.surname = old_player.surname
+        self.nation = old_player.nation

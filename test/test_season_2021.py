@@ -21,26 +21,26 @@ def entity_id_to_index(entity_name, id_):
 #    getter = getattr(environment, 'get_{entity_name}s'.format(entity_name=entity_name))
 #    all_entities = getter()
     for entity_index, entity_id in all_entities.items():
-        if entity_id == list(id_):
+        if entity_id == id_:
             return entity_index
     else:
         return None
 
 
 def gambler_nickname_to_index(nickname):
-    return entity_id_to_index('gambler', (nickname,))
+    return entity_id_to_index('gambler', {'nickname': nickname})
 
 
 def league_name_to_index(name):
-    return entity_id_to_index('league', (name,))
+    return entity_id_to_index('league', {'name': name})
 
 
 def nation_code_to_index(code):
-    return entity_id_to_index('nation', (code,))
+    return entity_id_to_index('nation', {'code': code})
 
 
 def player_name_surname_to_index(name, surname):
-    return entity_id_to_index('player', (name, surname))
+    return entity_id_to_index('player', {'name': name, 'surname': surname})
 
 
 def tournament_name_year_to_index(league_index, name, year):
@@ -277,7 +277,7 @@ def test_season_2021():
 
 #    coppa_cobram_index = environment.create_league(name="Coppa Cobram")
     r = requests.post(URL + '/leagues', json={'name': 'Coppa Cobram'})
-    coppa_cobram_index = r.json()['league_index']
+    coppa_cobram_index = r.json()['index']
 
     gamblers_list = [
         ["Ciccio", 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
@@ -434,13 +434,13 @@ def test_season_2021():
         "Ciccio":    ['B2', 'A3', 'B4', 'B3', 'B3', 'A5', 'C2', 'A5', 'A4', 'A6', 'C2', 'A7', 'B5', 'B3'],
         "Conte":     ['B2', 'C1', 'B4', 'B3', 'B3', 'B3', 'C2', 'C1', 'B2', 'B1', 'C2', 'B2', 'C2', 'B3'],
         "Franki":    ['C2', 'A1', 'B1', 'D1', 'A2', 'A5', None, None, None, 'B1', None, None, None, 'B1'],
-        "Giovanni":  ['D1', 'C1', 'D1', 'C2', 'B2', 'B1', 'C1', 'D1', 'C1', 'C2', None, None, 'D1', None],
+        "Giovanni":  ['D1', 'C1', 'D1', 'C2', 'B2', 'B1', 'C1', 'D1', 'C1', 'C2', None, None, 'D1', 'D1'],
         "Mimmo":     ['C1', 'D1', 'B4', 'C2', 'B4', 'D1', None, 'B1', None, None, None, None, 'D1', None],
-        "Monci":     ['B2', 'B2', 'D1', 'B2', 'B3', 'B1', 'C2', 'C1', 'B2', 'B4', 'C2', 'B2', 'B6', None],
-        "Zoo":       ['B2', 'A3', 'A5', 'A6', 'B3', 'B4', 'C2', 'A2', 'A4', 'B3', 'C1', 'A7', 'B6', None],
+        "Monci":     ['B2', 'B2', 'D1', 'B2', 'B3', 'B1', 'C2', 'C1', 'B2', 'B4', 'C2', 'B2', 'B6', 'C1'],
+        "Zoo":       ['B2', 'A3', 'A5', 'A6', 'B3', 'B4', 'C2', 'A2', 'A4', 'B3', 'C1', 'A7', 'B6', 'C2'],
         "Celli":     ['D1', 'B1', 'A1', 'B4', 'B2', 'B1', 'C1', 'C2', 'C1', 'B2', 'C1', 'A8', 'A2', 'B1'],
-        "Simone":    ['A5', 'A3', 'A5', 'B2', None, 'A2', 'C2', 'B1', 'A7', 'C2', 'C2', None, 'D1', None],
-        "Furone":    ['B2', 'B4', 'A1', 'C2', 'B2', 'B1', 'D1', 'C2', 'D1', None, 'C2', 'D1', 'D1', None],
+        "Simone":    ['A5', 'A3', 'A5', 'B2', None, 'A2', 'C2', 'B1', 'A7', 'C2', 'C2', None, 'D1', 'D1'],
+        "Furone":    ['B2', 'B4', 'A1', 'C2', 'B2', 'B1', 'D1', 'C2', 'D1', None, 'C2', 'D1', 'D1', 'D1'],
         "Muffo":     ['C1', 'A1', 'B1', 'C1', 'A7', 'B1', 'C1', 'B3', 'C1', 'B4', None, 'B2', 'C2', 'B4'],
         "Macchia":   ['D1', 'D1', 'C2', 'C1', 'D1', 'A4', 'C2', 'C2', 'C2', 'C2', 'B1', 'B2', 'D1', None],
         "Francesco": [None, None, 'B4', 'A6', 'B3', 'B3', 'C2', 'C2', 'A4', 'A6', 'B3', 'A7', 'A4', 'B1']
@@ -750,6 +750,12 @@ def test_season_2021():
 
     gambler_index = gambler_nickname_to_index("Macchia")
     r = requests.delete(URL + '/leagues/{league_index}/gamblers'.format(league_index=coppa_cobram_index), json={'gambler_index': gambler_index})
+
+    # Chiudo AO 2022
+    tournament_index = tournament_name_year_to_index(coppa_cobram_index, "Australian Open", 2022)
+    r = requests.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/close'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    #        environment.close_tournament(**{'league_index': coppa_cobram_index, 'tournament_id': (name, year)})
+
     r = requests.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
     league_ranking = r.json()
 #    league_ranking = environment.get_league_ranking(**{'league_index': coppa_cobram_index})

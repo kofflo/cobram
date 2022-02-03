@@ -1,0 +1,16 @@
+Miomir	Kecmanovic
+Gael	Monfils	17
+Pablo	Carreno Busta	19
+Matteo	Berrettini	7
+Alexander	Zverev	3
+Denis	Shapovalov	14
+Adrian	Mannarino
+Rafael	Nadal	6
+Alex	De Minaur	32
+Jannik	Sinner	11
+Taylor	Fritz	20
+Stefanos	Tsitsipas	4
+Marin	Cilic	27
+Felix	Auger-Aliassime	9
+Maxime	Cressy
+Daniil	Medvedev	2

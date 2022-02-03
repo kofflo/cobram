@@ -189,6 +189,10 @@ class Tournament:
             return self._players[draw_winner]
         return None
 
+    @property
+    def id(self):
+        return self.name, self.year
+
     def get_match(self, *, match_id):
         return self.create_match_dict(*self._draw.get_match(match_id))
 

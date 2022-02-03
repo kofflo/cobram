@@ -1,8 +1,8 @@
-from entity import Entity
+from entity import Entity, EntityException
 import class_id_strings
 
 
-class GamblerException(Exception):
+class GamblerException(EntityException):
     pass
 
 
@@ -30,6 +30,10 @@ class Gambler(Entity):
         if not isinstance(input_nickname, str) or len(input_nickname) == 0:
             raise GamblerException(Gambler.INVALID_NICKNAME_FOR_A_GAMBLER)
         self._nickname = input_nickname
+
+    @property
+    def info(self):
+        return {'nickname': self.nickname}
 
     def add_to_league(self, league):
         if not class_id_strings.check_class_id(league, class_id_strings.LEAGUE_ID):
@@ -75,3 +79,6 @@ class Gambler(Entity):
 
     def get_leagues(self):
         return set(self._leagues)
+
+    def restore(self, old_gambler):
+        self.nickname = old_gambler.nickname
