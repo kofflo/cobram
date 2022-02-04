@@ -2,10 +2,7 @@ import copy
 
 import class_id_strings
 from match import Match
-
-
-class DrawException(Exception):
-    pass
+from base_error import BaseError
 
 
 class Draw:
@@ -16,7 +13,8 @@ class Draw:
     THE_REFERENCE_DRAW_OF_A_DRAW_CANNOT_BE_MODIFIED = "The reference draw of a draw cannot be modified"
     INVALID_MATCH_ID = "Invalid match ID"
     MATCH_PLAYERS_STILL_NOT_DEFINED = "Match players still not defined"
-    CANNOT_UPDATE_A_SCORE_WITHOUT_FORCE_FLAG = "Cannot update a score without force flag"
+    CANNOT_CHANGE_SCORE_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG \
+        = "Cannot change score on a played match without force flag"
     _number_players = None
     _number_matches = None
 
@@ -55,9 +53,9 @@ class Draw:
     @tournament.setter
     def tournament(self, input_tournament):
         if not class_id_strings.check_class_id(input_tournament, class_id_strings.TOURNAMENT_ID):
-            raise DrawException(Draw.INVALID_TOURNAMENT_FOR_A_DRAW)
+            raise DrawError(Draw.INVALID_TOURNAMENT_FOR_A_DRAW)
         if self.tournament is not None:
-            raise DrawException(Draw.THE_TOURNAMENT_OF_A_DRAW_CANNOT_BE_MODIFIED)
+            raise DrawError(Draw.THE_TOURNAMENT_OF_A_DRAW_CANNOT_BE_MODIFIED)
         self._tournament = input_tournament
 
     @property
@@ -67,13 +65,13 @@ class Draw:
     @reference_draw.setter
     def reference_draw(self, input_reference_draw):
         if self.reference_draw is not None:
-            raise DrawException(Draw.THE_REFERENCE_DRAW_OF_A_DRAW_CANNOT_BE_MODIFIED)
+            raise DrawError(Draw.THE_REFERENCE_DRAW_OF_A_DRAW_CANNOT_BE_MODIFIED)
         if input_reference_draw is None:
             input_reference_draw = self
         elif type(input_reference_draw) is not type(self) \
                 or self.tournament is not input_reference_draw.tournament \
                 or input_reference_draw.reference_draw is not input_reference_draw:
-            raise DrawException(Draw.INVALID_REFERENCE_DRAW_FOR_A_DRAW)
+            raise DrawError(Draw.INVALID_REFERENCE_DRAW_FOR_A_DRAW)
         self._reference_draw = input_reference_draw
 
     @property
@@ -123,7 +121,7 @@ class Draw:
         round_index, match_index = self._match_id_to_indexes(match_id)
         match = self._matches[round_index][match_index]
         if match.score is not None and not force:
-            raise DrawException(Draw.CANNOT_UPDATE_A_SCORE_WITHOUT_FORCE_FLAG)
+            raise DrawError(Draw.CANNOT_CHANGE_SCORE_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG)
         round_index, match_index = self._match_id_to_indexes(match_id)
         match = self._matches[round_index][match_index]
         if score is None:
@@ -138,7 +136,7 @@ class Draw:
                 winner = players[match.winner]
                 self._update_players_after_score(match_id, winner)
         else:
-            raise DrawException(Draw.MATCH_PLAYERS_STILL_NOT_DEFINED)
+            raise DrawError(Draw.MATCH_PLAYERS_STILL_NOT_DEFINED)
 
     @property
     def _final_indexes(self):
@@ -157,7 +155,7 @@ class Draw:
             self._check_indexes(round_index, match_index)
             return round_index, match_index
         except (IndexError, TypeError, ValueError):
-            raise DrawException(Draw.INVALID_MATCH_ID)
+            raise DrawError(Draw.INVALID_MATCH_ID)
 
     def _indexes_to_match_id(self, round_index, match_index):
         try:
@@ -166,7 +164,7 @@ class Draw:
             match_code = str(match_index + 1)
             return round_code + match_code
         except IndexError:
-            raise DrawException(Draw.INVALID_MATCH_ID)
+            raise DrawError(Draw.INVALID_MATCH_ID)
 
     def _create_matches(self):
         for round_index in range(self.number_rounds):
@@ -251,35 +249,34 @@ class Draw16(KnockOutDraw):
 
 
 class DrawRoundRobin(Draw):
-    _number_players = 10
+    _number_players = 12
     _number_matches = 15
     _NUMBER_MATCHES_FOR_ROUND = [6, 6, 2, 1]
     INVALID_GROUP = "Invalid group"
-    THE_FIRST_EIGHT_PLAYERS_MUST_BE_ASSIGNED_TO_THE_GROUPS = "The first eight players must be assigned to the groups"
     INVALID_INDEX_FOR_AN_ALTERNATE = "Invalid index for an alternate"
     ALTERNATE_ALREADY_ADDED_TO_A_GROUP = "Alternate already added to a group"
     PLAYER_NOT_YET_ADDED_TO_GROUP = "Player not yet added to group"
     PLAYERS_NOT_IN_SAME_GROUP = "Players not in the same group"
     PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH = "Players not in the same group as match"
+    PLAYERS_COME_FROM_SAME_GROUP = "Players come from the same group"
     GROUPS_ARE_NOT_COMPLETE_YET = "Groups are not complete yet"
     PLAYERS_CANNOT_BE_ADDED_MANUALLY_TO_FINAL = "Players cannot be added manually to final"
     CANNOT_UPDATE_MATCH_PLAYERS_WITHOUT_FORCE_FLAG = "Cannot update match players without force flag"
+    INVALID_PLAYER_PLACE_IN_DRAW = "Invalid player place in draw"
+    MUST_ADD_BOTH_PLAYERS_TO_A_MATCH = "Must add both players to a match"
+    CANNOT_RESET_PLAYER_IN_ROUND_ROBIN_DRAW = "Cannot reset player in round robin draw"
 
     def __init__(self, *, tournament, reference_draw=None):
         super().__init__(tournament=tournament, reference_draw=reference_draw)
-        self._alternate_group = [None, None]
 
-    def get_group(self, player):
-        if player in range(4):
+    @staticmethod
+    def get_group(place):
+        if place in range(4) or place in range(8, 10):
             return "A"
-        elif player in range(4, 8):
+        elif place in range(4, 8) or place in range(10, 12):
             return "B"
-        elif player == 8:
-            return self._alternate_group[0]
-        elif player == 9:
-            return self._alternate_group[1]
         else:
-            return None
+            raise DrawError(DrawRoundRobin.INVALID_PLAYER_PLACE_IN_DRAW)
 
     @property
     def number_rounds(self):
@@ -289,6 +286,7 @@ class DrawRoundRobin(Draw):
         return False
 
     def advance_byes(self, byes):
+        # No byes allowed in DrawRoundRobin
         pass
 
     def number_matches_for_round(self, round_index):
@@ -302,46 +300,36 @@ class DrawRoundRobin(Draw):
             self._players.append(round_players)
 
     def add_players_to_match(self, match_id, player_1, player_2, *, force=False):
-        if self.get_group(player_1) is None or self.get_group(player_2) is None:
-            raise DrawException(DrawRoundRobin.PLAYER_NOT_YET_ADDED_TO_GROUP)
         round_index, match_index = self._match_id_to_indexes(match_id)
-        if round_index in [0, 1]:
-            if self.get_group(player_1) != self.get_group(player_2):
-                raise DrawException(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP)
-            if self.get_group(player_1) != ["A", "B"][round_index]:
-                raise DrawException(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH)
-        elif round_index == 2:
-            if not self._is_group_complete(0) and not self._is_group_complete(1):
-                raise DrawException(DrawRoundRobin.GROUPS_ARE_NOT_COMPLETE_YET)
-            if self.get_group(player_1) == self.get_group(player_2):
-                raise DrawException(DrawRoundRobin.PLAYERS_ARE_IN_SAME_GROUP)
-        elif round_index == 3:
-            raise DrawException(DrawRoundRobin.PLAYERS_CANNOT_BE_ADDED_MANUALLY_TO_FINAL)
+        if player_1 is None and player_2 is not None or player_1 is not None and player_2 is None:
+            raise DrawError(DrawRoundRobin.MUST_ADD_BOTH_PLAYERS_TO_A_MATCH)
+        if not (player_1 is None and player_2 is None):
+            self._check_valid_players(round_index, player_1, player_2)
         if self._players[round_index][match_index] != [None, None]:
             if not force:
-                raise DrawException(DrawRoundRobin.CANNOT_UPDATE_MATCH_PLAYERS_WITHOUT_FORCE_FLAG)
+                raise DrawError(DrawRoundRobin.CANNOT_UPDATE_MATCH_PLAYERS_WITHOUT_FORCE_FLAG)
             else:
                 self._players[round_index][match_index] = [player_1, player_2]
                 self.set_match_score(match_id, None, force=True)
         else:
             self._players[round_index][match_index] = [player_1, player_2]
 
-    def add_alternate_to_group(self, alternate, group_id):
-        if group_id not in ["A", "B"]:
-            raise DrawException(DrawRoundRobin.INVALID_GROUP)
-        if alternate not in [8, 9]:
-            raise DrawException(DrawRoundRobin.INVALID_INDEX_FOR_AN_ALTERNATE)
-        if self._alternate_group[alternate - 8] is not None:
-            raise DrawException(DrawRoundRobin.ALTERNATE_ALREADY_ADDED_TO_A_GROUP)
-        self._alternate_group[alternate - 8] = group_id
-
-    def remove_alternate_from_group(self, alternate):
-        if alternate not in [8, 9]:
-            raise DrawException(DrawRoundRobin.INVALID_INDEX_FOR_AN_ALTERNATE)
-        self._alternate_group[alternate - 8] = None
+    def _check_valid_players(self, round_index, player_1, player_2):
+        if round_index in [0, 1]:
+            if self.get_group(player_1) != self.get_group(player_2):
+                raise DrawError(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP)
+            if self.get_group(player_1) != ["A", "B"][round_index]:
+                raise DrawError(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH)
+        elif round_index == 2:
+            if not self._is_group_complete(0) and not self._is_group_complete(1):
+                raise DrawError(DrawRoundRobin.GROUPS_ARE_NOT_COMPLETE_YET)
+            if self.get_group(player_1) == self.get_group(player_2):
+                raise DrawError(DrawRoundRobin.PLAYERS_COME_FROM_SAME_GROUP)
+        elif round_index == 3:
+            raise DrawError(DrawRoundRobin.PLAYERS_CANNOT_BE_ADDED_MANUALLY_TO_FINAL)
 
     def reset_player(self, index):
-        raise NotImplementedError
+        raise DrawError(DrawRoundRobin.CANNOT_RESET_PLAYER_IN_ROUND_ROBIN_DRAW)
 
     def _update_players_after_score(self, match_id, winner):
         round_index, match_index = self._match_id_to_indexes(match_id)
@@ -355,3 +343,7 @@ class DrawRoundRobin(Draw):
                 round_complete = False
                 break
         return round_complete
+
+
+class DrawError(BaseError):
+    _reference_class = Draw

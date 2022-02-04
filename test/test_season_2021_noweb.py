@@ -132,7 +132,7 @@ def rearrange_players(tournaments, players_list):
     line_index = 0
     for index, tournament in enumerate(tournaments):
         tournament_players = []
-        number_players = 16 if tournament[6] == 'Draw16' else 10
+        number_players = 16 if tournament[6] == 'Draw16' else 12
         for player_index in range(number_players):
             if len(players_list[line_index]) == 3:
                 player_name, player_surname, seed = players_list[line_index]
@@ -404,22 +404,6 @@ def test_season_2021():
 
         if draw_type == 'DrawRoundRobin':
             if tournament[0] == 'ATP Finals':
-                environment.add_alternate_to_group(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'player_index': player_name_surname_to_index("Jannik", "Sinner"),
-                        'group': "A"
-                    }
-                )
-                environment.add_alternate_to_group(
-                    **{
-                        'league_index': coppa_cobram_index,
-                        'tournament_id': (name, year),
-                        'player_index': player_name_surname_to_index("Cameron", "Norrie"),
-                        'group': "B"
-                    }
-                )
                 environment.add_players_to_match(
                     **{
                         'league_index': coppa_cobram_index,

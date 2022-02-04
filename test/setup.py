@@ -69,7 +69,7 @@ def create_bet_tournament(n_sets=None):
                         category=TournamentCategory.MASTER_1000, draw_type=Draw16)
     for i in range(16):
         seed = i + 1 if i < 14 else None
-        bet.add_player(create_player(), seed=seed)
+        bet.set_player(i, create_player(), seed=seed)
     return bet
 
 

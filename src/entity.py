@@ -1,7 +1,9 @@
 import copy
 
+from base_error import BaseError
 
-class EntityException(Exception):
+
+class EntityError(BaseError):
     pass
 
 

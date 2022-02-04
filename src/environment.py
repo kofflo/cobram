@@ -1,12 +1,12 @@
 import pickle
 
-from league import League, LeagueException
+from league import League, LeagueError
 from nation import Nation
 from player import Player
 from gambler import Gambler
-from entity import EntityException
-from draw import Draw16, DrawRoundRobin
-from tournament import Tournament, TournamentCategory, TieBreaker5th, TournamentException
+from entity import EntityError
+from draw import Draw16, DrawRoundRobin, DrawError
+from tournament import Tournament, TournamentCategory, TieBreaker5th, TournamentError
 
 _league_objects = []
 _player_objects = [Tournament.BYE]
@@ -24,7 +24,7 @@ def _apply_filter(item, **filters):
 
 
 def _get_entities(entity_name, **search_fields):
-    all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
+    all_entities = globals()[f'_{entity_name}_objects']
     return {entity_index: entity.id for entity_index, entity in enumerate(all_entities)
             if _apply_filter(entity, **search_fields)}
 
@@ -80,14 +80,14 @@ def get_nation_info(index):
 
 
 def _create_entity(entity_name, **attributes):
-    all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
+    all_entities = globals()[f'_{entity_name}_objects']
     for entity in all_entities:
         if not entity.check_unique_attributes(**attributes):
             return None
     class_name = entity_name.capitalize()
     try:
         new_entity = globals()[class_name](**attributes)
-    except EntityException:
+    except EntityError:
         return None
     all_entities.append(new_entity)
     return {len(all_entities) - 1: new_entity.id}
@@ -118,7 +118,7 @@ def add_gambler_to_league(league_index, gambler_index, initial_score):
     try:
         league.add_gambler(gambler, initial_score=initial_score)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -130,7 +130,7 @@ def remove_gambler_from_league(league_index, gambler_index):
     try:
         league.remove_gambler(gambler)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -142,7 +142,7 @@ def deactivate_gambler_from_league(league_index, gambler_index):
     try:
         league.deactivate_gambler(gambler)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -154,7 +154,7 @@ def activate_gambler_from_league(league_index, gambler_index):
     try:
         league.activate_gambler(gambler)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -169,10 +169,11 @@ def get_tournaments(league_index, is_open=None):
     league = _get_league(league_index)
     if league is None:
         return None
-    return {index: tournament.id for index, tournament in enumerate(league.get_all_tournaments())}
+    return {index: tournament.id for index, tournament in enumerate(league.get_all_tournaments(is_open))}
 
 
-def create_tournament(league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type, previous_year_scores=None, ghost=False):
+def create_tournament(league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
+                      previous_year_scores=None, ghost=False):
     league = _get_league(league_index)
     nation = _get_nation(nation_index)
     if league is None or nation is None:
@@ -189,7 +190,8 @@ def create_tournament(league_index, name, nation_index, year, n_sets, tie_breake
     else:
         return None
     if previous_year_scores is not None:
-        previous_year_scores = {_get_gambler(gambler_index): score for gambler_index, score in previous_year_scores.items()}
+        previous_year_scores = {_get_gambler(gambler_index): score for gambler_index, score
+                                in previous_year_scores.items()}
     else:
         previous_year_scores = {}
     try:
@@ -199,7 +201,7 @@ def create_tournament(league_index, name, nation_index, year, n_sets, tie_breake
                                                  previous_year_scores=previous_year_scores,
                                                  ghost=ghost)
         return {league.get_tournament_index(tournament_id=tournament_id): tournament_id}
-    except LeagueException:
+    except LeagueError as e:
         return None
 
 
@@ -210,7 +212,7 @@ def delete_tournament(league_index, tournament_id):
     try:
         league.remove_tournament(tournament_id)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -224,14 +226,14 @@ def update_tournament(league_index, tournament_id, nation_index=None):
         return None
     try:
         tournament = league.get_tournament(tournament_id)
-    except LeagueException:
+    except LeagueError:
         return None
     old_nation = tournament.nation
     try:
         if nation is not None:
             tournament.nation = nation
         return {league.get_tournament_index(tournament_id=tournament.id): tournament.id}
-    except TournamentException:
+    except TournamentError:
         tournament.nation = old_nation
 
 
@@ -244,15 +246,14 @@ def get_tournament_matches(league_index, tournament_id, gambler_index):
     if league is None or (gambler is None and gambler_index is not None):
         return None
     try:
-        tournament = league.get_tournament(tournament_id=tournament_id)
-    except LeagueException:
+        matches = league.get_matches(tournament_id=tournament_id, gambler=gambler)
+    except LeagueError:
         return None
-    matches = tournament.get_matches(gambler=gambler)
     return_structure = {}
     if gambler is None:
         for match_id, match in matches.items():
-            player_1 = _get_player_index(match['player_1'])
-            player_2 = _get_player_index(match['player_2'])
+            player_1 = _get_player_index(match['player_1']) if match['player_1'] is not None else None
+            player_2 = _get_player_index(match['player_2']) if match['player_2'] is not None else None
             winner = _get_player_index(match['winner']) if match['winner'] is not None else None
             return_structure[match_id] = {
                 'player_1': player_1,
@@ -278,12 +279,12 @@ def get_tournament_info(league_index, tournament_id):
     if league is None:
         return None
     try:
-        tournament = league.get_tournament(tournament_id=tournament_id)
-    except LeagueException:
+        tournament_info = league.get_tournament_info(tournament_id=tournament_id)
+    except LeagueError:
         return None
-    tournament_info = tournament.info
     tournament_info['nation'] = _get_nation_index(tournament_info['nation'])
-    tournament_info['tie_breaker_5th'] = tournament_info['tie_breaker_5th'].name if tournament_info['tie_breaker_5th'] is not None else None
+    tournament_info['tie_breaker_5th'] = tournament_info['tie_breaker_5th'].name \
+        if tournament_info['tie_breaker_5th'] is not None else None
     tournament_info['category'] = tournament_info['category'].name
     tournament_info['draw_type'] = type(tournament_info['draw_type']).__name__
     return tournament_info
@@ -296,8 +297,15 @@ def get_tournament_players(league_index, tournament_id):
     try:
         tournament = league.get_tournament(tournament_id=tournament_id)
         players = tournament.get_players()
-        return {place: ({'index': _get_player_index(player), 'seed': tournament.get_seed(player)} if player is not None else None) for place, player in enumerate(players)}
-    except (LeagueException, TournamentException):
+        return {
+            place: (
+                {
+                    'index': _get_player_index(player),
+                    'seed': tournament.get_seed(player)
+                } if player is not None else None
+            ) for place, player in enumerate(players)
+        }
+    except (LeagueError, TournamentError):
         return None
 
 
@@ -308,7 +316,7 @@ def close_tournament(league_index, tournament_id):
     try:
         league.close_tournament(tournament_id=tournament_id)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -319,7 +327,7 @@ def open_tournament(league_index, tournament_id):
     try:
         league.open_tournament(tournament_id=tournament_id)
         return True
-    except LeagueException:
+    except LeagueError:
         return False
 
 
@@ -329,10 +337,19 @@ def get_league_ranking(league_index):
         return None
     ranking_scores, yearly_scores, winners, last_tournament = league.get_ranking()
     ranking_scores = {_get_gambler_index(gambler): score for gambler, score in ranking_scores.items()}
-    yearly_scores = {year: {_get_gambler_index(gambler): score for gambler, score in year_scores.items()} for year, year_scores in yearly_scores.items()}
-    winners = {league.get_tournament_index(tournament_id=tournament_id): _get_gambler_index(winner) for tournament_id, winner in winners.items()}
-    last_tournament = league.get_tournament_index(tournament_id=last_tournament.id) if last_tournament is not None else None
-    return {'ranking_scores': ranking_scores, 'yearly_scores': yearly_scores, 'winners': winners, 'last_tournament': last_tournament}
+    yearly_scores = {
+        year: {
+            _get_gambler_index(gambler): score for gambler, score in year_scores.items()
+               } for year, year_scores in yearly_scores.items()
+    }
+    winners = {
+        league.get_tournament_index(tournament_id=tournament_id): _get_gambler_index(winner)
+        for tournament_id, winner in winners.items()
+    }
+    last_tournament = league.get_tournament_index(tournament_id=last_tournament.id) \
+        if last_tournament is not None else None
+    return {'ranking_scores': ranking_scores, 'yearly_scores': yearly_scores,
+            'winners': winners, 'last_tournament': last_tournament}
 
 
 def get_tournament_ranking(league_index, tournament_id):
@@ -340,15 +357,22 @@ def get_tournament_ranking(league_index, tournament_id):
     if league is None:
         return None
     try:
-        tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = league.get_tournament_ranking(tournament_id=tournament_id)
+        tournament_scores, tournament_ranking_scores, joker_gambler_seed_points \
+            = league.get_tournament_ranking(tournament_id=tournament_id)
         previous_year_ranking_scores = league.get_previous_year_scores(tournament_id=tournament_id)
-        is_open = league.get_tournament(tournament_id=tournament_id).is_open
-    except LeagueException:
+        is_open = league.is_open(tournament_id=tournament_id)
+    except LeagueError:
         return None
     tournament_scores = {_get_gambler_index(gambler): score for gambler, score in tournament_scores.items()}
-    tournament_ranking_scores = {_get_gambler_index(gambler): score for gambler, score in tournament_ranking_scores.items()}
-    previous_year_ranking_scores = {_get_gambler_index(gambler): score for gambler, score in previous_year_ranking_scores.items()}
-    joker_gambler_seed_points = {_get_gambler_index(gambler): score for gambler, score in joker_gambler_seed_points.items()}
+    tournament_ranking_scores = {
+        _get_gambler_index(gambler): score for gambler, score in tournament_ranking_scores.items()
+    }
+    previous_year_ranking_scores = {
+        _get_gambler_index(gambler): score for gambler, score in previous_year_ranking_scores.items()
+    }
+    joker_gambler_seed_points = {
+        _get_gambler_index(gambler): score for gambler, score in joker_gambler_seed_points.items()
+    }
     return {'tournament_scores': tournament_scores, 'tournament_ranking_scores': tournament_ranking_scores,
             'previous_year_ranking_scores': previous_year_ranking_scores,
             'joker_gambler_seed_points': joker_gambler_seed_points, 'is_open': is_open}
@@ -363,9 +387,9 @@ def add_player_to_tournament(league_index, tournament_id, player_index, place, s
     if league is None or (player is None and player_index is not None):
         return False
     try:
-        league.get_tournament(tournament_id=tournament_id).set_player(place, player, seed=seed, force=True)
+        league._get_tournament(tournament_id=tournament_id).set_player(place, player, seed=seed, force=True) ###QUI###
         return True
-    except (LeagueException, TournamentException):
+    except (LeagueError, TournamentError):
         return False
 
 
@@ -375,22 +399,22 @@ def set_match_score(league_index, tournament_id, gambler_index, match_id, score,
         return False
     if gambler_index is None:
         try:
-            league.get_tournament(tournament_id=tournament_id).set_match_score(match_id=match_id,
+            league._get_tournament(tournament_id=tournament_id).set_match_score(match_id=match_id,###QUI###
                                                                                score=score)
             return True
-        except (LeagueException, TournamentException):
+        except (LeagueError, TournamentError):
             return False
     else:
         gambler = _get_gambler(gambler_index)
         if gambler is None:
             return False
         try:
-            league.get_tournament(tournament_id=tournament_id).set_match_score(gambler=gambler,
+            league._get_tournament(tournament_id=tournament_id).set_match_score(gambler=gambler, ###QUI###
                                                                                match_id=match_id,
                                                                                score=score,
                                                                                joker=joker)
             return True
-        except (LeagueException, TournamentException):
+        except (LeagueError, TournamentError):
             return False
 
 
@@ -404,12 +428,41 @@ def add_alternate_to_group(league_index, tournament_id, player_index, group):
 
 def add_players_to_match(league_index, tournament_id, match_id, player_1_index, player_2_index):
     league = _get_league(league_index)
-    tournament = league.get_tournament(tournament_id=tournament_id)
-    player_1 = _get_player(player_1_index)
-    player_2 = _get_player(player_2_index)
-    player_1_tournament_index = tournament.get_players().index(player_1)
-    player_2_tournament_index = tournament.get_players().index(player_2)
-    tournament.draw.add_players_to_match(match_id, player_1_tournament_index, player_2_tournament_index)
+    if league is None:
+        return False
+    try:
+        tournament = league._get_tournament(tournament_id=tournament_id)###QUI###
+    except LeagueError:
+        return False
+    if player_1_index is not None:
+        player_1 = _get_player(player_1_index)
+    else:
+        player_1 = None
+    if player_2_index is not None:
+        player_2 = _get_player(player_2_index)
+    else:
+        player_2 = None
+    if player_1 is None and player_1_index is not None or player_2 is None and player_2_index is not None:
+        return False
+    if player_1 is not None:
+        try:
+            player_1_tournament_index = tournament.get_players().index(player_1)
+        except TournamentError:
+            return False
+    else:
+        player_1_tournament_index = None
+    if player_2 is not None:
+        try:
+            player_2_tournament_index = tournament.get_players().index(player_2)
+        except TournamentError:
+            return False
+    else:
+        player_2_tournament_index = None
+    try:
+        tournament.draw.add_players_to_match(match_id, player_1_tournament_index, player_2_tournament_index)
+    except DrawError:
+        return False
+    return True
 
 
 def save(filename):
@@ -444,7 +497,7 @@ def load(filename):
 
 
 def _get_entity(entity_name, index):
-    all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
+    all_entities = globals()[f'_{entity_name}_objects']
     try:
         return all_entities[index]
     except IndexError:
@@ -484,7 +537,7 @@ def _check_references(entity_name, index, reference_entity_name):
 
 
 def _delete_entity(entity_name, index):
-    all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
+    all_entities = globals()[f'_{entity_name}_objects']
     del all_entities[index]
     return True
 
@@ -526,7 +579,7 @@ def _update_entity(entity_name, index, **attributes):
         if value is not None:
             try:
                 setattr(update_entity, key, value)
-            except EntityException:
+            except EntityError:
                 update_entity.restore(old_entity)
                 return None
     return {index: update_entity.id}

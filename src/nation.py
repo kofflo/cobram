@@ -1,9 +1,5 @@
-from entity import Entity, EntityException
+from entity import Entity, EntityError
 import class_id_strings
-
-
-class NationException(EntityException):
-    pass
 
 
 class Nation(Entity):
@@ -26,7 +22,7 @@ class Nation(Entity):
     @name.setter
     def name(self, input_name):
         if not isinstance(input_name, str) or len(input_name) == 0:
-            raise NationException(Nation.INVALID_NAME_FOR_A_NATION)
+            raise NationError(Nation.INVALID_NAME_FOR_A_NATION)
         self._name = input_name
 
     @property
@@ -36,7 +32,7 @@ class Nation(Entity):
     @code.setter
     def code(self, input_code):
         if not isinstance(input_code, str) or len(input_code) != 3:
-            raise NationException(Nation.INVALID_CODE_FOR_A_NATION)
+            raise NationError(Nation.INVALID_CODE_FOR_A_NATION)
         self._code = input_code
 
     @property
@@ -46,3 +42,7 @@ class Nation(Entity):
     def restore(self, old_nation):
         self.name = old_nation.name
         self.code = old_nation.code
+
+
+class NationError(EntityError):
+    _reference_class = Nation

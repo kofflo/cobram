@@ -1,7 +1,7 @@
 import unittest
 
-from draw import Draw, KnockOutDraw, Draw16, DrawException
-from match import MatchException
+from draw import Draw, KnockOutDraw, Draw16, DrawError
+from match import MatchError
 from setup import create_tournament
 
 
@@ -24,19 +24,19 @@ class TestDraw(unittest.TestCase):
         self.assertEqual(draw.get_match("B2"), (None, [None, None], None, None))
         self.assertIs(draw.winner, None)
         # Invalid creation
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw = Draw16(tournament="roma")
         # Invalid getters
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.get_match("A9")  # Invalid match number
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.get_match("E1")  # Invalid round number
         # Valid creation
         Draw16(tournament=roma, reference_draw=draw)
         # Invalid creation
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             Draw16(tournament=roma, reference_draw="draw")
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             Draw16(tournament=create_tournament(), reference_draw=draw)
 
     def test_change_draw(self):
@@ -49,11 +49,11 @@ class TestDraw(unittest.TestCase):
         draw.set_match_score("A2", score)
         self.assertEqual(draw.get_match("B1"), (None, [0, 2], None, None))
         # Invalid change
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.tournament = create_tournament(n_sets=3)
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.set_match_score("E1", score)  # Invalid round number
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.set_match_score("B2", score)  # Match players not yet defined
         # Valid change
         draw.set_match_score("A3", score)
@@ -72,13 +72,13 @@ class TestDraw(unittest.TestCase):
         self.assertEqual(draw.get_match("D1"), (score, [0, 8], 0, (2, 0)))
         self.assertEqual(draw.winner, 0)
         # Invalid change
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.set_match_score("A1", [[4, 6], [4, 6]])  # Update without force flag
         # Valid change
         draw.set_match_score("A1", [[4, 6], [4, 6]], force=True)
         self.assertEqual(draw.winner, 1)
         # Invalid change
-        with self.assertRaises(MatchException):
+        with self.assertRaises(MatchError):
             draw.set_match_score("D1", [[6, 4]], force=True)  # No winner
         # Valid change
         draw.set_match_score("A1", None, force=True)
@@ -90,12 +90,12 @@ class TestDraw(unittest.TestCase):
 
         self.assertEqual(draw._indexes_to_match_id(0, 2), "A3")
         self.assertEqual(draw._indexes_to_match_id(2, 1), "C2")
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw._indexes_to_match_id(-1, 2)
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw._indexes_to_match_id(2, 23)
 
         Draw16(tournament=roma, reference_draw=draw)
         # Invalid change
-        with self.assertRaises(DrawException):
+        with self.assertRaises(DrawError):
             draw.reference_draw = Draw16(tournament=roma)

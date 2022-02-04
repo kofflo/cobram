@@ -1,10 +1,7 @@
 import class_id_strings
-from tournament import Tournament, TournamentCategory, TournamentException
+from tournament import Tournament, TournamentCategory
 from utils import get_positions_from_scores
-
-
-class BetTournamentException(Exception):
-    pass
+from base_error import BaseError
 
 
 class BetTournament:
@@ -18,7 +15,7 @@ class BetTournament:
     JOKER_ALREADY_SET_FOR_GAMBLER = "Joker already set for gambler"
     CANNOT_ADD_GAMBLER_TO_A_CLOSED_BET_TOURNAMENT = "Cannot add gambler to a closed bet tournament"
     CANNOT_REMOVE_GAMBLER_FROM_A_CLOSED_BET_TOURNAMENT = "Cannot remove gambler from a closed bet tournament"
-    CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT = "Cannot set match score in a closed bet tournanent"
+    CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT = "Cannot set match score in a closed bet tournament"
     POINTS_WINNER = 3
     POINTS_SET_SCORE = 2
     POINTS_CORRECT_SET = 1
@@ -48,7 +45,7 @@ class BetTournament:
         self._is_open = None
         self._need_recompute_scores = True
         if ghost not in [True, False]:
-            raise BetTournamentException(BetTournament.GHOST_MUST_BE_TRUE_OR_FALSE)
+            raise BetTournamentError(BetTournament.GHOST_MUST_BE_TRUE_OR_FALSE)
         self._is_ghost = ghost
         self.open()
 
@@ -75,11 +72,11 @@ class BetTournament:
 
     def add_gambler(self, gambler):
         if not self.is_open:
-            raise BetTournamentException(BetTournament.CANNOT_ADD_GAMBLER_TO_A_CLOSED_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.CANNOT_ADD_GAMBLER_TO_A_CLOSED_BET_TOURNAMENT)
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
-            raise BetTournamentException(BetTournament.INVALID_GAMBLER_FOR_A_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.INVALID_GAMBLER_FOR_A_BET_TOURNAMENT)
         if gambler in self and gambler.is_in_bet_tournament(self):
-            raise BetTournamentException(BetTournament.GAMBLER_ALREADY_IN_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.GAMBLER_ALREADY_IN_BET_TOURNAMENT)
         self._bets[gambler] = self.draw_type(tournament=self._tournament, reference_draw=self.draw)
         self._joker[gambler] = None
         if not gambler.is_in_bet_tournament(self):
@@ -88,11 +85,11 @@ class BetTournament:
 
     def remove_gambler(self, gambler):
         if not self.is_open:
-            raise BetTournamentException(BetTournament.CANNOT_REMOVE_GAMBLER_FROM_A_CLOSED_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.CANNOT_REMOVE_GAMBLER_FROM_A_CLOSED_BET_TOURNAMENT)
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
-            raise BetTournamentException(BetTournament.INVALID_GAMBLER_FOR_A_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.INVALID_GAMBLER_FOR_A_BET_TOURNAMENT)
         if gambler not in self and not gambler.is_in_bet_tournament(self):
-            raise BetTournamentException(BetTournament.GAMBLER_NOT_IN_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.GAMBLER_NOT_IN_BET_TOURNAMENT)
         del self._bets[gambler]
         del self._joker[gambler]
         if gambler.is_in_bet_tournament(self):
@@ -104,40 +101,40 @@ class BetTournament:
 
     def set_match_score(self, *, gambler=None, match_id, score, joker=False, force=False):
         if self.is_ghost:
-            raise BetTournamentException(BetTournament.CANNOT_SET_MATCH_SCORE_IN_A_GHOST_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.CANNOT_SET_MATCH_SCORE_IN_A_GHOST_BET_TOURNAMENT)
         if not self.is_open:
-            raise BetTournamentException(BetTournament.CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT)
         if gambler is None:
             self._tournament.set_match_score(match_id=match_id, score=score, force=force)
             self._need_recompute_scores = True
             return
         if not force and self.draw.get_match(match_id)[0] is not None:
-            raise BetTournamentException(BetTournament.CANNOT_CHANGE_BET_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG)
+            raise BetTournamentError(BetTournament.CANNOT_CHANGE_BET_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG)
         try:
             self._bets[gambler].set_match_score(match_id, score, force=force)
             if joker:
                 if self._joker[gambler] is None:
                     self._joker[gambler] = match_id
                 else:
-                    raise BetTournamentException(BetTournament.JOKER_ALREADY_SET_FOR_GAMBLER)
+                    raise BetTournamentError(BetTournament.JOKER_ALREADY_SET_FOR_GAMBLER)
             else:
                 if self._joker[gambler] == match_id:
                     self._joker[gambler] = None
         except KeyError:
-            raise BetTournamentException(BetTournament.UNKNOWN_GAMBLER)
+            raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
         self._need_recompute_scores = True
 
     def get_match(self, *, gambler=None, match_id):
         if self.is_ghost:
-            raise BetTournamentException(BetTournament.CANNOT_GET_MATCH_FROM_A_GHOST_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.CANNOT_GET_MATCH_FROM_A_GHOST_BET_TOURNAMENT)
         if gambler is None:
             return self._tournament.get_match(match_id=match_id)
         try:
-            match_dict = self._tournament.create_match_dict(*self._bets[gambler].get_match(match_id))
+            match_dict = self._create_match_dict(*self._bets[gambler].get_match(match_id))
             match_dict.update(joker=(self._joker[gambler] == match_id))
             return match_dict
         except KeyError:
-            raise BetTournamentException(BetTournament.UNKNOWN_GAMBLER)
+            raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
 
     def get_matches(self, gambler=None):
         if self._need_recompute_scores:
@@ -149,12 +146,12 @@ class BetTournament:
         try:
             gambler_matches = self._bets[gambler].get_matches()
         except KeyError:
-            raise BetTournamentException(BetTournament.UNKNOWN_GAMBLER)
+            raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
         matches = {}
         for match_id, match in gambler_matches.items():
-            match_dict = self._tournament.create_match_dict(*match)
+            match_dict = self._tournament._create_match_dict(*match)
             if gambler is not None:
-                match_dict.update(joker=self._joker[gambler]==match_id)
+                match_dict.update(joker=self._joker[gambler] == match_id)
                 match_dict.update(points=self._points[gambler][match_id])
             matches[match_id] = match_dict
         return matches
@@ -165,7 +162,8 @@ class BetTournament:
         self._points = {}
         for gambler, bet in self._bets.items():
             joker = self._joker[gambler]
-            self._scores[gambler], self._joker_gambler_seed[gambler], self._points[gambler] = self._compute_scores(bet, joker)
+            self._scores[gambler], self._joker_gambler_seed[gambler], self._points[gambler] \
+                = self._compute_scores(bet, joker)
         self._need_recompute_scores = False
 
     def get_scores(self, ranking_scores=None):
@@ -176,16 +174,14 @@ class BetTournament:
         scores = {}
         joker_gambler_seed_points = {}
         if ranking_scores is not None:
-            ranking_scores_tournament = {gambler: score for gambler, score in ranking_scores.items() if gambler in self._bets}
+            ranking_scores_tournament = {gambler: score for gambler, score in ranking_scores.items()
+                                         if gambler in self._bets}
             ranking_positions = get_positions_from_scores(ranking_scores_tournament)
         else:
             ranking_positions = None
         for gambler, bet in self._bets.items():
-            if self._joker_gambler_seed[gambler] and ranking_positions is not None:
-                if gambler in ranking_positions:
-                    joker_gambler_seed_points[gambler] = (len(ranking_positions) - (ranking_positions[gambler] + 1)) / 2
-                else:
-                    joker_gambler_seed_points[gambler] = 0
+            if self._joker_gambler_seed[gambler] and ranking_positions is not None and gambler in ranking_positions:
+                joker_gambler_seed_points[gambler] = (len(ranking_positions) - (ranking_positions[gambler] + 1)) / 2
             else:
                 joker_gambler_seed_points[gambler] = 0
             scores[gambler] = self._scores[gambler] + joker_gambler_seed_points[gambler]
@@ -196,7 +192,8 @@ class BetTournament:
         tournament_positions = get_positions_from_scores(scores)
         for gambler in tournament_positions:
             try:
-                tournament_ranking_scores[gambler] = BetTournament.RANKING_POINTS[self.category][tournament_positions[gambler]]
+                tournament_ranking_scores[gambler] \
+                    = BetTournament.RANKING_POINTS[self.category][tournament_positions[gambler]]
             except IndexError:
                 tournament_ranking_scores[gambler] = 0
         return scores, tournament_ranking_scores, joker_gambler_seed_points
@@ -235,10 +232,7 @@ class BetTournament:
         final_id = self.draw.final_id
         actual_final = actual_matches[final_id]
         bet_final = bet_matches[final_id]
-        if actual_final[3] == bet_final[3]:
-            joker_gambler_seed = True
-        else:
-            joker_gambler_seed = False
+        joker_gambler_seed = actual_final[3] == bet_final[3]
         return score, joker_gambler_seed, points
 
     def _joker_value(self, player_index):
@@ -275,3 +269,7 @@ class BetTournament:
             'draw_type': self.draw,
             'is_ghost': self.is_ghost
         }
+
+
+class BetTournamentError(BaseError):
+    _reference_class = BetTournament
