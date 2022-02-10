@@ -4,6 +4,8 @@ from flask_principal import Principal, Permission, RoleNeed
 import environment
 from inspect import signature, Parameter
 
+from base_error import BaseError
+
 
 app = Flask(__name__)
 
@@ -14,7 +16,7 @@ principals = Principal(app)
 admin_permission = Permission(RoleNeed('admin'))
 
 
-class ArgumentError(Exception):
+class ArgumentError(BaseError):
     pass
 
 

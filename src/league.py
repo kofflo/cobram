@@ -1,6 +1,7 @@
 from entity import Entity, EntityError
 import class_id_strings
 from bet_tournament import BetTournament
+from tournament import TournamentError
 from utils import order_dict_by_values
 
 
@@ -15,14 +16,14 @@ class League(Entity):
     CANNOT_CLOSE_TOURNAMENT_WITHOUT_FORCE_FLAG = "Cannot open tournament without force flag"
     NO_SUCH_TOURNAMENT_IN_LEAGUE = "No such tournament in league"
     INVALID_INITIAL_SCORE_FOR_GAMBLER = "Invalid initial score for gambler"
-    INVALID_ACTIVE_FLAG = "Invalid active flag"
+    CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT = "Cannot open bets on match in closed tournament"
 
     def __init__(self, *, name):
         super().__init__('name')
         self._name = None
         self._bet_tournaments = {}
         self._gamblers = []
-        self._deactivated_gamblers = []
+        self._inactive_gamblers = []
         self._initial_scores = {}
         self._previous_year_scores = {}
         self._ranking_scores = {}
@@ -67,7 +68,7 @@ class League(Entity):
             self._previous_year_scores[year - 1] = {}
         self._previous_year_scores[year - 1][name] = {}
         for gambler in self._gamblers:
-            if gambler in self._deactivated_gamblers:
+            if gambler in self._inactive_gamblers:
                 continue
             bet_tournament.add_gambler(gambler)
             if previous_year_scores is None or gambler not in previous_year_scores:
@@ -128,31 +129,41 @@ class League(Entity):
                 bet_tournament.close()
         self._compute_league_ranking()
 
-    def deactivate_gambler(self, gambler):
+    def update_gambler(self, gambler, is_active=None):
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
             raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
         if gambler not in self and not gambler.is_in_league(self):
             raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
-        self._deactivated_gamblers.append(gambler)
-        self._compute_league_ranking()
+        if is_active is True:
+            self._inactive_gamblers.remove(gambler)
+            self._compute_league_ranking()
+        elif is_active is False:
+            self._inactive_gamblers.append(gambler)
+            self._compute_league_ranking()
+        return self.get_gambler_info(gambler)
 
-    def reactivate_gambler(self, gambler):
-        if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
-            raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
-        if gambler not in self and not gambler.is_in_league(self):
-            raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
-        self._deactivated_gamblers.remove(gambler)
-        self._compute_league_ranking()
-
-    def get_gamblers(self, active=None):
-        if active is None:
+    def get_gamblers(self, is_active=None):
+        if is_active is None:
             return list(self._gamblers)
-        elif active is True:
-            return list(set(self._gamblers) - set(self._deactivated_gamblers))
-        elif active is False:
-            return list(self._deactivated_gamblers)
-        else:
-            raise LeagueError(League.INVALID_ACTIVE_FLAG)
+        elif is_active is True:
+            return list(set(self._gamblers) - set(self._inactive_gamblers))
+        elif is_active is False:
+            return list(self._inactive_gamblers)
+
+    def get_gambler_info(self, gambler):
+        if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
+            raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
+        if gambler not in self and not gambler.is_in_league(self):
+            raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
+        return {
+            'is_active': gambler not in self._inactive_gamblers,
+        }
+
+    def get_all_gamblers(self):
+        gamblers = set(self._gamblers)
+        for bet_tournament in self._bet_tournaments.values():
+            gamblers.update({gamblers for gamblers in bet_tournament.get_gamblers()})
+        return gamblers
 
     def get_all_nations(self):
         nations = set()
@@ -168,53 +179,60 @@ class League(Entity):
             players.update({player for player in bet_tournament.get_players() if player is not None})
         return players
 
-    def get_all_gamblers(self):
-        gamblers = set(self._gamblers)
-        for bet_tournament in self._bet_tournaments.values():
-            gamblers.update({gamblers for gamblers in bet_tournament.get_gamblers()})
-        return gamblers
-
     def get_gambler(self, nickname):
         for gambler_element in self._gamblers:
             if nickname == gambler_element.nickname:
                 return gambler_element
         raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
 
-    def _get_tournament(self, *, tournament_id):
+    def _get_tournament(self, tournament_id):
         try:
             return self._bet_tournaments[tournament_id]
         except KeyError:
             raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
 
     def is_open(self, *, tournament_id):
-        return self._get_tournament(tournament_id=tournament_id).is_open
+        return self._get_tournament(tournament_id).is_open
 
     def get_tournament_info(self, *, tournament_id):
-        return self._get_tournament(tournament_id=tournament_id).info
+        return self._get_tournament(tournament_id).info
 
     def get_matches(self, *, tournament_id, gambler=None):
-        return self._get_tournament(tournament_id=tournament_id).get_matches(gambler)
+        return self._get_tournament(tournament_id).get_matches(gambler)
 
-    def get_all_tournaments(self, is_open=None):
-        all_tournaments = []
-        for bet_tournament in self._bet_tournaments.values():
-            if is_open is None or is_open is bet_tournament.is_open:
-                all_tournaments.append(bet_tournament.id)
-        return all_tournaments
+    def get_all_tournaments(self, name=None, nation=None, year=None, n_sets=None, tie_breaker_5th=None,
+                            category=None, draw_type=None, is_ghost=None, is_open=None):
+        filters = dict(name=name, nation=nation, year=year,
+                       n_sets=n_sets, tie_breaker_5th=tie_breaker_5th, category=category,
+                       draw_type=draw_type, is_ghost=is_ghost, is_open=is_open)
+        return [tournament.id for tournament in self._bet_tournaments.values()
+                if self._apply_filter(tournament, **filters)]
 
-    def close_tournament(self, *, tournament_id):
-        if tournament_id in self._bet_tournaments:
-            self._bet_tournaments[tournament_id].close()
+    def update_tournament(self, *, tournament_id, nation=None, is_open=None):
+        tournament = self._get_tournament(tournament_id)
+        old_nation = tournament.nation
+        if nation is not None:
+            try:
+                tournament.nation = nation
+            except TournamentError:
+                tournament.nation = old_nation
+                raise
+        if is_open is True:
+            tournament.open()
             self._compute_league_ranking()
-        else:
-            raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
-
-    def open_tournament(self, *, tournament_id):
-        if tournament_id in self._bet_tournaments:
-            self._bet_tournaments[tournament_id].open()
+        elif is_open is False:
+            tournament.close_all_matches()
+            tournament.close()
             self._compute_league_ranking()
-        else:
-            raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
+
+    def set_bets_closed_on_match(self, *, tournament_id, match_id, bets_closed):
+        if bets_closed is True:
+            self._get_tournament(tournament_id).close_bets_on_match(match_id)
+        elif bets_closed is False:
+            if self._get_tournament(tournament_id).is_open:
+                self._get_tournament(tournament_id).open_bets_on_match(match_id)
+            else:
+                raise LeagueError(League.CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT)
 
     def get_ranking(self):
         return self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament
@@ -267,7 +285,7 @@ class League(Entity):
 
         ranking_scores = order_dict_by_values(ranking_scores, reverse=True)
 
-        for inactive_gambler in self._deactivated_gamblers:
+        for inactive_gambler in self._inactive_gamblers:
             try:
                 del ranking_scores[inactive_gambler]
             except KeyError:
@@ -277,16 +295,13 @@ class League(Entity):
             tournament_ranking_scores, joker_gambler_seed_points
 
     def get_tournament_ranking(self, *, tournament_id):
-        try:
-            tournament = self._bet_tournaments[tournament_id]
-            if tournament.is_open:
-                return tournament.get_scores()
-            else:
-                _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = \
-                    self._compute_ranking(up_to=tournament)
-                return tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
-        except KeyError:
-            raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
+        tournament = self._get_tournament(tournament_id)
+        if tournament.is_open:
+            return tournament.get_scores()
+        else:
+            _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = \
+                self._compute_ranking(up_to=tournament)
+            return tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
 
     def get_previous_year_scores(self, tournament_id):
         if tournament_id in self._bet_tournaments:
@@ -297,6 +312,42 @@ class League(Entity):
 
     def restore(self, old_league):
         self.name = old_league.name
+
+    def add_player_to_tournament(self, *, tournament_id, place, player, seed=0, force=False):
+        self._get_tournament(tournament_id).set_player(place=place, player=player, seed=seed, force=force)
+
+    def get_players_from_tournament(self, *, tournament_id):
+        return self._get_tournament(tournament_id).get_players()
+
+    def get_player_from_tournament(self, *, tournament_id, place):
+        return self._get_tournament(tournament_id).get_player(place)
+
+    def get_seed(self, *, tournament_id, player):
+        return self._get_tournament(tournament_id).get_seed(player)
+
+    def add_players_to_match(self, *, tournament_id, match_id, player_1, player_2, force=False):
+        tournament = self._get_tournament(tournament_id)
+        player_1_place = tournament.get_player_place(player_1)
+        player_2_place = tournament.get_player_place(player_2)
+        tournament.draw.add_players_to_match(match_id,
+                                             player_1_place,
+                                             player_2_place,
+                                             force=force)
+
+    def set_match_score(self, *, tournament_id, gambler=None, match_id, score, joker=False, force=False):
+        if score == []:
+            score = None
+        self._get_tournament(tournament_id).set_match_score(gambler=gambler, match_id=match_id,
+                                                            score=score, joker=joker, force=force)
+
+    @staticmethod
+    def _apply_filter(item, **filters):
+        for key, value in filters.items():
+            if value is None:
+                continue
+            if getattr(item, key) != value:
+                return False
+        return True
 
 
 class LeagueError(EntityError):

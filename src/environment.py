@@ -14,333 +14,153 @@ _gambler_objects = []
 _nation_objects = []
 
 
-def _apply_filter(item, **filters):
-    for key, value in filters.items():
-        if value is None:
-            continue
-        if getattr(item, key) != value:
-            return False
-    return True
+ENTITY_WITH_INDEX_DOES_NOT_EXIST = "Entity [{entity_name}] with index [{index}] does not exists"
+INVALID_TOURNAMENT_CATEGORY = "Invalid tournament category [{category}]"
+INVALID_TOURNAMENT_DRAW_TYPE = "Invalid tournament draw type [{draw_type}]"
+INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET = "Invalid tournament tie breaker at 5th set [{tie_breaker_5th}]"
+ERROR_DURING_ENVIRONMENT_LOADING = "Error during environment loading [{message}]"
+ERROR_DURING_ENVIRONMENT_SAVING = "Error during environment saving [{message}]"
 
 
-def _get_entities(entity_name, **search_fields):
-    all_entities = globals()[f'_{entity_name}_objects']
-    return {entity_index: entity.id for entity_index, entity in enumerate(all_entities)
-            if _apply_filter(entity, **search_fields)}
-
-
-def get_leagues(name=None):
+def get_leagues(*, name=None):
     return _get_entities('league', name=name)
 
 
-def get_players(name=None, surname=None, nation_index=None):
+def get_players(*, name=None, surname=None, nation_index=None):
     if nation_index is not None:
-        try:
-            nation = _nation_objects[nation_index]
-        except IndexError:
-            nation = None
+        nation = _nation_objects[nation_index]
     else:
         nation = None
     return _get_entities('player', name=name, surname=surname, nation=nation)
 
 
-def get_gamblers(nickname=None):
-    return _get_entities('gambler', nickname=nickname)
+def get_gamblers(*, nickname=None, email=None):
+    return _get_entities('gambler', nickname=nickname, email=email)
 
 
-def get_nations(name=None, code=None):
+def get_nations(*, name=None, code=None):
     return _get_entities('nation', name=name, code=code)
 
 
-def _get_entity_info(entity_name, index):
-    entity = _get_entity(entity_name, index)
-    if entity is not None:
-        return entity.info
-    else:
-        return None
-
-
-def get_league_info(index):
+def get_league_info(*, index):
     return _get_entity_info('league', index)
 
 
-def get_player_info(index):
+def get_player_info(*, index):
     player_info = _get_entity_info('player', index)
-    if player_info is not None:
-        player_info['nation'] = _get_nation_index(player_info['nation'])
+    player_info['nation'] = _get_nation_index(player_info['nation'])
     return player_info
 
 
-def get_gambler_info(index):
+def get_gambler_info(*, index):
     return _get_entity_info('gambler', index)
 
 
-def get_nation_info(index):
+def get_nation_info(*, index):
     return _get_entity_info('nation', index)
 
 
-def _create_entity(entity_name, **attributes):
-    all_entities = globals()[f'_{entity_name}_objects']
-    for entity in all_entities:
-        if not entity.check_unique_attributes(**attributes):
-            return None
-    class_name = entity_name.capitalize()
-    try:
-        new_entity = globals()[class_name](**attributes)
-    except EntityError:
-        return None
-    all_entities.append(new_entity)
-    return {len(all_entities) - 1: new_entity.id}
-
-
-def create_league(name):
+def create_league(*, name):
     return _create_entity('league', name=name)
 
 
-def create_nation(name, code):
+def create_nation(*, name, code):
     return _create_entity('nation', name=name, code=code)
 
 
-def create_gambler(nickname):
-    return _create_entity('gambler', nickname=nickname)
+def create_gambler(*, nickname, email):
+    return _create_entity('gambler', nickname=nickname, email=email)
 
 
-def create_player(name, surname, nation_index):
+def create_player(*, name, surname, nation_index):
     nation = _get_nation(nation_index)
     return _create_entity('player', name=name, surname=surname, nation=nation)
 
 
-def add_gambler_to_league(league_index, gambler_index, initial_score):
+def update_league(*, index, name=None):
+    return _update_entity('league', index, name=name)
+
+
+def update_player(*, index, name=None, surname=None, nation_index=None):
+    nation = _get_nation(nation_index) if nation_index is not None else None
+    return _update_entity('player', index, name=name, surname=surname, nation=nation)
+
+
+def update_gambler(*, index, nickname=None, email=None, credit_change=None):
+    if credit_change is not None:
+        _get_gambler(index).change_credit(credit_change)
+    return _update_entity('gambler', index, nickname=nickname, email=email)
+
+
+def update_nation(*, index, name=None, code=None):
+    return _update_entity('nation', index, name=name, code=code)
+
+
+def delete_league(*, index):
+    return _delete_entity('league', index)
+
+
+def delete_nation(*, index):
+    if _check_references('nation', index, 'player') or _check_references('nation', index, 'league'):
+        return False
+    return _delete_entity('nation', index)
+
+
+def delete_player(*, index):
+    if _check_references('player', index, 'league'):
+        return False
+    return _delete_entity('player', index)
+
+
+def delete_gambler(*, index):
+    if _check_references('player', index, 'league'):
+        return False
+    return _delete_entity('gambler', index)
+
+
+def add_gambler_to_league(*, league_index, gambler_index, initial_score):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
-    if league is None or gambler is None:
-        return False
-    try:
-        league.add_gambler(gambler, initial_score=initial_score)
-        return True
-    except LeagueError:
-        return False
+    league.add_gambler(gambler, initial_score=initial_score)
+    return {
+        gambler_index: gambler.id
+    }
 
 
-def remove_gambler_from_league(league_index, gambler_index):
+def get_gamblers_from_league(*, league_index, is_active=None):
+    league = _get_league(league_index)
+    return {
+        _get_gambler_index(gambler): gambler.id for gambler in league.get_gamblers(is_active)
+    }
+
+
+def get_gambler_info_from_league(*, league_index, gambler_index):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
-    if league is None or gambler is None:
-        return False
-    try:
-        league.remove_gambler(gambler)
-        return True
-    except LeagueError:
-        return False
+    return league.get_gambler_info(gambler)
 
 
-def deactivate_gambler_from_league(league_index, gambler_index):
+def update_gambler_status(*, league_index, gambler_index, is_active):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
-    if league is None or gambler is None:
-        return False
-    try:
-        league.deactivate_gambler(gambler)
-        return True
-    except LeagueError:
-        return False
+    league.update_gambler(gambler, is_active=is_active)
+    return league.get_gambler_info(gambler)
 
 
-def activate_gambler_from_league(league_index, gambler_index):
+def remove_gambler_from_league(*, league_index, gambler_index):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
-    if league is None or gambler is None:
-        return False
-    try:
-        league.activate_gambler(gambler)
-        return True
-    except LeagueError:
-        return False
+    league.remove_gambler(gambler)
 
 
-def get_gamblers_for_league(league_index):
+def get_league_ranking(*, league_index):
     league = _get_league(league_index)
-    if league is None:
-        return None
-    return {_get_gambler_index(gambler): gambler.id for gambler in league.get_gamblers()}
-
-
-def get_tournaments(league_index, is_open=None):
-    league = _get_league(league_index)
-    if league is None:
-        return None
-    return {index: tournament.id for index, tournament in enumerate(league.get_all_tournaments(is_open))}
-
-
-def create_tournament(league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
-                      previous_year_scores=None, ghost=False):
-    league = _get_league(league_index)
-    nation = _get_nation(nation_index)
-    if league is None or nation is None:
-        return None
-    try:
-        tie_breaker_5th = TieBreaker5th[tie_breaker_5th] if tie_breaker_5th is not None else None
-        category = TournamentCategory[category]
-    except KeyError:
-        return None
-    if draw_type == 'Draw16':
-        draw_type = Draw16
-    elif draw_type == 'DrawRoundRobin':
-        draw_type = DrawRoundRobin
-    else:
-        return None
-    if previous_year_scores is not None:
-        previous_year_scores = {_get_gambler(gambler_index): score for gambler_index, score
-                                in previous_year_scores.items()}
-    else:
-        previous_year_scores = {}
-    try:
-        tournament_id = league.create_tournament(name=name, nation=nation, year=year,
-                                                 n_sets=n_sets, tie_breaker_5th=tie_breaker_5th,
-                                                 category=category, draw_type=draw_type,
-                                                 previous_year_scores=previous_year_scores,
-                                                 ghost=ghost)
-        return {league.get_tournament_index(tournament_id=tournament_id): tournament_id}
-    except LeagueError as e:
-        return None
-
-
-def delete_tournament(league_index, tournament_id):
-    league = _get_league(league_index)
-    if league is None:
-        return False
-    try:
-        league.remove_tournament(tournament_id)
-        return True
-    except LeagueError:
-        return False
-
-
-def update_tournament(league_index, tournament_id, nation_index=None):
-    league = _get_league(league_index)
-    if nation_index is not None:
-        nation = _get_nation(nation_index)
-    else:
-        nation = None
-    if league is None or (nation is None and nation_index is not None):
-        return None
-    try:
-        tournament = league.get_tournament(tournament_id)
-    except LeagueError:
-        return None
-    old_nation = tournament.nation
-    try:
-        if nation is not None:
-            tournament.nation = nation
-        return {league.get_tournament_index(tournament_id=tournament.id): tournament.id}
-    except TournamentError:
-        tournament.nation = old_nation
-
-
-def get_tournament_matches(league_index, tournament_id, gambler_index):
-    league = _get_league(league_index)
-    if gambler_index is not None:
-        gambler = _get_gambler(gambler_index)
-    else:
-        gambler = None
-    if league is None or (gambler is None and gambler_index is not None):
-        return None
-    try:
-        matches = league.get_matches(tournament_id=tournament_id, gambler=gambler)
-    except LeagueError:
-        return None
-    return_structure = {}
-    if gambler is None:
-        for match_id, match in matches.items():
-            player_1 = _get_player_index(match['player_1']) if match['player_1'] is not None else None
-            player_2 = _get_player_index(match['player_2']) if match['player_2'] is not None else None
-            winner = _get_player_index(match['winner']) if match['winner'] is not None else None
-            return_structure[match_id] = {
-                'player_1': player_1,
-                'player_2': player_2,
-                'score': match['score'],
-                'winner': winner
-            }
-    else:
-        joker = None
-        for match_id, match in matches.items():
-            return_structure[match_id] = {
-                'score': match['score'],
-                'points': match['points']
-            }
-            if 'joker' in match and match['joker']:
-                joker = match_id
-        return_structure['joker'] = joker
-    return return_structure
-
-
-def get_tournament_info(league_index, tournament_id):
-    league = _get_league(league_index)
-    if league is None:
-        return None
-    try:
-        tournament_info = league.get_tournament_info(tournament_id=tournament_id)
-    except LeagueError:
-        return None
-    tournament_info['nation'] = _get_nation_index(tournament_info['nation'])
-    tournament_info['tie_breaker_5th'] = tournament_info['tie_breaker_5th'].name \
-        if tournament_info['tie_breaker_5th'] is not None else None
-    tournament_info['category'] = tournament_info['category'].name
-    tournament_info['draw_type'] = type(tournament_info['draw_type']).__name__
-    return tournament_info
-
-
-def get_tournament_players(league_index, tournament_id):
-    league = _get_league(league_index)
-    if league is None:
-        return None
-    try:
-        tournament = league.get_tournament(tournament_id=tournament_id)
-        players = tournament.get_players()
-        return {
-            place: (
-                {
-                    'index': _get_player_index(player),
-                    'seed': tournament.get_seed(player)
-                } if player is not None else None
-            ) for place, player in enumerate(players)
-        }
-    except (LeagueError, TournamentError):
-        return None
-
-
-def close_tournament(league_index, tournament_id):
-    league = _get_league(league_index)
-    if league is None:
-        return False
-    try:
-        league.close_tournament(tournament_id=tournament_id)
-        return True
-    except LeagueError:
-        return False
-
-
-def open_tournament(league_index, tournament_id):
-    league = _get_league(league_index)
-    if league is None:
-        return False
-    try:
-        league.open_tournament(tournament_id=tournament_id)
-        return True
-    except LeagueError:
-        return False
-
-
-def get_league_ranking(league_index):
-    league = _get_league(league_index)
-    if league is None:
-        return None
     ranking_scores, yearly_scores, winners, last_tournament = league.get_ranking()
     ranking_scores = {_get_gambler_index(gambler): score for gambler, score in ranking_scores.items()}
     yearly_scores = {
         year: {
             _get_gambler_index(gambler): score for gambler, score in year_scores.items()
-               } for year, year_scores in yearly_scores.items()
+        } for year, year_scores in yearly_scores.items()
     }
     winners = {
         league.get_tournament_index(tournament_id=tournament_id): _get_gambler_index(winner)
@@ -352,17 +172,180 @@ def get_league_ranking(league_index):
             'winners': winners, 'last_tournament': last_tournament}
 
 
-def get_tournament_ranking(league_index, tournament_id):
+def create_tournament(*, league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
+                      previous_year_scores=None, ghost=False):
     league = _get_league(league_index)
-    if league is None:
-        return None
-    try:
-        tournament_scores, tournament_ranking_scores, joker_gambler_seed_points \
-            = league.get_tournament_ranking(tournament_id=tournament_id)
-        previous_year_ranking_scores = league.get_previous_year_scores(tournament_id=tournament_id)
-        is_open = league.is_open(tournament_id=tournament_id)
-    except LeagueError:
-        return None
+    nation = _get_nation(nation_index)
+    tie_breaker_5th, category, draw_type = _convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
+                                                                                    category=category,
+                                                                                    draw_type=draw_type)
+    if previous_year_scores is not None:
+        previous_year_scores = {_get_gambler(gambler_index): score for gambler_index, score
+                                in previous_year_scores.items()}
+    else:
+        previous_year_scores = {}
+    tournament_id = league.create_tournament(name=name, nation=nation, year=year,
+                                             n_sets=n_sets, tie_breaker_5th=tie_breaker_5th,
+                                             category=category, draw_type=draw_type,
+                                             previous_year_scores=previous_year_scores,
+                                             ghost=ghost)
+    return {league.get_tournament_index(tournament_id=tournament_id): tournament_id}
+
+
+def get_tournaments(*, league_index, name=None, nation_index=None, year=None,
+                    n_sets=None, tie_breaker_5th=None, category=None, draw_type=None, is_ghost=None, is_open=None):
+    league = _get_league(league_index)
+    nation = _get_nation(nation_index)
+    tie_breaker_5th, category, draw_type = _convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
+                                                                                    category=category,
+                                                                                    draw_type=draw_type)
+    return {index: tournament.id for index, tournament
+            in enumerate(league.get_all_tournaments(name=name, nation=nation, year=year,
+                                                    n_sets=n_sets, tie_breaker_5th=tie_breaker_5th, category=category,
+                                                    draw_type=draw_type, is_ghost=is_ghost, is_open=is_open))}
+
+
+def get_tournament_info(*, league_index, tournament_id):
+    league = _get_league(league_index)
+    tournament_info = league.get_tournament_info(tournament_id=tournament_id)
+    tournament_info['nation'] = _get_nation_index(tournament_info['nation'])
+    tournament_info['tie_breaker_5th'], tournament_info['category'], tournament_info['draw_type'] \
+        = _convert_tournament_parameters_to_string(tie_breaker_5th=tournament_info['tie_breaker_5th'],
+                                                   category=tournament_info['category'],
+                                                   draw_type=tournament_info['draw_type'])
+    return tournament_info
+
+
+def update_tournament(*, league_index, tournament_id, nation_index=None, is_open=None):
+    league = _get_league(league_index)
+    if nation_index is not None:
+        nation = _get_nation(nation_index)
+    else:
+        nation = None
+    league.update_tournament(tournament_id=tournament_id, nation=nation, is_open=is_open)
+    return get_tournament_info(league_index=league_index, tournament_id=tournament_id)
+
+
+def delete_tournament(*, league_index, tournament_id):
+    league = _get_league(league_index)
+    league.remove_tournament(tournament_id)
+
+
+def add_player_to_tournament(*, league_index, tournament_id, place, player_index, seed=0):
+    league = _get_league(league_index)
+    player = _get_player(player_index)
+    league.add_player_to_tournament(tournament_id=tournament_id, place=place, player=player, seed=seed)
+    players = league.get_players_from_tournament(tournament_id=tournament_id)
+    return {
+        place: _get_player_index(players[place]) if players[place] is not None else None
+    }
+
+
+def get_tournament_players(*, league_index, tournament_id):
+    league = _get_league(league_index)
+    players = league.get_players_from_tournament(tournament_id=tournament_id)
+    return {
+        place: _get_player_index(player) if player is not None else None
+        for place, player in enumerate(players)
+    }
+
+
+def get_tournament_players_info(*, league_index, tournament_id, place):
+    league = _get_league(league_index)
+    player = league.get_player_from_tournament(tournament_id=tournament_id, place=place)
+    return {
+        'index': _get_player_index(player),
+        'seed': league.get_seed(tournament_id=tournament_id, player=player)
+    } if player is not None else None
+
+
+def update_tournament_player(*, league_index, tournament_id, place, seed=None):
+    league = _get_league(league_index)
+    if seed is not None:
+        player = league.get_player_from_tournament(tournament_id=tournament_id, place=place)
+        league.add_player_to_tournament(tournament_id=tournament_id, place=place, player=player, seed=seed)
+    return get_tournament_players_info(league_index=league_index, tournament_id=tournament_id, place=place)
+
+
+def remove_player_from_tournament(*, league_index, tournament_id, place):
+    league = _get_league(league_index)
+    league.add_player_to_tournament(tournament_id=tournament_id, place=place, player=None)
+
+
+def get_tournament_matches(*, league_index, tournament_id):
+    league = _get_league(league_index)
+    matches = league.get_matches(tournament_id=tournament_id)
+    return_structure = {}
+    for match_id, match in matches.items():
+        player_1_index = _get_player_index(match['player_1']) if match['player_1'] is not None else None
+        player_2_index = _get_player_index(match['player_2']) if match['player_2'] is not None else None
+        winner_index = _get_player_index(match['winner']) if match['winner'] is not None else None
+        return_structure[match_id] = {
+            'players': {
+                'player_1': player_1_index,
+                'player_2': player_2_index,
+            },
+            'score': match['score'],
+            'winner': winner_index,
+            'bets_closed': match['bets_closed']
+        }
+    return return_structure
+
+
+def get_tournament_bets(*, league_index, tournament_id, gambler_index):
+    league = _get_league(league_index)
+    gambler = _get_gambler(gambler_index)
+    matches = league.get_matches(tournament_id=tournament_id, gambler=gambler)
+    return_structure = {}
+    joker = None
+    for match_id, match in matches.items():
+        return_structure[match_id] = {
+            'bet': match['score'],
+            'points': match['points']
+        }
+        if 'joker' in match and match['joker']:
+            joker = match_id
+    return_structure['joker'] = joker
+    return return_structure
+
+
+def update_tournament_match(*, league_index, tournament_id, match_id, players=None, score=None, bets_closed=None):
+    league = _get_league(league_index)
+    if players is not None:
+        player_1_index = players['player_1_index']
+        player_2_index = players['player_2_index']
+        if player_1_index is not None:
+            player_1 = _get_player(player_1_index)
+        else:
+            player_1 = None
+        if player_2_index is not None:
+            player_2 = _get_player(player_2_index)
+        else:
+            player_2 = None
+        league.add_players_to_match(tournament_id=tournament_id, match_id=match_id,
+                                    player_1=player_1, player_2=player_2)
+    if score is not None:
+        league.set_match_score(tournament_id=tournament_id, match_id=match_id, score=score)
+    if bets_closed is not None:
+        league.set_bets_closed_on_match(tournament_id=tournament_id, match_id=match_id, bets_closed=bets_closed)
+
+
+def update_tournament_bet(*, league_index, tournament_id, gambler_index=None, match_id, bet=None):
+    league = _get_league(league_index)
+    gambler = _get_gambler(gambler_index)
+    if bet is not None:
+        score = bet['score']
+        joker = bet['joker']
+        league.set_match_score(tournament_id=tournament_id, gambler=gambler,
+                               match_id=match_id, score=score, joker=joker)
+
+
+def get_tournament_ranking(*, league_index, tournament_id):
+    league = _get_league(league_index)
+    tournament_scores, tournament_ranking_scores, joker_gambler_seed_points \
+        = league.get_tournament_ranking(tournament_id=tournament_id)
+    previous_year_ranking_scores = league.get_previous_year_scores(tournament_id=tournament_id)
+    is_open = league.is_open(tournament_id=tournament_id)
     tournament_scores = {_get_gambler_index(gambler): score for gambler, score in tournament_scores.items()}
     tournament_ranking_scores = {
         _get_gambler_index(gambler): score for gambler, score in tournament_ranking_scores.items()
@@ -378,94 +361,7 @@ def get_tournament_ranking(league_index, tournament_id):
             'joker_gambler_seed_points': joker_gambler_seed_points, 'is_open': is_open}
 
 
-def add_player_to_tournament(league_index, tournament_id, player_index, place, seed):
-    league = _get_league(league_index)
-    if player_index is not None:
-        player = _get_player(player_index)
-    else:
-        player = None
-    if league is None or (player is None and player_index is not None):
-        return False
-    try:
-        league._get_tournament(tournament_id=tournament_id).set_player(place, player, seed=seed, force=True) ###QUI###
-        return True
-    except (LeagueError, TournamentError):
-        return False
-
-
-def set_match_score(league_index, tournament_id, gambler_index, match_id, score, joker):
-    league = _get_league(league_index)
-    if league is None:
-        return False
-    if gambler_index is None:
-        try:
-            league._get_tournament(tournament_id=tournament_id).set_match_score(match_id=match_id,###QUI###
-                                                                               score=score)
-            return True
-        except (LeagueError, TournamentError):
-            return False
-    else:
-        gambler = _get_gambler(gambler_index)
-        if gambler is None:
-            return False
-        try:
-            league._get_tournament(tournament_id=tournament_id).set_match_score(gambler=gambler, ###QUI###
-                                                                               match_id=match_id,
-                                                                               score=score,
-                                                                               joker=joker)
-            return True
-        except (LeagueError, TournamentError):
-            return False
-
-
-def add_alternate_to_group(league_index, tournament_id, player_index, group):
-    league = _get_league(league_index)
-    tournament = league.get_tournament(tournament_id=tournament_id)
-    player = _get_player(player_index)
-    player_index = tournament.get_players().index(player)
-    tournament.draw.add_alternate_to_group(player_index, group)
-
-
-def add_players_to_match(league_index, tournament_id, match_id, player_1_index, player_2_index):
-    league = _get_league(league_index)
-    if league is None:
-        return False
-    try:
-        tournament = league._get_tournament(tournament_id=tournament_id)###QUI###
-    except LeagueError:
-        return False
-    if player_1_index is not None:
-        player_1 = _get_player(player_1_index)
-    else:
-        player_1 = None
-    if player_2_index is not None:
-        player_2 = _get_player(player_2_index)
-    else:
-        player_2 = None
-    if player_1 is None and player_1_index is not None or player_2 is None and player_2_index is not None:
-        return False
-    if player_1 is not None:
-        try:
-            player_1_tournament_index = tournament.get_players().index(player_1)
-        except TournamentError:
-            return False
-    else:
-        player_1_tournament_index = None
-    if player_2 is not None:
-        try:
-            player_2_tournament_index = tournament.get_players().index(player_2)
-        except TournamentError:
-            return False
-    else:
-        player_2_tournament_index = None
-    try:
-        tournament.draw.add_players_to_match(match_id, player_1_tournament_index, player_2_tournament_index)
-    except DrawError:
-        return False
-    return True
-
-
-def save(filename):
+def save(*, filename):
     try:
         with open(filename, 'wb') as file:
             pickler = pickle.Pickler(file)
@@ -473,12 +369,11 @@ def save(filename):
             pickler.dump(_player_objects)
             pickler.dump(_gambler_objects)
             pickler.dump(_nation_objects)
-        return True
-    except (IOError, pickle.PickleError):
-        return False
+    except (IOError, pickle.PickleError) as e:
+        raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str(e))))
 
 
-def load(filename):
+def load(*, filename):
     global _league_objects, _player_objects, _gambler_objects, _nation_objects
     try:
         with open(filename, 'rb') as file:
@@ -487,13 +382,12 @@ def load(filename):
             _player_temp = unpickler.load()
             _gambler_temp = unpickler.load()
             _nation_temp = unpickler.load()
-    except (IOError, pickle.PickleError):
-        return False
+    except (IOError, pickle.PickleError) as e:
+        raise(IOError(ERROR_DURING_ENVIRONMENT_LOADING.format(message=str(e))))
     _league_objects = _league_temp
     _player_objects = _player_temp
     _gambler_objects = _gambler_temp
     _nation_objects = _nation_temp
-    return True
 
 
 def _get_entity(entity_name, index):
@@ -501,7 +395,7 @@ def _get_entity(entity_name, index):
     try:
         return all_entities[index]
     except IndexError:
-        return None
+        raise IndexError(ENTITY_WITH_INDEX_DOES_NOT_EXIST.format(entity_name=entity_name, index=index))
 
 
 def _get_gambler(gambler_index):
@@ -538,30 +432,10 @@ def _check_references(entity_name, index, reference_entity_name):
 
 def _delete_entity(entity_name, index):
     all_entities = globals()[f'_{entity_name}_objects']
-    del all_entities[index]
-    return True
-
-
-def delete_league(index):
-    return _delete_entity('league', index)
-
-
-def delete_nation(index):
-    if _check_references('nation', index, 'player') or _check_references('nation', index, 'league'):
-        return False
-    return _delete_entity('nation', index)
-
-
-def delete_player(index):
-    if _check_references('player', index, 'league'):
-        return False
-    return _delete_entity('player', index)
-
-
-def delete_gambler(index):
-    if _check_references('player', index, 'league'):
-        return False
-    return _delete_entity('gambler', index)
+    try:
+        del all_entities[index]
+    except IndexError:
+        raise IndexError(ENTITY_WITH_INDEX_DOES_NOT_EXIST.format(entity_name=entity_name, index=index))
 
 
 def _update_entity(entity_name, index, **attributes):
@@ -573,33 +447,15 @@ def _update_entity(entity_name, index, **attributes):
     for entity in all_entities:
         if entity is update_entity:
             continue
-        if not entity.check_unique_attributes(**new_info):
-            return None
+        entity.check_unique_attributes(**new_info)
     for key, value in attributes.items():
         if value is not None:
             try:
                 setattr(update_entity, key, value)
             except EntityError:
                 update_entity.restore(old_entity)
-                return None
-    return {index: update_entity.id}
-
-
-def update_league(index, name=None):
-    return _update_entity('league', index, name=name)
-
-
-def update_player(index, name=None, surname=None, nation_index=None):
-    nation = _get_nation(nation_index) if nation_index is not None else None
-    return _update_entity('player', index, name=name, surname=surname, nation=nation)
-
-
-def update_gambler(index, nickname=None):
-    return _update_entity('gambler', index, nickname=nickname)
-
-
-def update_nation(index, name=None, code=None):
-    return _update_entity('nation', index, name=name, code=code)
+                raise
+    return update_entity.info
 
 
 def _get_gambler_index(gambler):
@@ -621,3 +477,58 @@ def _get_player_index(player):
 def _get_entity_index(entity_name, entity):
     all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
     return all_entities.index(entity)
+
+
+def _apply_filter(item, **filters):
+    for key, value in filters.items():
+        if value is None:
+            continue
+        if getattr(item, key) != value:
+            return False
+    return True
+
+
+def _get_entities(entity_name, **search_fields):
+    all_entities = globals()[f'_{entity_name}_objects']
+    return {entity_index: entity.id for entity_index, entity in enumerate(all_entities)
+            if _apply_filter(entity, **search_fields)}
+
+
+def _get_entity_info(entity_name, index):
+    entity = _get_entity(entity_name, index)
+    return entity.info
+
+
+def _create_entity(entity_name, **attributes):
+    all_entities = globals()[f'_{entity_name}_objects']
+    for entity in all_entities:
+        entity.check_unique_attributes(**attributes)
+    class_name = entity_name.capitalize()
+    new_entity = globals()[class_name](**attributes)
+    all_entities.append(new_entity)
+    return {len(all_entities) - 1: new_entity.id}
+
+
+def _convert_tournament_parameters_to_string(*, tie_breaker_5th, category, draw_type):
+    tie_breaker_5th = tie_breaker_5th.name if tie_breaker_5th is not None else None
+    category = category.name
+    draw_type = type(draw_type).__name__
+    return tie_breaker_5th, category, draw_type
+
+
+def _convert_tournament_parameters_to_object(*, tie_breaker_5th, category, draw_type):
+    try:
+        tie_breaker_5th = TieBreaker5th[tie_breaker_5th] if tie_breaker_5th is not None else None
+    except KeyError:
+        raise KeyError(INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET.format(tie_breaker_5th=tie_breaker_5th))
+    try:
+        category = TournamentCategory[category]
+    except KeyError:
+        raise KeyError(INVALID_TOURNAMENT_CATEGORY.format(category=category))
+    if draw_type == 'Draw16':
+        draw_type = Draw16
+    elif draw_type == 'DrawRoundRobin':
+        draw_type = DrawRoundRobin
+    else:
+        raise KeyError(INVALID_TOURNAMENT_DRAW_TYPE.format(draw_type=draw_type))
+    return tie_breaker_5th, category, draw_type

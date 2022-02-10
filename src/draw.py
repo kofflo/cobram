@@ -87,7 +87,7 @@ class Draw:
             return self._players[final_indexes[0]][final_indexes[1]][final_winner]
         return None
 
-    def bye_allowed(self, players, player_index):
+    def bye_allowed(self, byes_places, place):
         raise NotImplementedError
 
     def get_match(self, match_id):
@@ -111,7 +111,7 @@ class Draw:
                 )
         return matches
 
-    def reset_player(self, index):
+    def reset_player(self, place):
         raise NotImplementedError
 
     def advance_byes(self, byes):
@@ -222,17 +222,17 @@ class KnockOutDraw(Draw):
                     next_match_id = self._indexes_to_match_id(round_index + 1, match_index // 2)
                     self._update_players_after_score(next_match_id, next_winner)
 
-    def bye_allowed(self, byes_indexes, player_index):
+    def bye_allowed(self, byes_places, place):
         # Prevents having two byes in the same match
-        match = player_index // 2
-        other_player = match * 2 + (1 - player_index % 2)
-        if other_player not in byes_indexes:
+        match = place // 2
+        other_player = match * 2 + (1 - place % 2)
+        if other_player not in byes_places:
             return True
         else:
             return False
 
-    def reset_player(self, index):
-        match_index = index // 2
+    def reset_player(self, place):
+        match_index = place // 2
         match_id = self._indexes_to_match_id(0, match_index)
         self.set_match_score(match_id, None, force=True)
 
@@ -253,8 +253,6 @@ class DrawRoundRobin(Draw):
     _number_matches = 15
     _NUMBER_MATCHES_FOR_ROUND = [6, 6, 2, 1]
     INVALID_GROUP = "Invalid group"
-    INVALID_INDEX_FOR_AN_ALTERNATE = "Invalid index for an alternate"
-    ALTERNATE_ALREADY_ADDED_TO_A_GROUP = "Alternate already added to a group"
     PLAYER_NOT_YET_ADDED_TO_GROUP = "Player not yet added to group"
     PLAYERS_NOT_IN_SAME_GROUP = "Players not in the same group"
     PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH = "Players not in the same group as match"
@@ -270,7 +268,7 @@ class DrawRoundRobin(Draw):
         super().__init__(tournament=tournament, reference_draw=reference_draw)
 
     @staticmethod
-    def get_group(place):
+    def _get_group(place):
         if place in range(4) or place in range(8, 10):
             return "A"
         elif place in range(4, 8) or place in range(10, 12):
@@ -282,7 +280,7 @@ class DrawRoundRobin(Draw):
     def number_rounds(self):
         return 4
 
-    def bye_allowed(self, players, player_index):
+    def bye_allowed(self, byes_places, place):
         return False
 
     def advance_byes(self, byes):
@@ -299,37 +297,47 @@ class DrawRoundRobin(Draw):
                 round_players.append([None, None])
             self._players.append(round_players)
 
-    def add_players_to_match(self, match_id, player_1, player_2, *, force=False):
+    def add_players_to_match(self, match_id, player_1_place, player_2_place, *, force=False):
         round_index, match_index = self._match_id_to_indexes(match_id)
-        if player_1 is None and player_2 is not None or player_1 is not None and player_2 is None:
+        if player_1_place is None and player_2_place is not None or player_1_place is not None and player_2_place is None:
             raise DrawError(DrawRoundRobin.MUST_ADD_BOTH_PLAYERS_TO_A_MATCH)
-        if not (player_1 is None and player_2 is None):
-            self._check_valid_players(round_index, player_1, player_2)
+        if not (player_1_place is None and player_2_place is None):
+            self._check_valid_players(round_index, player_1_place, player_2_place)
         if self._players[round_index][match_index] != [None, None]:
             if not force:
                 raise DrawError(DrawRoundRobin.CANNOT_UPDATE_MATCH_PLAYERS_WITHOUT_FORCE_FLAG)
             else:
-                self._players[round_index][match_index] = [player_1, player_2]
+                self._players[round_index][match_index] = [player_1_place, player_2_place]
                 self.set_match_score(match_id, None, force=True)
         else:
-            self._players[round_index][match_index] = [player_1, player_2]
+            self._players[round_index][match_index] = [player_1_place, player_2_place]
 
-    def _check_valid_players(self, round_index, player_1, player_2):
+    def _check_valid_players(self, round_index, player_1_place, player_2_place):
         if round_index in [0, 1]:
-            if self.get_group(player_1) != self.get_group(player_2):
+            if self._get_group(player_1_place) != self._get_group(player_2_place):
                 raise DrawError(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP)
-            if self.get_group(player_1) != ["A", "B"][round_index]:
+            if self._get_group(player_1_place) != ["A", "B"][round_index]:
                 raise DrawError(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH)
         elif round_index == 2:
             if not self._is_group_complete(0) and not self._is_group_complete(1):
                 raise DrawError(DrawRoundRobin.GROUPS_ARE_NOT_COMPLETE_YET)
-            if self.get_group(player_1) == self.get_group(player_2):
+            if self._get_group(player_1_place) == self._get_group(player_2_place):
                 raise DrawError(DrawRoundRobin.PLAYERS_COME_FROM_SAME_GROUP)
         elif round_index == 3:
             raise DrawError(DrawRoundRobin.PLAYERS_CANNOT_BE_ADDED_MANUALLY_TO_FINAL)
 
-    def reset_player(self, index):
-        raise DrawError(DrawRoundRobin.CANNOT_RESET_PLAYER_IN_ROUND_ROBIN_DRAW)
+    def reset_player(self, place):
+        reset_later_rounds = False
+        for round_index in range(self.number_rounds):
+            for match_index in range(self.number_matches_for_round(round_index)):
+                if place in self._players[round_index, match_index]:
+                    match_id = self._indexes_to_match_id(round_index, match_index)
+                    self.set_match_score(match_id, None, force=True)
+                    reset_later_rounds = True
+        if reset_later_rounds:
+            self.set_match_score('C1', None, force=True)
+            self.set_match_score('C2', None, force=True)
+            self.set_match_score('D1', None, force=True)
 
     def _update_players_after_score(self, match_id, winner):
         round_index, match_index = self._match_id_to_indexes(match_id)

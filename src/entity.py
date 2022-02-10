@@ -3,11 +3,11 @@ import copy
 from base_error import BaseError
 
 
-class EntityError(BaseError):
-    pass
-
-
 class Entity:
+
+    ID_ATTRIBUTE_MISSING = "ID attribute missing"
+    ENTITY_WITH_SAME_ID_ALREADY_EXISTS = "Entity with same ID {id} already exists"
+    ENTITY_WITH_SAME_UNIQUE_ATTRIBUTE_ALREADY_EXISTS = "Entity with same unique attribute {key} exists"
 
     def __init__(self, *id_attributes, unique_attributes=None):
         self._id_attributes = id_attributes
@@ -25,18 +25,21 @@ class Entity:
         id_ = {}
         for key in self._id_attributes:
             if key not in attributes:
-                return False
+                raise EntityError(Entity.ID_ATTRIBUTE_MISSING)
             else:
                 id_[key] = attributes[key]
         if id_ == self.id:
-            return False
+            raise EntityError(Entity.ENTITY_WITH_SAME_ID_ALREADY_EXISTS.format(id=id_))
         for key, value in attributes.items():
             if key in self._unique_attributes and value == getattr(self, key):
-                return False
-        return True
+                raise EntityError(Entity.ENTITY_WITH_SAME_UNIQUE_ATTRIBUTE_ALREADY_EXISTS.format(key=key))
 
     def copy(self):
         return copy.copy(self)
 
     def restore(self, old_entity):
         raise NotImplementedError
+
+
+class EntityError(BaseError):
+    _reference_class = Entity

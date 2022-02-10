@@ -44,6 +44,7 @@ class Tournament:
     INVALID_PLACE_FOR_A_TOURNAMENT_PLAYER = "Invalid place for a tournament player"
     ALL_TOURNAMENT_PLAYERS_ARE_ALREADY_DEFINED = "All tournament players are already defined"
     PLAYER_IS_ALREADY_IN_TOURNAMENT = "Player is already in tournament"
+    PLAYER_IS_NOT_IN_TOURNAMENT = "Player is not in tournament"
     CANNOT_UPDATE_A_PLAYER_WITHOUT_FORCE_FLAG = "Cannot update a player without force flag"
     BYE_NOT_ALLOWED = "Bye not allowed"
     CANNOT_SET_SCORE_OF_MATCH_WITH_BYE = "Cannot set score of match with bye"
@@ -223,7 +224,7 @@ class Tournament:
             raise TournamentError(Tournament.CANNOT_SET_SCORE_OF_MATCH_WITH_BYE)
         self._draw.set_match_score(match_id, score, force=force)
 
-    def set_player(self, place, player, seed=None, force=False):
+    def set_player(self, *, place, player, seed=0, force=False):
         if player is not None and not class_id_strings.check_class_id(player, class_id_strings.PLAYER_ID):
             raise TournamentError(Tournament.INVALID_PLAYER)
         if not 0 <= place < self._draw.number_players:
@@ -233,18 +234,16 @@ class Tournament:
                 raise TournamentError(Tournament.BYE_NOT_ALLOWED)
         elif player in self._players and not self._players[place] == player and player is not None:
             raise TournamentError(Tournament.PLAYER_IS_ALREADY_IN_TOURNAMENT)
-        int_seed = None
-        if seed is not None:
-            try:
-                int_seed = int(seed)
-            except ValueError:
-                raise TournamentError(Tournament.INVALID_SEED_VALUE)
-            if int_seed <= 0:
-                raise TournamentError(Tournament.INVALID_SEED_VALUE)
-            if player is None or player is Tournament.BYE:
-                raise TournamentError(Tournament.PLAYER_CANNOT_BE_SEEDED)
-            if int_seed in self._seed.values():
-                raise TournamentError(Tournament.SEED_POSITION_ALREADY_OCCUPIED)
+        try:
+            int_seed = int(seed)
+        except ValueError:
+            raise TournamentError(Tournament.INVALID_SEED_VALUE)
+        if int_seed < 0:
+            raise TournamentError(Tournament.INVALID_SEED_VALUE)
+        if int_seed != 0 and (player is None or player is Tournament.BYE):
+            raise TournamentError(Tournament.PLAYER_CANNOT_BE_SEEDED)
+        if int_seed != 0 and int_seed in self._seed.values():
+            raise TournamentError(Tournament.SEED_POSITION_ALREADY_OCCUPIED)
         if self._players[place] is None or self._players[place] == player:
             self._players[place] = player
         elif force:
@@ -252,8 +251,7 @@ class Tournament:
             self.draw.reset_player(place)
         else:
             raise TournamentError(Tournament.CANNOT_UPDATE_A_PLAYER_WITHOUT_FORCE_FLAG)
-        if int_seed is not None:
-            self._seed[player] = int_seed
+        self._seed[player] = int_seed
         if None not in self._players and Tournament.BYE in self._players:
             self.draw.advance_byes(self._byes_places())
 
@@ -262,17 +260,17 @@ class Tournament:
             raise TournamentError(Tournament.INVALID_PLACE_FOR_A_TOURNAMENT_PLAYER)
         return self._players[place]
 
+    def get_player_place(self, player):
+        try:
+            return self._players.index(player)
+        except ValueError:
+            raise TournamentError(Tournament.PLAYER_IS_NOT_IN_TOURNAMENT)
+
     def get_players(self):
         return copy.copy(self._players)
 
-    def get_group(self, player):
-        return self.draw.get_group(self._players.index(player))
-
     def get_seed(self, player):
-        if player in self._seed:
-            return self._seed[player]
-        else:
-            return 0
+        return self._seed[player]
 
     @property
     def number_players(self):
