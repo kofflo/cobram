@@ -25,9 +25,11 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(musetti.name, "Lorenzo")
         self.assertEqual(musetti.surname, "Musetti")
         self.assertIs(musetti.nation, nation)
+        self.assertEqual(musetti.info, {'id': {'name': 'Lorenzo', 'surname': 'Musetti'}, 'name': 'Lorenzo', 'surname': 'Musetti', 'nation': nation})
 
     def test_change_player(self):
         musetti = create_player()
+        old_musetti = musetti.copy()
         # Valid change
         musetti.name = "Giacomo"
         self.assertEqual(musetti.name, "Giacomo")
@@ -47,3 +49,7 @@ class TestPlayer(unittest.TestCase):
             musetti.surname = ()  # Surname is not a string
         with self.assertRaises(PlayerError):
             musetti.nation = "Italia"  # Nation is not a nation
+        musetti.restore(old_musetti)
+        self.assertEqual(musetti.name, old_musetti.name)
+        self.assertEqual(musetti.surname, old_musetti.surname)
+        self.assertEqual(musetti.nation, old_musetti.nation)

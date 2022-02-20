@@ -96,43 +96,46 @@ class TestTournament(unittest.TestCase):
             atp.set_match_score(match_id="A1", score=[[6, 4], [6, 4]])
 
         player = create_player()
-        atp.set_player(3, player)
-        atp.set_player(3, player)
+        with self.assertRaises(TournamentError):
+            self.assertEqual(atp.get_player_place(player), 3)
+        atp.set_player(place=3, player=player)
+        atp.set_player(place=3, player=player)
+        self.assertEqual(atp.get_player_place(player), 3)
         self.assertEqual(atp.get_player(3), player)
         another_player = create_player()
-        atp.set_player(0, another_player)
+        atp.set_player(place=0, player=another_player)
         self.assertEqual(atp.get_player(0), another_player)
         with self.assertRaises(TournamentError):
-            atp.set_player(27, create_player())
+            atp.set_player(place=27, player=create_player())
         with self.assertRaises(TournamentError):
-            atp.set_player(1, "another_player")
+            atp.set_player(place=1, player="another_player")
         with self.assertRaises(TournamentError):
-            atp.set_player(1, another_player)
+            atp.set_player(place=1, player=another_player)
         with self.assertRaises(TournamentError):
-            atp.set_player(5, another_player)
-        atp.set_player(0, another_player)
+            atp.set_player(place=5, player=another_player)
+        atp.set_player(place=0, player=another_player)
         third_player = create_player()
         with self.assertRaises(TournamentError):
-            atp.set_player(0, third_player)
-        atp.set_player(0, third_player, force=True)
+            atp.set_player(place=0, player=third_player)
+        atp.set_player(place=0, player=third_player, force=True)
         fourth_player = create_player()
         with self.assertRaises(TournamentError):
-            atp.set_player(4, fourth_player, seed='a')
+            atp.set_player(place=4, player=fourth_player, seed='a')
         with self.assertRaises(TournamentError):
-            atp.set_player(4, fourth_player, seed=-2)
-        atp.set_player(4, fourth_player, seed=1)
+            atp.set_player(place=4, player=fourth_player, seed=-2)
+        atp.set_player(place=4, player=fourth_player, seed=1)
         fifth_player = create_player()
         with self.assertRaises(TournamentError):
-            atp.set_player(5, fifth_player, seed=1)
-        atp.set_player(5, fifth_player)
+            atp.set_player(place=5, player=fifth_player, seed=1)
+        atp.set_player(place=5, player=fifth_player)
         self.assertEqual(atp.get_seed(fifth_player), 0)
-        atp.set_player(5, fifth_player, seed=2)
+        atp.set_player(place=5, player=fifth_player, seed=2)
         self.assertEqual(atp.get_seed(fifth_player), 2)
         place = 0
         for _ in range(atp.number_players - 4):
             while atp.get_player(place) is not None:
                 place += 1
-            atp.set_player(place, create_player())
+            atp.set_player(place=place, player=create_player())
         score = [[6, 4], [6, 4]]
         atp.set_match_score(match_id="A1", score=score)
         first_match = atp.get_match(match_id="A1")
@@ -182,7 +185,7 @@ class TestTournament(unittest.TestCase):
         atp.set_match_score(match_id="D1", score=[[2, 6], [0, 6]], force=True)
         self.assertEqual(atp.winner, atp.get_player(8))
         fourth_player = create_player()
-        atp.set_player(0, fourth_player, force=True)
+        atp.set_player(place=0, player=fourth_player, force=True)
         self.assertEqual(atp.get_match(match_id="A1")['score'], None)
         self.assertEqual(atp.get_match(match_id="B1")['score'], None)
         self.assertEqual(atp.get_match(match_id="C1")['score'], None)
@@ -195,23 +198,23 @@ class TestTournament(unittest.TestCase):
 
     def test_bye_tournament(self):
         atp = create_tournament(n_sets=3)
-        atp.set_player(0, Tournament.BYE)
+        atp.set_player(place=0, player=Tournament.BYE)
         with self.assertRaises(TournamentError):
-            atp.set_player(1, Tournament.BYE)
+            atp.set_player(place=1, player=Tournament.BYE)
         player = create_player()
-        atp.set_player(1, player)
+        atp.set_player(place=1, player=player)
         with self.assertRaises(TournamentError):
-            atp.set_player(3, Tournament.BYE, seed=1)
+            atp.set_player(place=3, player=Tournament.BYE, seed=1)
         with self.assertRaises(TournamentError):
-            atp.set_player(3, None, seed=1)
-        atp.set_player(3, Tournament.BYE)
-        atp.set_player(3, None, force=True)
-        atp.set_player(3, Tournament.BYE)
+            atp.set_player(place=3, player=None, seed=1)
+        atp.set_player(place=3, player=Tournament.BYE)
+        atp.set_player(place=3, player=None, force=True)
+        atp.set_player(place=3, player=Tournament.BYE)
         place = 0
         for _ in range(atp.number_players - 3):
             while atp.get_player(place) is not None:
                 place += 1
-            atp.set_player(place, create_player())
+            atp.set_player(place=place, player=create_player())
         with self.assertRaises(TournamentError):
             atp.set_match_score(match_id="A1", score=[[6, 4], [6, 4]])
         self.assertEqual(atp.get_match(match_id="A1")['score'], [Match.PLAYER_1_RETIRES])
@@ -222,15 +225,15 @@ class TestTournament(unittest.TestCase):
         self.assertEqual(atp.get_match(match_id="B1")['winner'], player)
         second_player = create_player()
         with self.assertRaises(TournamentError):
-            atp.set_player(0, second_player)
-        atp.set_player(0, second_player, force=True)
+            atp.set_player(place=0, player=second_player)
+        atp.set_player(place=0, player=second_player, force=True)
         self.assertEqual(atp.get_match(match_id="A1")['score'], None)
         self.assertEqual(atp.get_match(match_id="A1")['winner'], None)
         self.assertEqual(atp.get_match(match_id="B1")['score'], None)
         self.assertEqual(atp.get_match(match_id="B1")['winner'], None)
         with self.assertRaises(TournamentError):
-            atp.set_player(1, Tournament.BYE)
-        atp.set_player(1, Tournament.BYE, force=1)
+            atp.set_player(place=1, player=Tournament.BYE)
+        atp.set_player(place=1, player=Tournament.BYE, force=True)
         self.assertEqual(atp.get_match(match_id="A1")['score'], [Match.PLAYER_2_RETIRES])
         self.assertEqual(atp.get_match(match_id="A1")['winner'], second_player)
         self.assertEqual(atp.get_match(match_id="B1")['score'], None)

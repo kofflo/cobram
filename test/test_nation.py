@@ -22,9 +22,11 @@ class TestNation(unittest.TestCase):
         italy = Nation(name="Italy", code="ITA")
         self.assertEqual(italy.name, "Italy")
         self.assertEqual(italy.code, "ITA")
+        self.assertEqual(italy.info, {'id': {'code': 'ITA'}, 'name': 'Italy', 'code': 'ITA'})
 
     def test_change_nation(self):
         italy = create_nation()
+        old_italy = italy.copy()
         # Valid change
         italy.name = "Italia"
         self.assertEqual(italy.name, "Italia")
@@ -41,3 +43,6 @@ class TestNation(unittest.TestCase):
             italy.name = 45  # Name is not a string
         with self.assertRaises(NationError):
             italy.code = 39  # Code is not a string
+        italy.restore(old_italy)
+        self.assertEqual(italy.name, old_italy.name)
+        self.assertEqual(italy.code, old_italy.code)

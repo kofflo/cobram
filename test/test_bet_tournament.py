@@ -21,9 +21,11 @@ class TestBetTournament(unittest.TestCase):
         self.assertEqual(bet.draw_type, Draw16)
         self.assertEqual(bet.winner, None)
         self.assertEqual(bet.get_match(match_id="A1"),
-                         {'player_1': None, 'player_2': None, 'score': None, 'set_score': None, 'winner': None})
+                         {'player_1': None, 'player_2': None, 'score': None, 'set_score': None,
+                          'winner': None, 'bets_closed': False})
         self.assertEqual(list(bet.get_matches().values()),
-                         [{'player_1': None, 'player_2': None, 'score': None, 'set_score': None, 'winner': None}] * 15)
+                         [{'player_1': None, 'player_2': None, 'score': None, 'set_score': None,
+                           'winner': None, 'bets_closed': False}] * 15)
         self.assertEqual(bet.get_player(2), None)
         self.assertEqual(bet.get_players(), [None] * bet.number_players)
         self.assertEqual(bet.number_players, 16)
