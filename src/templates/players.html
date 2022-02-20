@@ -1,0 +1,82 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<script>
+    window.onload = updatePage;
+    var players;
+    var nations;
+    function callPlayers() {
+        return new Promise(function(resolve, reject) {
+            var playersRequest = new XMLHttpRequest();
+            playersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            playersRequest.open("GET", "/players", true);
+            playersRequest.send();
+        })
+    }
+    function callNations() {
+        return new Promise(function(resolve, reject) {
+            var nationsRequest = new XMLHttpRequest();
+            nationsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            nationsRequest.open("GET", "/nations", true);
+            nationsRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callPlayers(), callNations()]).then(function (values) {
+            players = JSON.parse(values[0]);
+            nations = JSON.parse(values[1]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        table = document.getElementById("tableBody");
+        for (var key in players) {
+            const row = table.insertRow();
+            const name_cell = row.insertCell();
+            name_cell.innerText = players[key]["name"];
+            const surname_cell = row.insertCell();
+            surname_cell.innerText = players[key]["surname"];
+            const nation_code_cell = row.insertCell();
+            nation_code_cell.innerText = nations[players[key]["nation"]].code;
+            const flag_cell = row.insertCell();
+            const img = document.createElement('img');
+            img.src = '/static/flags/' + nations[players[key]["nation"]].code + '.png';
+            flag_cell.appendChild(img);
+        }
+    }
+</script>
+<title>Tennisti</title>
+<h1>Tennisti</h1>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Cognome</td>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+</body>

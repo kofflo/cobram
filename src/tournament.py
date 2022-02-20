@@ -183,8 +183,6 @@ class Tournament:
 
     @property
     def winner(self):
-        if None in self._players:
-            return None
         draw_winner = self._draw.winner
         if draw_winner is not None:
             return self._players[draw_winner]
@@ -193,6 +191,20 @@ class Tournament:
     @property
     def id(self):
         return self.name, self.year
+
+    @property
+    def info(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'year': self.year,
+            'nation': self.nation,
+            'n_sets': self.n_sets,
+            'tie_breaker_5th': self.tie_breaker_5th if self.tie_breaker_5th is not None else None,
+            'category': self.category,
+            'draw_type': self.draw_type,
+            'winner': self.winner
+        }
 
     def get_match(self, *, match_id):
         return self._create_match_dict(*self._draw.get_match(match_id))

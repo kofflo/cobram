@@ -37,7 +37,9 @@ class Nation(Entity):
 
     @property
     def info(self):
-        return {'name': self.name, 'code': self.code}
+        info = super().info
+        info.update({'name': self.name, 'code': self.code})
+        return info
 
     def restore(self, old_nation):
         self.name = old_nation.name

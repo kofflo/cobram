@@ -49,7 +49,9 @@ class Player(Entity):
 
     @property
     def info(self):
-        return {'name': self.name, 'surname': self.surname, 'nation': self.nation}
+        info = super().info
+        info.update({'name': self.name, 'surname': self.surname, 'nation': self.nation})
+        return info
 
     def restore(self, old_player):
         self.name = old_player.name

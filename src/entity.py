@@ -19,7 +19,7 @@ class Entity:
 
     @property
     def info(self):
-        raise NotImplementedError
+        return {'id': self.id}
 
     def check_unique_attributes(self, **attributes):
         id_ = {}

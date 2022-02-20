@@ -1,0 +1,83 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<script>
+    window.onload = updatePage;
+    var leagues;
+    var gamblers;
+    function callLeagues() {
+        return new Promise(function(resolve, reject) {
+            var leaguesRequest = new XMLHttpRequest();
+            leaguesRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leaguesRequest.open("GET", "/leagues", true);
+            leaguesRequest.send();
+        })
+    }
+    function callGamblers() {
+        return new Promise(function(resolve, reject) {
+            var gamblersRequest = new XMLHttpRequest();
+            gamblersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            gamblersRequest.open("GET", "/gamblers", true);
+            gamblersRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callLeagues(), callGamblers()]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        table = document.getElementById("tableBody");
+        for (var key in gamblers) {
+            const row = table.insertRow();
+            const name_cell = row.insertCell();
+            name_cell.innerText = gamblers[key]["nickname"];
+            const code_cell = row.insertCell();
+            code_cell.innerText = gamblers[key]["email"];
+            const leagues_cell = row.insertCell();
+            const inner_table = document.createElement('table');
+            for (var league in gamblers[key]["leagues"]) {
+                const inner_row = inner_table.insertRow();
+                const inner_cell = inner_row.insertCell();
+                inner_cell.innerText = leagues[league].name;
+            }
+            leagues_cell.appendChild(inner_table);
+        }
+    }
+</script>
+<title>Scommettitori</title>
+<h1>Scommettitori</h1>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Email</td>
+            <td>Leghe</td>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+</body>

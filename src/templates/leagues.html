@@ -1,0 +1,53 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<script>
+    window.onload = updatePage;
+    var leagues;
+    function callLeagues() {
+        return new Promise(function(resolve, reject) {
+            var leaguesRequest = new XMLHttpRequest();
+            leaguesRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leaguesRequest.open("GET", "/leagues", true);
+            leaguesRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callLeagues()]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        table = document.getElementById("tableBody");
+        for (var key in leagues) {
+            const row = table.insertRow();
+            const name_cell = row.insertCell();
+            name_cell.innerText = leagues[key]["name"];
+        }
+    }
+</script>
+<title>Leghe</title>
+<h1>Leghe</h1>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <td>Nome</td>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+</body>

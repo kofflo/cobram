@@ -1,0 +1,241 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<title></title>
+<script>
+    window.onload = updatePage;
+    var leagues;
+    var gamblers;
+    var players;
+    var nations;
+    var ranking;
+    var tournaments;
+    var matches;
+    function callLeagues() {
+        return new Promise(function(resolve, reject) {
+            var leaguesRequest = new XMLHttpRequest();
+            leaguesRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leaguesRequest.open("GET", "/leagues", true);
+            leaguesRequest.send();
+        })
+    }
+    function callGamblers() {
+        return new Promise(function(resolve, reject) {
+            var gamblersRequest = new XMLHttpRequest();
+            gamblersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            gamblersRequest.open("GET", "/gamblers", true);
+            gamblersRequest.send();
+        })
+    }
+    function callPlayers() {
+        return new Promise(function(resolve, reject) {
+            var playersRequest = new XMLHttpRequest();
+            playersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            playersRequest.open("GET", "/players", true);
+            playersRequest.send();
+        })
+    }
+    function callNations() {
+        return new Promise(function(resolve, reject) {
+            var nationsRequest = new XMLHttpRequest();
+            nationsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            nationsRequest.open("GET", "/nations", true);
+            nationsRequest.send();
+        })
+    }
+    function callRanking() {
+        return new Promise(function(resolve, reject) {
+            var rankingRequest = new XMLHttpRequest();
+            rankingRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            rankingRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking", true);
+            rankingRequest.send();
+        })
+    }
+    function callTournaments() {
+        return new Promise(function(resolve, reject) {
+            var tournamentsRequest = new XMLHttpRequest();
+            tournamentsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            tournamentsRequest.open("GET", "/leagues/{{ league_index }}/tournaments", true);
+            tournamentsRequest.send();
+        })
+    }
+    function callMatches() {
+        return new Promise(function(resolve, reject) {
+            var matchesRequest = new XMLHttpRequest();
+            matchesRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            matchesRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches", true);
+            matchesRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callMatches()]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            players = JSON.parse(values[2]);
+            nations = JSON.parse(values[3]);
+            ranking = JSON.parse(values[4]);
+            tournaments = JSON.parse(values[5]);
+            matches = JSON.parse(values[6]);
+            updateTitles();
+            updateMatches();
+            updateTablesRanking();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTitles() {
+        document.getElementById("mainHeader").innerText = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
+        subHeaderLink = document.createElement("a");
+        subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
+        subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
+        document.getElementById("subHeader").appendChild(subHeaderLink);
+        document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
+    }
+    function updateMatches() {
+        table = document.getElementById("matches");
+        console.warn(matches);
+        for (var key in matches) {
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
+            const row = table.insertRow();
+            const id_cell = row.insertCell();
+            id_cell.innerText = key;
+            if (matches[key]["winner"] == matches[key]["players"]["player_1"]) {
+                winner = 1;
+            } else {
+                winner = 2;
+            }
+            const player_1_cell = row.insertCell();
+            if (winner == 1) {
+                player_1_cell.className = "bold";
+            }
+            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
+            const player_2_cell = row.insertCell();
+            if (winner == 2) {
+                player_2_cell.className = "bold";
+            }
+            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
+            const score_cell = row.insertCell();
+            score_cell.innerText = formatScore(matches[key]["score"]);
+        }
+    }
+    function formatScore(score) {
+        formatted = "";
+        for (set in score) {
+            if (score[set][0] == -1) {
+                formatted += "A- " + " / ";
+            } else if (score[set][1] == -1) {
+                formatted += " -A" + " / ";
+            }
+            else {
+                formatted += score[set][0] + "-" + score[set][1] + " / ";
+            }
+        }
+        return formatted.slice(0, -2);
+    }
+    function updateTablesRanking() {
+        table = document.getElementById("tableRankingBody");
+        scores = ranking["tournament_scores"];
+        ranking_scores = ranking["tournament_ranking_scores"];
+        scores_array = Object.entries(scores);
+        scores_array.sort(function (first_pair, second_pair) {
+            return first_pair[1] - second_pair[1];
+        });
+        scores_array.reverse();
+        for (index = 0; index < scores_array.length; index++) {
+            const pair = scores_array[index];
+            const row = table.insertRow();
+            const position_cell = row.insertCell();
+            position_cell.innerText = index + 1;
+            const gambler_cell = row.insertCell();
+            const gambler_link = document.createElement("a");
+            gambler_link.innerText = gamblers[pair[0]]["nickname"];
+            gambler_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/" + pair[0]);
+            gambler_cell.appendChild(gambler_link);
+            const points_cell = row.insertCell();
+            points_cell.innerText = pair[1];
+            const ranking_points_cell = row.insertCell();
+            ranking_points_cell.innerText = ranking_scores[pair[0]];
+        }
+    }
+</script>
+<h1 id="mainHeader"></h1>
+<h2 id="subHeader"></h2>
+<div class="floatRankings">
+    <table id="matches" class="styled-table">
+    </table>
+</div>
+<div class="floatRankings">
+    <table id="ranking" class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+            <td>Punti ranking</td>
+        </tr>
+        </thead>
+        <tbody id="tableRankingBody">
+        </tbody>
+    </table>
+</div>
+</body>

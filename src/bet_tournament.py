@@ -130,7 +130,8 @@ class BetTournament:
                     self._joker[gambler] = None
         except KeyError:
             raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
-        self._need_recompute_scores = True
+        if self.draw.get_match(match_id)[0] is not None:
+            self._need_recompute_scores = True
 
     def get_match(self, *, gambler=None, match_id):
         if self.is_ghost:
@@ -139,6 +140,8 @@ class BetTournament:
             match = self._tournament.get_match(match_id=match_id)
             match.update(bets_closed=self._bets_closed[match_id])
             return match
+        if self._need_recompute_scores:
+            self._recompute_scores()
         try:
             match_dict = self._create_match_dict(*self._bets[gambler].get_match(match_id))
             match_dict.update(joker=(self._joker[gambler] == match_id))
@@ -147,9 +150,7 @@ class BetTournament:
         except KeyError:
             raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
 
-    def get_matches(self, gambler=None):
-        if self._need_recompute_scores:
-            self._recompute_scores()
+    def get_matches(self, *, gambler=None):
         if self.is_ghost:
             return {}
         if gambler is None:
@@ -161,6 +162,8 @@ class BetTournament:
             gambler_matches = self._bets[gambler].get_matches()
         except KeyError:
             raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
+        if self._need_recompute_scores:
+            self._recompute_scores()
         matches = {}
         for match_id, match in gambler_matches.items():
             match_dict = self._create_match_dict(*match)
@@ -220,11 +223,14 @@ class BetTournament:
         tournament_ranking_scores = {}
         tournament_positions = get_positions_from_scores(scores)
         for gambler in tournament_positions:
-            try:
-                tournament_ranking_scores[gambler] \
-                    = BetTournament.RANKING_POINTS[self.category][tournament_positions[gambler]]
-            except IndexError:
+            if self.is_open:
                 tournament_ranking_scores[gambler] = 0
+            else:
+                try:
+                    tournament_ranking_scores[gambler] \
+                        = BetTournament.RANKING_POINTS[self.category][tournament_positions[gambler]]
+                except IndexError:
+                    tournament_ranking_scores[gambler] = 0
         return scores, tournament_ranking_scores, joker_gambler_seed_points
 
     def _compute_scores(self, bet, joker):
@@ -288,17 +294,9 @@ class BetTournament:
 
     @property
     def info(self):
-        return {
-            'name': self.name,
-            'year': self.year,
-            'nation': self.nation,
-            'n_sets': self.n_sets,
-            'tie_breaker_5th': self.tie_breaker_5th if self.tie_breaker_5th is not None else None,
-            'category': self.category,
-            'draw_type': self.draw,
-            'is_ghost': self.is_ghost,
-            'is_open': self.is_open
-        }
+        info_dict = self._tournament.info
+        info_dict.update({'is_ghost': self.is_ghost, 'is_open': self.is_open})
+        return info_dict
 
 
 class BetTournamentError(BaseError):

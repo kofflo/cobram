@@ -1,0 +1,61 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<script>
+    window.onload = updatePage;
+    var nations;
+    function callNations() {
+        return new Promise(function(resolve, reject) {
+            var nationsRequest = new XMLHttpRequest();
+            nationsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            nationsRequest.open("GET", "/nations", true);
+            nationsRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callNations()]).then(function (values) {
+            nations = JSON.parse(values[0]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        table = document.getElementById("tableBody");
+        for (var key in nations) {
+            const row = table.insertRow();
+            const name = row.insertCell();
+            name.innerText = nations[key]["name"];
+            const code = row.insertCell();
+            code.innerText = nations[key]["code"];
+            const flag = row.insertCell();
+            const img = document.createElement('img');
+            img.src = '/static/flags/' + nations[key]["code"] + '.png';
+            flag.appendChild(img);
+        }
+    }
+</script>
+<title>Nazioni</title>
+<h1>Nazioni</h1>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Codice</td>
+            <td>Bandiera</td>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+</body>

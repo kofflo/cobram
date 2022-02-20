@@ -1,0 +1,270 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<title></title>
+<script>
+    window.onload = updatePage;
+    var leagues;
+    var gamblers;
+    var players;
+    var nations;
+    var ranking;
+    var tournaments;
+    function callLeagues() {
+        return new Promise(function(resolve, reject) {
+            var leaguesRequest = new XMLHttpRequest();
+            leaguesRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leaguesRequest.open("GET", "/leagues", true);
+            leaguesRequest.send();
+        })
+    }
+    function callGamblers() {
+        return new Promise(function(resolve, reject) {
+            var gamblersRequest = new XMLHttpRequest();
+            gamblersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            gamblersRequest.open("GET", "/gamblers", true);
+            gamblersRequest.send();
+        })
+    }
+    function callPlayers() {
+        return new Promise(function(resolve, reject) {
+            var playersRequest = new XMLHttpRequest();
+            playersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            playersRequest.open("GET", "/players", true);
+            playersRequest.send();
+        })
+    }
+    function callNations() {
+        return new Promise(function(resolve, reject) {
+            var nationsRequest = new XMLHttpRequest();
+            nationsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            nationsRequest.open("GET", "/nations", true);
+            nationsRequest.send();
+        })
+    }
+    function callRanking() {
+        return new Promise(function(resolve, reject) {
+            var rankingRequest = new XMLHttpRequest();
+            rankingRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            rankingRequest.open("GET", "/leagues/{{ league_index }}/ranking", true);
+            rankingRequest.send();
+        })
+    }
+    function callTournaments() {
+        return new Promise(function(resolve, reject) {
+            var tournamentsRequest = new XMLHttpRequest();
+            tournamentsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            tournamentsRequest.open("GET", "/leagues/{{ league_index }}/tournaments", true);
+            tournamentsRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments()]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            players = JSON.parse(values[2]);
+            nations = JSON.parse(values[3]);
+            ranking = JSON.parse(values[4]);
+            tournaments = JSON.parse(values[5]);
+            updateTitles();
+            updateTableTournaments();
+            updateTablesRanking();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTitles() {
+        document.getElementById("mainHeader").innerText = leagues["{{ league_index }}"]["name"];
+        document.getElementById("winnerLeague").innerText = "Vincitore\n" + leagues["{{ league_index }}"]["name"];
+        document.title = leagues["{{ league_index }}"]["name"];
+    }
+    function updateTableTournaments() {
+        table = document.getElementById("tableTournamentsBody");
+        index = 0;
+        for (var key in tournaments) {
+            const row = table.insertRow();
+            const name_cell = row.insertCell();
+            name_link = document.createElement("a");
+            name_link.innerText = tournaments[key]["name"];
+            name_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/" + index);
+            name_cell.appendChild(name_link);
+            const year_cell = row.insertCell();
+            year_cell.innerText = tournaments[key]["year"];
+            const nation_code_cell = row.insertCell();
+            nation_code_cell.innerText = nations[tournaments[key]["nation"]].code;
+            const flag_cell = row.insertCell();
+            const img = document.createElement('img');
+            img.src = '/static/flags/' + nations[tournaments[key]["nation"]].code + '.png';
+            flag_cell.appendChild(img);
+            const n_sets_cell = row.insertCell();
+            n_sets_cell.innerText = tournaments[key]["n_sets"];
+            const tie_breaker_cell = row.insertCell();
+            tie_breaker_cell.innerText = tournaments[key]["tie_breaker_5th"];
+            const category_cell = row.insertCell();
+            category_cell.innerText = tournaments[key]["category"];
+            const draw_cell = row.insertCell();
+            draw_cell.innerText = tournaments[key]["draw_type"];
+            const player_winner_cell = row.insertCell();
+            const player_winner = tournaments[key]["winner"] != null ? players[tournaments[key]["winner"]] : null;
+            if (player_winner != null) {
+                player_winner_cell.innerText = player_winner["name"] + " " + player_winner["surname"];
+            } else {
+                player_winner_cell.innerText = "/";
+            }
+            const gambler_winner_cell = row.insertCell();
+            const gambler_winner = key in ranking["winners"] ? gamblers[ranking["winners"][key]] : null;
+            if (gambler_winner != null) {
+                gambler_winner_cell.innerText = gambler_winner["nickname"];
+            } else {
+                gambler_winner_cell.innerText = "/";
+            }
+            index += 1;
+        }
+    }
+    function updateTablesRanking() {
+        table = document.getElementById("tableRankingBody");
+        ranking_scores = ranking["ranking_scores"];
+        ranking_scores_array = Object.entries(ranking_scores);
+        ranking_scores_array.sort(function(first_pair, second_pair) {
+            return first_pair[1] - second_pair[1];
+        });
+        ranking_scores_array.reverse();
+        for (index = 0; index < ranking_scores_array.length; index++) {
+            const pair = ranking_scores_array[index];
+            const row = table.insertRow();
+            const position_cell = row.insertCell();
+            position_cell.innerText = index + 1;
+            const gambler_cell = row.insertCell();
+            gambler_cell.innerText = gamblers[pair[0]]["nickname"];
+            const points_cell = row.insertCell();
+            points_cell.innerText = pair[1];
+        }
+        table = document.getElementById("tableRaceBody");
+        yearly_scores = ranking["yearly_scores"];
+        years = Object.keys(yearly_scores).map(x => parseInt(x));
+        if (years.length == 0) {
+            document.getElementById("tableRace").remove();
+            return;
+        }
+        last_year = Math.max(...years);
+        document.getElementById("raceTitle").innerText = "Race " + last_year;
+        yearly_scores_array = Object.entries(yearly_scores[last_year]);
+        yearly_scores_array.sort(function(first_pair, second_pair) {
+            return first_pair[1] - second_pair[1];
+        });
+        yearly_scores_array.reverse();
+        for (index = 0; index < yearly_scores_array.length; index++) {
+            const pair = yearly_scores_array[index];
+            const row = table.insertRow();
+            const position_cell = row.insertCell();
+            position_cell.innerText = index + 1;
+            const gambler_cell = row.insertCell();
+            gambler_cell.innerText = gamblers[pair[0]]["nickname"];
+            const points_cell = row.insertCell();
+            points_cell.innerText = pair[1];
+        }
+    }
+</script>
+<h1 id="mainHeader"></h1>
+<div id="tournamentDiv">
+    <h2>Tornei</h2>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Anno</td>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+            <td>Set</td>
+            <td>Tie-break al 5° set</td>
+            <td>Categoria</td>
+            <td>Tabellone</td>
+            <td>Vincitore</td>
+            <td id="winnerLeague"></td>
+        </tr>
+        </thead>
+        <tbody id="tableTournamentsBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    <div class="floatRankings">
+        <h2>Ranking</h2>
+        <table class="styled-table">
+            <thead>
+            <tr>
+                <td>Posizione</td>
+                <td>Scommettitore</td>
+                <td>Punti</td>
+            </tr>
+            </thead>
+            <tbody id="tableRankingBody">
+            </tbody>
+        </table>
+    </div>
+    <div class="floatRankings">
+    <h2 id="raceTitle"></h2>
+        <table id="tableRace" class="styled-table">
+            <thead>
+            <tr>
+                <td>Posizione</td>
+                <td>Scommettitore</td>
+                <td>Punti</td>
+            </tr>
+            </thead>
+            <tbody id="tableRaceBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>

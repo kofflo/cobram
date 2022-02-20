@@ -1,13 +1,103 @@
 from flask import Flask
-from flask import request, jsonify
+from flask import request, render_template
 from flask_principal import Principal, Permission, RoleNeed
+from werkzeug.routing import BaseConverter
 import environment
 from inspect import signature, Parameter
 
 from base_error import BaseError
 
-
 app = Flask(__name__)
+
+
+class RegexConverter(BaseConverter):
+    def __init__(self, url_map, *items):
+        super().__init__(url_map)
+        self.regex = items[0]
+
+
+app.url_map.converters['regex'] = RegexConverter
+
+
+def _manage_entity(entity_name):
+    if request.method == 'GET':
+        getter = getattr(environment, "get_{entity_name}s".format(entity_name=entity_name))
+        return _redirect_to_function(getter, 'QUERY')
+    elif request.method == 'POST':
+        #        with admin_permission.require():
+        creator = getattr(environment, "create_{entity_name}".format(entity_name=entity_name))
+        return _redirect_to_function(creator, 'JSON')
+
+
+def _get_all_entities_info(entity_name):
+    getter = getattr(environment, "get_{entity_name}s".format(entity_name=entity_name))
+    info_getter = getattr(environment, "get_{entity_name}_info".format(entity_name=entity_name))
+    entity_info = []
+    for entity_index in getter():
+        entity_info.append(info_getter(index=entity_index))
+    return entity_info
+
+
+def _get_all_tournaments_info(league_index):
+    tournaments_info = []
+    for tournament_index in environment.get_tournaments(league_index=league_index):
+        tournament_info = environment.get_tournament_info(league_index=league_index, tournament_index=tournament_index)
+        tournament_info['nation_code'] = environment.get_nation_info(index=tournament_info['nation'])['code']
+        tournaments_info.append(tournament_info)
+    return tournaments_info
+
+
+def _get_all_gamblers_info_from_league(league_index):
+    gamblers_info = []
+    for gambler_index in environment.get_gamblers_from_league(league_index=league_index):
+        gamblers_info.append(environment.get_gambler_info_from_league(league_index=league_index, gambler_index=gambler_index))
+    return gamblers_info
+
+
+def _manage_entity_instance(entity_name, index):
+    if request.method == 'GET':
+        getter = getattr(environment, "get_{entity_name}_info".format(entity_name=entity_name))
+        return _redirect_to_function(getter, '')
+    elif request.method == "PUT":
+        #        with admin_permission.require():
+        setter = getattr(environment, "update_{entity_name}".format(entity_name=entity_name))
+        return _redirect_to_function(setter, 'JSON')
+    elif request.method == "DELETE":
+        #        with admin_permission.require():
+        deleter = getattr(environment, "delete_{entity_name}".format(entity_name=entity_name))
+        return _redirect_to_function(deleter, '')
+
+
+def _redirect_to_function(function, source):
+    args = {}
+    if source == 'QUERY':
+        args = dict(request.args)
+        _check_args(request.json, [])
+    elif source == 'JSON':
+        args = dict(request.json)
+        _check_args(request.args, [])
+    else:
+        _check_args(request.json, [])
+        _check_args(request.args, [])
+    args.update(request.view_args)
+    _check_args(args, signature(function).parameters)
+    try:
+        return function(**args)
+    except Exception as e:
+        print("Exception", e)
+        return str(e), 400
+
+
+def _check_args(args, allowed):
+    if args is None:
+        args = []
+    for arg in args:
+        if arg not in allowed:
+            raise ArgumentError(f"Argument not allowed: {arg}".format(arg=arg))
+    for arg in allowed:
+        if allowed[arg].default is Parameter.empty and arg not in args:
+            raise ArgumentError(f"Mandatory argument not provided: {arg}".format(arg=arg))
+
 
 # load the extension
 principals = Principal(app)
@@ -17,57 +107,7 @@ admin_permission = Permission(RoleNeed('admin'))
 
 
 class ArgumentError(BaseError):
-    pass
-
-
-def _check_all_args(*, function, source, additional_parameters=None):
-    if source == 'URL':
-        args = dict(request.args)
-        if additional_parameters is not None:
-            args.update(additional_parameters)
-        _check_args(args, signature(function).parameters)
-        _check_args(request.json, [])
-        return args
-    elif source == 'JSON':
-        args = dict(request.json)
-        if additional_parameters is not None:
-            args.update(additional_parameters)
-        _check_args(args, signature(function).parameters)
-        _check_args(request.args, [])
-        return args
-    else:
-        raise ArgumentError("Argument source not allowed: {source}".format(source=source))
-
-
-def _check_args(args, allowed):
-    if args is None:
-        args = []
-    for arg in args:
-        if arg not in allowed:
-            raise ArgumentError("Argument not allowed: {arg}".format(arg=arg))
-    for arg in allowed:
-        if allowed[arg].default is Parameter.empty and arg not in args:
-            raise ArgumentError("Mandatory argument not provided: {arg}".format(arg=arg))
-
-
-def _manage_entity(entity_name):
-    try:
-        if request.method == 'GET':
-            getter = getattr(environment, "get_{entity_name}s".format(entity_name=entity_name))
-            args = _check_all_args(function=getter, source='URL')
-            object_list = getter(**args)
-            return object_list
-        elif request.method == 'POST':
-            #        with admin_permission.require():
-            creator = getattr(environment, "create_{entity_name}".format(entity_name=entity_name))
-            args = _check_all_args(function=creator, source='JSON')
-            new_id = creator(**args)
-            if new_id is not None:
-                return new_id, 201
-            else:
-                return "Cannot create {entity_name}".format(entity_name=entity_name), 400
-    except ArgumentError as e:
-        return str(e), 400
+    _reference_class = Flask
 
 
 @app.route('/leagues', methods=['GET', 'POST'])
@@ -90,324 +130,160 @@ def _manage_gambler():
     return _manage_entity('gambler')
 
 
-def _manage_entity_instance(entity_name, index):
-    try:
-        index = int(index)
-        if index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            getter = getattr(environment, "get_{entity_name}_info".format(entity_name=entity_name))
-            args = _check_all_args(function=getter, source='URL', additional_parameters={'index': index})
-            return getter(**args)
-        elif request.method == "PUT":
-            #        with admin_permission.require():
-            setter = getattr(environment, "update_{entity_name}".format(entity_name=entity_name))
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            json_parameters['index'] = index
-            _check_args(json_parameters, signature(setter).parameters)
-            if setter(index, **request.args):
-                return "Entity update successful"
-            else:
-                return "Entity update not successful", 400
-        elif request.method == "DELETE":
-            #        with admin_permission.require():
-            delete = getattr(environment, "delete_{entity_name}".format(entity_name=entity_name))
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            _check_args(json_parameters, [])
-            if delete(index):
-                return "Entity deletion successful"
-            else:
-                return "Entity deletion not successful", 409
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
-
-
-@app.route('/leagues/<index>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/leagues/<int:index>', methods=['GET', 'PUT', 'DELETE'])
 def _manage_league_instance(index):
     return _manage_entity_instance('league', index)
 
 
-@app.route('/gamblers/<index>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/gamblers/<int:index>', methods=['GET', 'PUT', 'DELETE'])
 def _manage_gambler_instance(index):
     return _manage_entity_instance('gambler', index)
 
 
-@app.route('/nations/<index>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/nations/<int:index>', methods=['GET', 'PUT', 'DELETE'])
 def _manage_nation_instance(index):
     return _manage_entity_instance('nation', index)
 
 
-@app.route('/players/<index>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/players/<int:index>', methods=['GET', 'PUT', 'DELETE'])
 def _manage_player_instance(index):
     return _manage_entity_instance('player', index)
 
 
-@app.route('/leagues/<index>/ranking', methods=['GET'])
-def _league_ranking(index):
-    try:
-        index = int(index)
-        if index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            return environment.get_league_ranking(index)
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
+@app.route('/leagues/<int:league_index>/gamblers', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def _manage_league_gamblers(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_gamblers_from_league, 'QUERY')
 
 
-@app.route('/leagues/<index>/gamblers', methods=['GET', 'POST', 'DELETE'])
-def _manage_league_gambler(index):
-    try:
-        index = int(index)
-        if index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            return jsonify(environment.get_gamblers_for_league(index))
-        elif request.method == 'POST':
-            creator = environment.add_gambler_to_league
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            json_parameters['league_index'] = index
-            _check_args(json_parameters, signature(creator).parameters)
-            creator(**json_parameters)
-            return "Success", 200
-        elif request.method == 'DELETE':
-            deleter = environment.remove_gambler_from_league
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            json_parameters['league_index'] = index
-            _check_args(json_parameters, signature(deleter).parameters)
-            deleter(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/gamblers/<int:gambler_index>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def _manage_league_gambler(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_gambler_info_from_league, '')
+    elif request.method == 'POST':
+        return _redirect_to_function(environment.add_gambler_to_league, 'JSON')
+    elif request.method == 'PUT':
+        return _redirect_to_function(environment.update_gambler_in_league, 'JSON')
+    elif request.method == 'DELETE':
+        return _redirect_to_function(environment.remove_gambler_from_league, '')
 
 
-@app.route('/leagues/<league_index>/tournaments', methods=['GET', 'POST'])
-def _manage_league_tournament(league_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            return environment.get_tournaments(league_index)
-        elif request.method == 'POST':
-            creator = environment.create_tournament
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            json_parameters['league_index'] = league_index
-            _check_args(json_parameters, signature(creator).parameters)
-            creator(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/ranking', methods=['GET'])
+def _league_ranking(**kwargs):
+    return _redirect_to_function(environment.get_league_ranking, '')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>', methods=['GET'])
-def _manage_league_tournament_instance(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            return environment.get_tournament_info(league_index, tournament_id)
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
+@app.route('/leagues/<int:league_index>/tournaments', methods=['GET', 'POST'])
+def _manage_league_tournaments(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_tournaments, 'QUERY')
+    elif request.method == 'POST':
+        return _redirect_to_function(environment.create_tournament, 'JSON')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/ranking', methods=['GET'])
-def _tournament_ranking(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'GET':
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            return environment.get_tournament_ranking(league_index, tournament_id)
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>', methods=['GET', 'PUT', 'DELETE'])
+def _manage_league_tournament_instance(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_tournament_info, '')
+    elif request.method == 'PUT':
+        return _redirect_to_function(environment.update_tournament, 'JSON')
+    elif request.method == 'DELETE':
+        return _redirect_to_function(environment.delete_tournament, '')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/open', methods=['POST'])
-def _tournament_open(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            _check_args(json_parameters, [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            environment.open_tournament(league_index, tournament_id)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players', methods=['GET', 'POST'])
+def _manage_tournament_players(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_players_from_tournament, '')
+    elif request.method == 'POST':
+        return _redirect_to_function(environment.add_player_to_tournament, 'JSON')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/players', methods=['POST'])
-def _tournament_players(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            json_parameters = request.json
-            json_parameters['league_index'] = league_index
-            json_parameters['tournament_id'] = tournament_id
-            _check_args(json_parameters, signature(environment.add_player_to_tournament).parameters)
-            environment.add_player_to_tournament(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players/<int:place>', methods=['GET', 'PUT', 'DELETE'])
+def _manage_tournament_player(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_player_info_from_tournament, '')
+    elif request.method == 'PUT':
+        return _redirect_to_function(environment.update_player_in_tournament, 'JSON')
+    elif request.method == 'DELETE':
+        return _redirect_to_function(environment.remove_player_from_tournament, '')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/match', methods=['GET', 'POST'])
-def _tournament_match(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            json_parameters = request.json
-            json_parameters['league_index'] = league_index
-            json_parameters['tournament_id'] = tournament_id
-            _check_args(json_parameters, signature(environment.set_match_score).parameters)
-            environment.set_match_score(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches', methods=['GET'])
+def _manage_tournament_matches(**kwargs):
+    return _redirect_to_function(environment.get_tournament_matches, '')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/match_players', methods=['POST'])
-def _tournament_match_players(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            json_parameters = request.json
-            json_parameters['league_index'] = league_index
-            json_parameters['tournament_id'] = tournament_id
-            _check_args(json_parameters, signature(environment.add_players_to_match).parameters)
-            environment.add_players_to_match(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches/<regex("[A-Z][0-9]+"):match_id>', methods=['PUT'])
+def _manage_tournament_match(**kwargs):
+    return _redirect_to_function(environment.update_tournament_match, 'JSON')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/alternate', methods=['POST'])
-def _tournament_alternate(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            json_parameters = request.json
-            json_parameters['league_index'] = league_index
-            json_parameters['tournament_id'] = tournament_id
-            _check_args(json_parameters, signature(environment.add_alternate_to_group).parameters)
-            environment.add_alternate_to_group(**json_parameters)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches', methods=['GET'])
+def _manage_tournament_bets(**kwargs):
+    return _redirect_to_function(environment.get_tournament_bets, '')
 
 
-@app.route('/leagues/<league_index>/tournaments/<tournament_index>/close', methods=['POST'])
-def _tournament_close(league_index, tournament_index):
-    try:
-        league_index = int(league_index)
-        if league_index < 0:
-            raise IndexError
-        tournament_index = int(tournament_index)
-        if tournament_index < 0:
-            raise IndexError
-        if request.method == 'POST':
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            _check_args(json_parameters, [])
-            tournament_id = environment.get_tournaments(league_index)[tournament_index]
-            environment.close_tournament(league_index, tournament_id)
-            return "Success", 200
-    except (IndexError, ValueError):
-        return "Invalid entity index", 400
-    except ArgumentError as e:
-        return str(e), 400
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches/<regex("[A-Z][0-9]+"):match_id>', methods=['PUT'])
+def _manage_tournament_bet(**kwargs):
+    return _redirect_to_function(environment.update_tournament_bet, 'JSON')
+
+
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/ranking', methods=['GET'])
+def _tournament_ranking(**kwargs):
+    return _redirect_to_function(environment.get_tournament_ranking, '')
 
 
 @app.route('/save', methods=['POST'])
-def _save():
-    try:
-        if request.method == 'POST':
-            saver = environment.save
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            _check_args(json_parameters, signature(saver).parameters)
-            saver(**json_parameters)
-            return "Success", 200
-    except ArgumentError as e:
-        return str(e), 400
+def _save(**kwargs):
+    return _redirect_to_function(environment.save, 'JSON')
 
 
 @app.route('/load', methods=['POST'])
-def _load():
-    try:
-        if request.method == 'POST':
-            loader = environment.save
-            _check_args(request.args.keys(), [])
-            json_parameters = request.json
-            _check_args(json_parameters, signature(loader).parameters)
-            loader(**json_parameters)
-            return "Success", 200
-    except ArgumentError as e:
-        return str(e), 400
+def _load(**kwargs):
+    return _redirect_to_function(environment.load, 'JSON')
+
+
+@app.route('/web/leagues', methods=['GET'])
+def _manage_web_leagues():
+    all_leagues_info = _get_all_entities_info('league')
+    return render_template('leagues.html', entities=all_leagues_info)
+
+
+@app.route('/web/players', methods=['GET'])
+def _manage_web_players():
+    all_players_info = _get_all_entities_info('player')
+    for player_info in all_players_info:
+        player_info['nation_code'] = environment.get_nation_info(index=player_info['nation'])['code']
+    return render_template('players.html', entities=all_players_info)
+
+
+@app.route('/web/nations', methods=['GET'])
+def _manage_web_nations():
+    return render_template('nations.html')
+
+
+@app.route('/web/gamblers', methods=['GET'])
+def _manage_web_gamblers():
+    all_gamblers_info = _get_all_entities_info('gambler')
+    for gambler_info in all_gamblers_info:
+        gambler_info['leagues'].append({'name': 'Pippo'})
+    return render_template('gamblers.html', entities=all_gamblers_info)
+
+
+@app.route('/web/leagues/<int:index>', methods=['GET'])
+def _manage_web_league(index):
+    return render_template('league.html', league_index=index)
+
+
+@app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>', methods=['GET'])
+def _manage_web_tournament(league_index, tournament_index):
+    return render_template('tournament.html', league_index=league_index, tournament_index=tournament_index)
+
+
+@app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>', methods=['GET'])
+def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index):
+    return render_template('tournament_gambler.html', league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index)
 
 
 app.run(debug=True, host="127.0.0.1")

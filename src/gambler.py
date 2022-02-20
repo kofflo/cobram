@@ -8,7 +8,6 @@ class Gambler(Entity):
     class_id = class_id_strings.GAMBLER_ID
     INVALID_NICKNAME_FOR_A_GAMBLER = "Invalid nickname for a gambler"
     INVALID_EMAIL_FOR_A_GAMBLER = "Invalid email for a gambler"
-    INVALID_CREDIT_CHANGE = "Invalid credit change"
     INVALID_LEAGUE_FOR_A_GAMBLER = "Invalid league for a gambler"
     GAMBLER_ALREADY_IN_LEAGUE = "Gambler already in league"
     GAMBLER_NOT_IN_LEAGUE = "Gambler not in league"
@@ -17,14 +16,12 @@ class Gambler(Entity):
     GAMBLER_NOT_IN_BET_TOURNAMENT = "Gambler not in bet tournament"
     EMAIL_RE = r"[^@]+@[^@]+\.[^@]+"
 
-    def __init__(self, *, nickname, email, initial_credit=0):
+    def __init__(self, *, nickname, email):
         super().__init__('nickname', unique_attributes=['email'])
         self._nickname = None
         self._email = None
-        self._credit = 0
         self.nickname = nickname
         self.email = email
-        self.change_credit(initial_credit)
         self._leagues = set()
         self._bet_tournaments = set()
 
@@ -50,27 +47,18 @@ class Gambler(Entity):
 
     @property
     def info(self):
-        return {'nickname': self.nickname, 'email': self.email, 'credit': self.credit}
+        info = super().info
+        info.update({'nickname': self.nickname, 'email': self.email, 'leagues': [league for league in self._leagues]})
+        return info
 
-    @property
-    def credit(self):
-        return self._credit
-
-    def change_credit(self, amount):
-        try:
-            amount = float(amount)
-            self._credit += amount
-        except (ValueError, TypeError):
-            raise GamblerError(Gambler.INVALID_CREDIT_CHANGE)
-
-    def add_to_league(self, league):
+    def add_to_league(self, league, initial_score=0, initial_credit=0):
         if not class_id_strings.check_class_id(league, class_id_strings.LEAGUE_ID):
             raise GamblerError(Gambler.INVALID_LEAGUE_FOR_A_GAMBLER)
         if self in league and self.is_in_league(league):
             raise GamblerError(Gambler.GAMBLER_ALREADY_IN_LEAGUE)
         self._leagues.add(league)
         if self not in league:
-            league.add_gambler(self)
+            league.add_gambler(self, initial_score=initial_score, initial_credit=initial_credit)
 
     def remove_from_league(self, league):
         if not class_id_strings.check_class_id(league, class_id_strings.LEAGUE_ID):
