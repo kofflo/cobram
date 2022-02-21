@@ -1,5 +1,5 @@
 from flask import Flask
-from flask import request, render_template
+from flask import request, render_template, redirect
 from flask_principal import Principal, Permission, RoleNeed
 from werkzeug.routing import BaseConverter
 import environment
@@ -70,8 +70,6 @@ def _manage_entity_instance(entity_name, index):
 
 def _redirect_to_function(function, source):
     args = {}
-    print(request.args)
-    print(request.json)
     if source == 'QUERY':
         args = dict(request.args)
         _check_args(request.json, [])
@@ -291,4 +289,11 @@ def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index
     return render_template('tournament_gambler.html', league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index)
 
 
-app.run(debug=True, host="127.0.0.1")
+@app.route('/', methods=['GET'])
+def _index():
+    return redirect('/web/leagues/0')
+
+
+from waitress import serve
+serve(app, listen='*:8080')
+#app.run(debug=True, host="127.0.0.1")
