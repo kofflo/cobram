@@ -586,7 +586,7 @@ def test_season_2021():
         name, year = tournament[0], tournament[2]
         add_players_to_tournament(coppa_cobram_index, name, year, *all_players[name, year])
 
-        for round_index in range(4):
+        for round_index in range(1):
             for gambler in gamblers_list:
                 gambler_nickname = gambler[0][0]
                 gambler_bets = all_bets[gambler_nickname][tournament[0], tournament[2]]
@@ -596,8 +596,8 @@ def test_season_2021():
             scores = results[tournament[0], tournament[2]]
             set_round_results(coppa_cobram_index, tournament, round_index, scores)
 
-        tournament_index = tournament_id_to_index(coppa_cobram_index, (name, year))
-        r = requests.put(URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=coppa_cobram_index, tournament_index=tournament_index), json= {'is_open': False})
+#        tournament_index = tournament_id_to_index(coppa_cobram_index, (name, year))
+#        r = requests.put(URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=coppa_cobram_index, tournament_index=tournament_index), json= {'is_open': False})
 
         print(name, year)
 
@@ -653,6 +653,8 @@ def test_season_2021():
     print(tournament_ranking)
 
     r = requests.post(URL + '/save', json={'filename': 'coppa_cobram.dat'})
+
+
 
 
 test_season_2021()

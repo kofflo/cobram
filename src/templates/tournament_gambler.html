@@ -12,7 +12,9 @@
     var nations;
     var ranking;
     var tournaments;
+    var tournamentPlayers;
     var matches;
+    var bets;
     var forms = Object();
     var checkboxes = Object();
     function callLeagues() {
@@ -111,6 +113,22 @@
             tournamentsRequest.send();
         })
     }
+    function callTournamentPlayers() {
+        return new Promise(function(resolve, reject) {
+            var tournamentPlayersRequest = new XMLHttpRequest();
+            tournamentPlayersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            tournamentPlayersRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
+            tournamentPlayersRequest.send();
+        })
+    }
     function callMatches() {
         return new Promise(function(resolve, reject) {
             var matchesRequest = new XMLHttpRequest();
@@ -144,15 +162,16 @@
         })
     }
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callMatches(), callBets()]).then(function (values) {
+        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callTournamentPlayers(), callMatches(), callBets()]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
             nations = JSON.parse(values[3]);
             ranking = JSON.parse(values[4]);
             tournaments = JSON.parse(values[5]);
-            matches = JSON.parse(values[6]);
-            bets = JSON.parse(values[7]);
+            tournamentPlayers = JSON.parse(values[6]);
+            matches = JSON.parse(values[7]);
+            bets = JSON.parse(values[8]);
             updateTitles();
             updateMatches();
         }).catch(function (reason) {
@@ -180,15 +199,35 @@
             const id_cell = row.insertCell();
             id_cell.innerText = key;
             const player_1_cell = row.insertCell();
-            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
+            seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
+            if (seed_player_1 != 0) {
+                seed_string = " [" + seed_player_1 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
             const player_2_cell = row.insertCell();
-            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
+            seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seed_player_2 != 0) {
+                seed_string = " [" + seed_player_2 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
             const score_cell = row.insertCell();
             score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
             const joker_cell = row.insertCell();
             joker_cell.innerText = bets[key]["bet"]["joker"] ? "*" : "";
             const points_cell = row.insertCell();
             points_cell.innerText = bets[key]["points"];
+        }
+    }
+    function getSeed(player) {
+        for (key in tournamentPlayers) {
+            index = tournamentPlayers[key]["index"];
+            if (index == player) {
+                return tournamentPlayers[key]["seed"];
+            }
         }
     }
     function formatScore(score) {
@@ -250,6 +289,16 @@
                     form.setAttribute("type", "text");
                     form.setAttribute("name", key);
                     form.setAttribute("size", 1);
+                    score = bets[key]["bet"]["score"];
+                    if (score != null && score[set] != undefined) {
+                        if (score[set][0] == "-1") {
+                            form.value = "A-";
+                        } else if (score[set][1] == "-1") {
+                            form.value += "-A";
+                        } else {
+                            form.value = score[set][0] + "-" + score[set][1];
+                        }
+                    }
                     forms[key][set] = form;
                     set_cell.appendChild(form);
                 }
@@ -258,6 +307,9 @@
                 checkbox.type = "checkbox";
                 checkboxes[key] = checkbox;
                 checkbox_cell.appendChild(checkbox);
+                if (bets[key]["bet"]["joker"]) {
+                    checkbox.checked = true;
+                }
                 score_cell.appendChild(inner_table);
             }
             if (joker_already_used) {
@@ -284,20 +336,25 @@
                 }
                 if (value == "") {
                     last_set = true;
+                    continue;
                 } else if (value == "-A") {
                     set_score = Array(0, -1);
+                    match_score.push(set_score);
+                    last_set = true;
+                    continue;
                 } else if (value == "A-") {
                     set_score = Array(-1, 0);
-                }  else if (!re_score.test(value)) {
+                    match_score.push(set_score);
+                    last_set = true;
+                    continue;
+                } else if (!re_score.test(value)) {
                     alert("Punteggio non valido nel match " + key + ": " + value);
                     return;
                 }
-                if (value != "") {
-                    set_score = value.match(re_score).slice(1, 3);
-                    set_score[0] = parseInt(set_score[0]);
-                    set_score[1] = parseInt(set_score[1]);
-                    match_score.push(set_score);
-                }
+                set_score = value.match(re_score).slice(1, 3);
+                set_score[0] = parseInt(set_score[0]);
+                set_score[1] = parseInt(set_score[1]);
+                match_score.push(set_score);
             }
             var joker = checkboxes[key].checked;
             if (joker) {
@@ -309,13 +366,29 @@
                 }
             }
             all_bets[key] = Object();
-            all_bets[key]["score"] = match_score;
-            all_bets[key]["joker"] = joker;
+            all_bets[key]["bet"] = Object();
+            all_bets[key]["bet"]["score"] = match_score;
+            all_bets[key]["bet"]["joker"] = joker;
         }
+        all_promises = Array();
         for (key in all_bets) {
-            returnValue = sendBetRequest(key, all_bets[key]);
+            all_promises.push(sendBetRequest(key, all_bets[key]));
         }
-        restoreMatches();
+        Promise.allSettled(all_promises).then(function (results) {
+            console.warn(results);
+            for (var index in results) {
+                if (results[index]["status"] == "fulfilled") {
+                    match_id = results[index]["value"]["match_id"];
+                    bet = JSON.parse(results[index]["value"]["response"]);
+                    bets[match_id] = bet;
+                } else {
+                    match_id = results[index]["reason"]["match_id"];
+                    message = results[index]["reason"]["response"];
+                    window.alert("Match " + match_id + ": " + message);
+                }
+            }
+            restoreMatches();
+        });
     }
     function restoreMatches() {
         button = document.getElementById("betsButton");
@@ -325,6 +398,23 @@
         forms = Object();
         checkboxes = Object();
         updateMatches();
+    }
+    function sendBetRequest(match_id, bet) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve({"match_id": match_id, "response": this.responseText});
+                    } else {
+                        reject({"match_id": match_id, "response": this.responseText});
+                    }
+                }
+            };
+            betPutRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches/" + match_id, true);
+            betPutRequest.setRequestHeader("Content-Type", "application/json");
+            betPutRequest.send(JSON.stringify(bet));
+        })
     }
 </script>
 <h1 id="mainHeader"></h1>

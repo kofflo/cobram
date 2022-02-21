@@ -70,11 +70,16 @@ def _manage_entity_instance(entity_name, index):
 
 def _redirect_to_function(function, source):
     args = {}
+    print(request.args)
+    print(request.json)
     if source == 'QUERY':
         args = dict(request.args)
         _check_args(request.json, [])
     elif source == 'JSON':
-        args = dict(request.json)
+        if request.json is not None:
+            args = dict(request.json)
+        else:
+            return str("JSON content missing"), 400
         _check_args(request.args, [])
     else:
         _check_args(request.json, [])

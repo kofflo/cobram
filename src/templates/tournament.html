@@ -12,6 +12,7 @@
     var nations;
     var ranking;
     var tournaments;
+    var tournamentPlayers;
     var matches;
     function callLeagues() {
         return new Promise(function(resolve, reject) {
@@ -109,6 +110,22 @@
             tournamentsRequest.send();
         })
     }
+    function callTournamentPlayers() {
+        return new Promise(function(resolve, reject) {
+            var tournamentPlayersRequest = new XMLHttpRequest();
+            tournamentPlayersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            tournamentPlayersRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
+            tournamentPlayersRequest.send();
+        })
+    }
     function callMatches() {
         return new Promise(function(resolve, reject) {
             var matchesRequest = new XMLHttpRequest();
@@ -126,14 +143,15 @@
         })
     }
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callMatches()]).then(function (values) {
+        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callTournamentPlayers(), callMatches()]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
             nations = JSON.parse(values[3]);
             ranking = JSON.parse(values[4]);
             tournaments = JSON.parse(values[5]);
-            matches = JSON.parse(values[6]);
+            tournamentPlayers = JSON.parse(values[6]);
+            matches = JSON.parse(values[7]);
             updateTitles();
             updateMatches();
             updateTablesRanking();
@@ -161,21 +179,43 @@
             id_cell.innerText = key;
             if (matches[key]["winner"] == matches[key]["players"]["player_1"]) {
                 winner = 1;
-            } else {
+            } else if (matches[key]["winner"] == matches[key]["players"]["player_2"]) {
                 winner = 2;
+            } else {
+                winner = null;
             }
             const player_1_cell = row.insertCell();
             if (winner == 1) {
                 player_1_cell.className = "bold";
             }
-            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
+            seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
+            if (seed_player_1 != 0) {
+                seed_string = " [" + seed_player_1 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
             const player_2_cell = row.insertCell();
             if (winner == 2) {
                 player_2_cell.className = "bold";
             }
-            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
+            seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seed_player_2 != 0) {
+                seed_string = " [" + seed_player_2 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
             const score_cell = row.insertCell();
             score_cell.innerText = formatScore(matches[key]["score"]);
+        }
+    }
+    function getSeed(player) {
+        for (key in tournamentPlayers) {
+            index = tournamentPlayers[key]["index"];
+            if (index == player) {
+                return tournamentPlayers[key]["seed"];
+            }
         }
     }
     function formatScore(score) {

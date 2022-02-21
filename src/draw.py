@@ -80,13 +80,9 @@ class Draw:
 
     @property
     def winner(self):
-        print(self)
-        print(self._final_indexes)
         final_indexes = self._final_indexes
         final = self._matches[final_indexes[0]][final_indexes[1]]
-        print(final)
         final_winner = final.winner
-        print(final.winner)
         if final_winner is not None:
             return self._players[final_indexes[0]][final_indexes[1]][final_winner]
         return None

@@ -250,7 +250,10 @@ def add_player_to_tournament(*, league_index, tournament_index, place, player_in
     league.add_player_to_tournament(tournament_id=tournament_id, place=place, player=player, seed=seed)
     players = league.get_players_from_tournament(tournament_id=tournament_id)
     return {
-        place: _get_player_index(players[place]) if players[place] is not None else None
+        place: {
+            'index': _get_player_index(player),
+            'seed': league.get_seed(tournament_id=tournament_id, player=player)
+        } if player is not None else None
     }
 
 
@@ -259,7 +262,10 @@ def get_players_from_tournament(*, league_index, tournament_index):
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     players = league.get_players_from_tournament(tournament_id=tournament_id)
     return {
-        place: _get_player_index(player) if player is not None else None
+        place: {
+            'index': _get_player_index(player),
+            'seed': league.get_seed(tournament_id=tournament_id, player=player)
+        } if player is not None else None
         for place, player in enumerate(players)
     }
 

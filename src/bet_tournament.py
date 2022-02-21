@@ -119,9 +119,9 @@ class BetTournament:
         if not force and self.draw.get_match(match_id)[0] is not None:
             raise BetTournamentError(BetTournament.CANNOT_CHANGE_BET_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG)
         try:
-            self._bets[gambler].set_match_score(match_id, score, force=force)
+            self._bets[gambler].set_match_score(match_id, score, force=True)
             if joker:
-                if self._joker[gambler] is None:
+                if self._joker[gambler] is None or not self._bets_closed[self._joker[gambler]]:
                     self._joker[gambler] = match_id
                 else:
                     raise BetTournamentError(BetTournament.JOKER_ALREADY_SET_FOR_GAMBLER)
