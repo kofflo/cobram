@@ -145,6 +145,7 @@
             const flag_cell = row.insertCell();
             const img = document.createElement('img');
             img.src = '/static/flags/' + nations[tournaments[key]["nation"]].code + '.png';
+            img.setAttribute("class", "bordered");
             flag_cell.appendChild(img);
             const n_sets_cell = row.insertCell();
             n_sets_cell.innerText = tournaments[key]["n_sets"];

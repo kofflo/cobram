@@ -191,6 +191,7 @@
     function updateMatches() {
         table = document.getElementById("matches");
         table.innerText = "";
+        any_open_match = false;
         for (var key in matches) {
             if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                 continue;
@@ -198,6 +199,14 @@
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
+            if (matches[key]["bets_closed"]) {
+                lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                id_cell.innerText += "   ";
+                id_cell.appendChild(lock);
+            } else {
+                any_open_match = true;
+            }
             const player_1_cell = row.insertCell();
             seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
             if (seed_player_1 != 0) {
@@ -217,9 +226,19 @@
             const score_cell = row.insertCell();
             score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
             const joker_cell = row.insertCell();
-            joker_cell.innerText = bets[key]["bet"]["joker"] ? "*" : "";
+            if (bets[key]["bet"]["joker"]) {
+                const joker_image = document.createElement("img");
+                joker_image.src = '/static/star.png';
+                joker_cell.appendChild(joker_image);
+            }
             const points_cell = row.insertCell();
-            points_cell.innerText = bets[key]["points"];
+            if (matches[key]["bets_closed"]) {
+                points_cell.innerText = bets[key]["points"];
+            }
+        }
+        if (!any_open_match) {
+            button = document.getElementById("betsButton");
+            button.hidden = true;
         }
     }
     function getSeed(player) {
@@ -237,8 +256,7 @@
                 formatted += "A- " + " / ";
             } else if (score[set][1] == -1) {
                 formatted += " -A" + " / ";
-            }
-            else {
+            } else {
                 formatted += score[set][0] + "-" + score[set][1] + " / ";
             }
         }
@@ -263,6 +281,12 @@
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
+            if (matches[key]["bets_closed"]) {
+                lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                id_cell.innerText += "   ";
+                id_cell.appendChild(lock);
+            }
             const player_1_cell = row.insertCell();
             player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
             const player_2_cell = row.insertCell();
@@ -274,9 +298,11 @@
                 if (bets[key]["bet"]["joker"]) {
                     joker_already_used = true;
                 }
-                joker_cell.innerText = bets[key]["bet"]["joker"] ? "*" : "";
-                const points_cell = row.insertCell();
-                points_cell.innerText = bets[key]["points"];
+                if (bets[key]["bet"]["joker"]) {
+                    const joker_image = document.createElement("img");
+                    joker_image.src = '/static/star.png';
+                    joker_cell.appendChild(joker_image);
+                }
             } else {
                 const score_cell = row.insertCell();
                 inner_table = document.createElement("table");
@@ -291,12 +317,14 @@
                     form.setAttribute("size", 1);
                     score = bets[key]["bet"]["score"];
                     if (score != null && score[set] != undefined) {
-                        if (score[set][0] == "-1") {
+                        if (score[set][0] == -1) {
                             form.value = "A-";
-                        } else if (score[set][1] == "-1") {
+                        } else if (score[set][1] == -1) {
                             form.value += "-A";
+                        } else if (score[set][0] < 10 && score[set][1] < 10) {
+                            form.value = String(score[set][0]) + String(score[set][1]);
                         } else {
-                            form.value = score[set][0] + "-" + score[set][1];
+                            form.value = String(score[set][0]) + "-" + String(score[set][1]);
                         }
                     }
                     forms[key][set] = form;
@@ -320,7 +348,8 @@
         }
     }
     function sendBets() {
-        const re_score = /^([0-9]*)-([0-9]*)$/;
+        const re_score_minus = /^([0-9]*)-([0-9]*)$/;
+        const re_score_simple = /^([0-9])([0-9])$/;
         put_json = Object();
         all_values = "";
         joker_used = false;
@@ -329,7 +358,7 @@
             last_set = false;
             match_score = Array();
             for (set in forms[key]) {
-                var value = forms[key][set].value;
+                var value = forms[key][set].value.trim();
                 if (value != "" && last_set) {
                     alert("Punteggio non valido nel match " + key + ": set dopo un set vuoto");
                     return;
@@ -347,11 +376,14 @@
                     match_score.push(set_score);
                     last_set = true;
                     continue;
-                } else if (!re_score.test(value)) {
+                } else if (re_score_minus.test(value)) {
+                    set_score = value.match(re_score_minus).slice(1, 3);
+                } else if (re_score_simple.test(value)) {
+                    set_score = value.match(re_score_simple).slice(1, 3);
+                } else {
                     alert("Punteggio non valido nel match " + key + ": " + value);
                     return;
                 }
-                set_score = value.match(re_score).slice(1, 3);
                 set_score[0] = parseInt(set_score[0]);
                 set_score[1] = parseInt(set_score[1]);
                 match_score.push(set_score);
@@ -422,7 +454,19 @@
 <button id="betsButton" onclick="insertBets()">Cambia i punteggi</button>
 <h2 id="pointsHeader"></h2>
 <div>
-    <table id="matches" class="styled-table">
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Match</td>
+            <td>Giocatore 1</td>
+            <td>Giocatore 2</td>
+            <td>Pronostico</td>
+            <td>Jolly</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="matches">
+        </tbody>
     </table>
 </div>
 </body>

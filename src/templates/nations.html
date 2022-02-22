@@ -41,6 +41,7 @@
             const flag = row.insertCell();
             const img = document.createElement('img');
             img.src = '/static/flags/' + nations[key]["code"] + '.png';
+            img.setAttribute("class", "bordered");
             flag.appendChild(img);
         }
     }
