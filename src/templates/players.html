@@ -61,6 +61,7 @@
             const flag_cell = row.insertCell();
             const img = document.createElement('img');
             img.src = '/static/flags/' + nations[players[key]["nation"]].code + '.png';
+            img.setAttribute("class", "bordered");
             flag_cell.appendChild(img);
         }
     }

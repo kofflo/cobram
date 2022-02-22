@@ -145,15 +145,41 @@
             const flag_cell = row.insertCell();
             const img = document.createElement('img');
             img.src = '/static/flags/' + nations[tournaments[key]["nation"]].code + '.png';
+            img.setAttribute("class", "bordered");
             flag_cell.appendChild(img);
             const n_sets_cell = row.insertCell();
             n_sets_cell.innerText = tournaments[key]["n_sets"];
             const tie_breaker_cell = row.insertCell();
-            tie_breaker_cell.innerText = tournaments[key]["tie_breaker_5th"];
+            tie_breaker = tournaments[key]["tie_breaker_5th"];
+            if (tie_breaker == "TIE_BREAKER_AT_7") {
+                tie_breaker_cell.innerText = "Tie-break sul 6-6";
+            } else if (tie_breaker == "TIE_BREAKER_AT_13") {
+                tie_breaker_cell.innerText = "Tie-break sul 12-12";
+            } else if (tie_breaker == "NO_TIE_BREAKER") {
+                tie_breaker_cell.innerText = "Senza tie-break";
+            }
             const category_cell = row.insertCell();
-            category_cell.innerText = tournaments[key]["category"];
+            category = tournaments[key]["category"];
+            if (category == "GRAND_SLAM") {
+                category_cell.innerText = "GRAND SLAM";
+            } else if (category == "MASTER_1000") {
+                category_cell.innerText = "MASTER 1000";
+            } else if (category == "ATP_FINALS") {
+                category_cell.innerText = "ATP FINALS";
+            } else if (category == "OLYMPICS") {
+                category_cell.innerText = "OLIMPIADI";
+            } else if (category == "ATP_500") {
+                category_cell.innerText = "ATP 500";
+            } else if (category == "ATP_250") {
+                category_cell.innerText = "ATP 250";
+            }
             const draw_cell = row.insertCell();
-            draw_cell.innerText = tournaments[key]["draw_type"];
+            draw = tournaments[key]["draw_type"];
+            if (draw == "Draw16") {
+                draw_cell.innerText = "Eliminazione-16"
+            } else if (draw == "DrawRoundRobin") {
+                draw_cell.innerText = "Round Robin";
+            }
             const player_winner_cell = row.insertCell();
             const player_winner = tournaments[key]["winner"] != null ? players[tournaments[key]["winner"]] : null;
             if (player_winner != null) {
