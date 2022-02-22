@@ -303,6 +303,8 @@
                     joker_image.src = '/static/star.png';
                     joker_cell.appendChild(joker_image);
                 }
+                const points_cell = row.insertCell();
+                points_cell.innerText = bets[key]["points"];
             } else {
                 const score_cell = row.insertCell();
                 inner_table = document.createElement("table");
@@ -330,19 +332,29 @@
                     forms[key][set] = form;
                     set_cell.appendChild(form);
                 }
-                checkbox_cell = inner_row.insertCell();
-                let checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkboxes[key] = checkbox;
-                checkbox_cell.appendChild(checkbox);
-                if (bets[key]["bet"]["joker"]) {
-                    checkbox.checked = true;
-                }
                 score_cell.appendChild(inner_table);
+                checkbox_cell = row.insertCell();
+                if (!joker_already_used) {
+                    let checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkboxes[key] = checkbox;
+                    checkbox.setAttribute("id", key)
+                    checkbox.onchange = checkbox_change;
+                    checkbox_cell.appendChild(checkbox);
+                    if (bets[key]["bet"]["joker"]) {
+                        checkbox.checked = true;
+                    }
+                }
+                const points_cell = row.insertCell();
             }
-            if (joker_already_used) {
-                for (key in checkboxes) {
-                    checkboxes[key].remove();
+        }
+    }
+    function checkbox_change(event) {
+        id = event.target['id'];
+        if (checkboxes[id].checked) {
+            for (var key in checkboxes) {
+                if (key != id) {
+                    checkboxes[key].checked = false;
                 }
             }
         }
@@ -352,7 +364,6 @@
         const re_score_simple = /^([0-9])([0-9])$/;
         put_json = Object();
         all_values = "";
-        joker_used = false;
         all_bets = Object();
         for (var key in forms) {
             last_set = false;
@@ -388,15 +399,7 @@
                 set_score[1] = parseInt(set_score[1]);
                 match_score.push(set_score);
             }
-            var joker = checkboxes[key].checked;
-            if (joker) {
-                if (joker_used) {
-                    alert("È possibile selezionare soltanto un joker");
-                    return;
-                } else {
-                    joker_used = true;
-                }
-            }
+            var joker = key in checkboxes && checkboxes[key].checked;
             all_bets[key] = Object();
             all_bets[key]["bet"] = Object();
             all_bets[key]["bet"]["score"] = match_score;
