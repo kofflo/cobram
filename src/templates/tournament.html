@@ -212,6 +212,9 @@
     }
     function getSeed(player) {
         for (key in tournamentPlayers) {
+            if (tournamentPlayers[key] == null) {
+                continue;
+            }
             index = tournamentPlayers[key]["index"];
             if (index == player) {
                 return tournamentPlayers[key]["seed"];
