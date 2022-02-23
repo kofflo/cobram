@@ -656,5 +656,5 @@ def test_season_2021():
 
 
 
-test_season_2021()
+#test_season_2021()
 r = requests.post(URL + '/load', json={'filename': 'coppa_cobram.dat'})

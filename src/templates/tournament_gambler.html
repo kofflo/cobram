@@ -361,7 +361,7 @@
                     // mobile
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
-                    form.setAttribute("size", 15);
+                    form.setAttribute("size", 3 * tournaments[{{ tournament_index }}]["n_sets"]);
                     score = bets[key]["bet"]["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);

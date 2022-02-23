@@ -294,6 +294,6 @@ def _index():
     return redirect('/web/leagues/0')
 
 
-from waitress import serve
-serve(app, listen='*:8080')
-#app.run(debug=True, host="127.0.0.1")
+#from waitress import serve
+#serve(app, listen='*:8080')
+app.run(debug=True, host="0.0.0.0")
