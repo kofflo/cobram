@@ -400,13 +400,13 @@ def load(*, filename):
             _player_temp = unpickler.load()
             _gambler_temp = unpickler.load()
             _nation_temp = unpickler.load()
-        return {}
     except (IOError, pickle.PickleError) as e:
         raise(IOError(ERROR_DURING_ENVIRONMENT_LOADING.format(message=str(e))))
     _league_objects = _league_temp
     _player_objects = _player_temp
     _gambler_objects = _gambler_temp
     _nation_objects = _nation_temp
+    return {}
 
 
 def _get_entity(entity_name, index):
