@@ -73,8 +73,8 @@ class TestBetTournament(unittest.TestCase):
             bet_tournament.set_match_score(gambler=create_gambler(), match_id="A3", score=third_bet, joker=True)
         self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A2")['joker'], False)
         self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A3")['joker'], True)
-        with self.assertRaises(BetTournamentError):
-            bet_tournament.set_match_score(gambler=second_gambler, match_id="A4", score=third_bet, joker=True)
+        bet_tournament.set_match_score(gambler=second_gambler, match_id="A4", score=third_bet, joker=True)
+        self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A4")['joker'], True)
         self.assertTrue(bet_tournament.is_open)
         bet_tournament.close()
         self.assertFalse(bet_tournament.is_open)

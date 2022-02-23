@@ -35,7 +35,10 @@
         for (var key in leagues) {
             const row = table.insertRow();
             const name_cell = row.insertCell();
-            name_cell.innerText = leagues[key]["name"];
+            leagueLink = document.createElement("a");
+            leagueLink.innerText = leagues[key]["name"];
+            leagueLink.setAttribute("href", "/web/leagues/" + key);
+            name_cell.appendChild(leagueLink);
         }
     }
 </script>

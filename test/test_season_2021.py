@@ -233,21 +233,20 @@ def test_season_2021():
 
     r = requests.post(URL + '/leagues', json={'name': 'Coppa Cobram'})
     coppa_cobram_index = list(r.json().keys())[0]
-
     gamblers_list = [
-        [["Ciccio", "ciccio@cobram.it"], 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
-        [["Conte", "conte@cobram.it"], 3175, [125, 400, 75, 75, 0, 50, 0, 600, 600, 800, 200, 200, 50]],
-        [["Franki", "franki@cobram.it"], 1570, [50, 0, 10, 50, 50, 75, 0, 0, 0, 125, 300, 10, 900]],
-        [["Giovanni", "giovanni@cobram.it"], 3985, [800, 10, 1000, 600, 600, 100, 0, 25, 200, 200, 150, 150, 150]],
-        [["Mimmo", "mimmo@cobram.it"], 1960, [0, 600, 50, 0, 300, 200, 0, 10, 75, 125, 0, 0, 600]],
-        [["Monci", "monci@cobram.it"], 8300, [300, 400, 1000, 1000, 800, 1200, 0, 300, 1000, 800, 600, 600, 300]],
-        [["Zoo", "zoo@cobram.it"], 7575, [125, 25, 100, 600, 1200, 2000, 0, 1000, 150, 75, 400, 400, 1500]],
-        [["Celli", "celli@cobram.it"], 6050, [200, 200, 150, 200, 2000, 400, 0, 200, 400, 2000, 75, 150, 75]],
-        [["Simone", "simone@cobram.it"], 4275, [600, 75, 400, 600, 125, 800, 0, 50, 400, 400, 75, 300, 450]],
+        [["Ciccio", "fra.greco83@gmail.com"], 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
+        [["Conte", "contekofflo@gmail.com"], 3175, [125, 400, 75, 75, 0, 50, 0, 600, 600, 800, 200, 200, 50]],
+        [["Franki", "franki.cavadini@gmail.com"], 1570, [50, 0, 10, 50, 50, 75, 0, 0, 0, 125, 300, 10, 900]],
+        [["Giovanni", "g.migliaccio4@alice.it"], 3985, [800, 10, 1000, 600, 600, 100, 0, 25, 200, 200, 150, 150, 150]],
+        [["Mimmo", "cosimo.derinaldis@leonardocompany.com"], 1960, [0, 600, 50, 0, 300, 200, 0, 10, 75, 125, 0, 0, 600]],
+        [["Monci", "carmelo.raciti@leonardocompany.com"], 8300, [300, 400, 1000, 1000, 800, 1200, 0, 300, 1000, 800, 600, 600, 300]],
+        [["Zoo", "massimiliano.bianchi01.ext@leonardocompany.com"], 7575, [125, 25, 100, 600, 1200, 2000, 0, 1000, 150, 75, 400, 400, 1500]],
+        [["Celli", "francesco.celli.ext@leonardocompany.com"], 6050, [200, 200, 150, 200, 2000, 400, 0, 200, 400, 2000, 75, 150, 75]],
+        [["Simone", "simone.caprioli.ext@leonardocompany.com"], 4275, [600, 75, 400, 600, 125, 800, 0, 50, 400, 400, 75, 300, 450]],
         [["Furone", "furone@cobram.it"], 4110, [2000, 100, 300, 100, 300, 600, 0, 400, 100, 50, 10, 150, 0]],
-        [["Muffo", "muffo@cobram.it"], 810, [75, 200, 50, 10, 75, 125, 0, 100, 25, 0, 75, 50, 25]],
-        [["Macchia", "macchia@cobram.it"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-        [["Francesco", "francesco@cobram.it"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+        [["Muffo", "davide.muffo@leonardocompany.com"], 810, [75, 200, 50, 10, 75, 125, 0, 100, 25, 0, 75, 50, 25]],
+        [["Macchia", "luca.macchiaiolo.ext@leonardocompany.com"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+        [["Francesco", "francesco.romano05.ext@leonardocompany.com"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
     ]
 
     for gambler in gamblers_list:
