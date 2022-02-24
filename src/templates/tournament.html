@@ -171,12 +171,15 @@
         table = document.getElementById("matches");
         console.warn(matches);
         for (var key in matches) {
-            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
-                continue;
-            }
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
+            const player_1_cell = row.insertCell();
+            const player_2_cell = row.insertCell();
+            const score_cell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
             if (matches[key]["winner"] == matches[key]["players"]["player_1"]) {
                 winner = 1;
             } else if (matches[key]["winner"] == matches[key]["players"]["player_2"]) {
@@ -184,7 +187,6 @@
             } else {
                 winner = null;
             }
-            const player_1_cell = row.insertCell();
             if (winner == 1) {
                 player_1_cell.className = "bold";
             }
@@ -195,7 +197,6 @@
                 seed_string = "";
             }
             player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
-            const player_2_cell = row.insertCell();
             if (winner == 2) {
                 player_2_cell.className = "bold";
             }
@@ -206,7 +207,6 @@
                 seed_string = "";
             }
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
-            const score_cell = row.insertCell();
             score_cell.innerText = formatScore(matches[key]["score"]);
         }
     }

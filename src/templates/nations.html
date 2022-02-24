@@ -32,7 +32,11 @@
     }
     function updateTable() {
         table = document.getElementById("tableBody");
+        table.innerText = "";
         for (var key in nations) {
+            if (nations[key]["name"] == "BYE") {
+                continue;
+            }
             const row = table.insertRow();
             const name = row.insertCell();
             name.innerText = nations[key]["name"];
@@ -43,17 +47,122 @@
             img.src = '/static/flags/' + nations[key]["code"] + '.png';
             img.setAttribute("class", "bordered");
             flag.appendChild(img);
+            tools_cell = row.insertCell();
+            const delete_img = document.createElement('img');
+            delete_img.src = '/static/delete.png';
+            delete_img.id = key;
+            delete_img.onclick = deleteNation;
+            delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(delete_img);
         }
+    }
+    function deleteNation(event) {
+        index = event.target.id;
+        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+            delete nations[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function newNation() {
+        table = document.getElementById("nationInsert");
+        table.hidden = false;
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Codice";
+        row = table.insertRow();
+        name_cell = row.insertCell();
+        forms = Object();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", 15);
+        name_cell.appendChild(form_name);
+        surname_cell = row.insertCell();
+        forms["name"] = form_name;
+        let form_code = document.createElement("input");
+        form_code.setAttribute("type", "text");
+        form_code.setAttribute("size", 3);
+        surname_cell.appendChild(form_code);
+        forms["code"] = form_code;
+        button = document.getElementById("nationsButton");
+        button.innerText = "Invia";
+        button.onclick = sendNation;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreNations;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+    }
+    function sendNation() {
+        requestJson = Object();
+        requestJson["name"] = forms["name"].value;
+        requestJson["code"] = forms["code"].value;
+        Promise.all([sendNationRequest(requestJson)]).then(function (values) {
+            new_nation = JSON.parse(values[0]);
+            for (key in new_nation) {
+                nations[key] = new_nation[key];
+            }
+            restoreNations();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendNationRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("POST", "/nations", true);
+            betPutRequest.setRequestHeader("Content-Type", "application/json");
+            betPutRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendDeleteRequest(index) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("DELETE", "/nations/" + index, true);
+            betPutRequest.send();
+        })
+    }
+    function restoreNations() {
+        button = document.getElementById("nationsButton");
+        button.innerText = "Crea una nazione";
+        button.onclick = newNation;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("nationInsert").innerText = "";
+        document.getElementById("nationInsert").hidden = true;
+        forms = Object();
+        updateTable();
     }
 </script>
 <title>Nazioni</title>
 <h1>Nazioni</h1>
+<button id="nationsButton" onclick="newNation()">Crea una nazione</button>
+<table id="nationInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>
         <tr>
             <td>Nome</td>
             <td>Codice</td>
             <td>Bandiera</td>
+            <td></td>
         </tr>
     </thead>
     <tbody id="tableBody">

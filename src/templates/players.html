@@ -7,6 +7,7 @@
     window.onload = updatePage;
     var players;
     var nations;
+    var forms;
     function callPlayers() {
         return new Promise(function(resolve, reject) {
             var playersRequest = new XMLHttpRequest();
@@ -50,8 +51,12 @@
     }
     function updateTable() {
         table = document.getElementById("tableBody");
+        table.innerText = "";
         for (var key in players) {
-            const row = table.insertRow();
+            if (players[key]["name"] == "BYE") {
+                continue;
+            }
+            row = table.insertRow();
             const name_cell = row.insertCell();
             name_cell.innerText = players[key]["name"];
             const surname_cell = row.insertCell();
@@ -59,15 +64,134 @@
             const nation_code_cell = row.insertCell();
             nation_code_cell.innerText = nations[players[key]["nation"]].code;
             const flag_cell = row.insertCell();
-            const img = document.createElement('img');
-            img.src = '/static/flags/' + nations[players[key]["nation"]].code + '.png';
-            img.setAttribute("class", "bordered");
-            flag_cell.appendChild(img);
+            const flag_img = document.createElement('img');
+            flag_img.src = '/static/flags/' + nations[players[key]["nation"]].code + '.png';
+            flag_img.setAttribute("class", "bordered");
+            flag_cell.appendChild(flag_img);
+            tools_cell = row.insertCell();
+            const delete_img = document.createElement('img');
+            delete_img.src = '/static/delete.png';
+            delete_img.id = key;
+            delete_img.onclick = deletePlayer;
+            delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(delete_img);
         }
+    }
+    function deletePlayer(event) {
+        index = event.target.id;
+        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+            delete players[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function newPlayer() {
+        table = document.getElementById("playerInsert");
+        table.hidden = false;
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Cognome";
+        row.insertCell().innerText = "Nazione";
+        row = table.insertRow();
+        name_cell = row.insertCell();
+        forms = Object();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", 15);
+        name_cell.appendChild(form_name);
+        surname_cell = row.insertCell();
+        forms["name"] = form_name;
+        let form_surname = document.createElement("input");
+        form_surname.setAttribute("type", "text");
+        form_surname.setAttribute("size", 15);
+        surname_cell.appendChild(form_surname);
+        forms["surname"] = form_surname;
+        nation_cell = row.insertCell();
+        let form_nation = document.createElement("select");
+        for (key in nations) {
+            if (nations[key]["name"] == "BYE") {
+                continue;
+            }
+            option = document.createElement("option");
+            option.value = key;
+            option.innerText = nations[key]["name"];
+            form_nation.appendChild(option);
+        }
+        nation_cell.appendChild(form_nation);
+        forms["nation"] = form_nation;
+        button = document.getElementById("playersButton");
+        button.innerText = "Invia";
+        button.onclick = sendPlayer;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restorePlayers;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+    }
+    function sendPlayer() {
+        requestJson = Object();
+        requestJson["name"] = forms["name"].value;
+        requestJson["surname"] = forms["surname"].value;
+        requestJson["nation_index"] = forms["nation"].value;
+        Promise.all([sendPlayerRequest(requestJson)]).then(function (values) {
+            new_player = JSON.parse(values[0]);
+            for (key in new_player) {
+                players[key] = new_player[key];
+            }
+            restorePlayers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendPlayerRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("POST", "/players", true);
+            betPutRequest.setRequestHeader("Content-Type", "application/json");
+            betPutRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendDeleteRequest(index) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("DELETE", "/players/" + index, true);
+            betPutRequest.send();
+        })
+    }
+    function restorePlayers() {
+        button = document.getElementById("playersButton");
+        button.innerText = "Crea un tennista";
+        button.onclick = newPlayer;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("playerInsert").innerText = "";
+        document.getElementById("playerInsert").hidden = true;
+        forms = Object();
+        updateTable();
     }
 </script>
 <title>Tennisti</title>
 <h1>Tennisti</h1>
+<button id="playersButton" onclick="newPlayer()">Crea un tennista</button>
+<table id="playerInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>
         <tr>
@@ -75,6 +199,7 @@
             <td>Cognome</td>
             <td>Nazione</td>
             <td>Bandiera</td>
+            <td></td>
         </tr>
     </thead>
     <tbody id="tableBody">

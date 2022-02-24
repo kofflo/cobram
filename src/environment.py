@@ -18,6 +18,7 @@ ENTITY_WITH_INDEX_DOES_NOT_EXIST = "Entity [{entity_name}] with index [{index}] 
 NEGATIVE_INDEXES_ARE_NOT_ALLOWED = "Negative indexes are not allowed"
 ERROR_DURING_ENVIRONMENT_LOADING = "Error during environment loading [{message}]"
 ERROR_DURING_ENVIRONMENT_SAVING = "Error during environment saving [{message}]"
+ENTITY_IS_REFERENCED = "Entity is referenced"
 
 
 def create_league(*, name):
@@ -41,6 +42,7 @@ def delete_league(*, index):
 
 
 def create_player(*, name, surname, nation_index):
+    nation_index = int(nation_index)
     nation = _get_nation(nation_index)
     player_dict = _create_entity('player', name=name, surname=surname, nation=nation)
     for value in player_dict.values():
@@ -50,6 +52,7 @@ def create_player(*, name, surname, nation_index):
 
 def get_players(*, name=None, surname=None, nation_index=None):
     if nation_index is not None:
+        nation_index = int(nation_index)
         nation = _nation_objects[nation_index]
     else:
         nation = None
@@ -72,7 +75,7 @@ def update_player(*, index, name=None, surname=None, nation_index=None):
 
 def delete_player(*, index):
     if _check_references('player', index, 'league'):
-        return False
+        raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('player', index)
 
 
@@ -99,7 +102,7 @@ def update_gambler(*, index, nickname=None, email=None):
 
 def delete_gambler(*, index):
     if _check_references('player', index, 'league'):
-        return False
+        raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('gambler', index)
 
 
@@ -121,7 +124,7 @@ def update_nation(*, index, name=None, code=None):
 
 def delete_nation(*, index):
     if _check_references('nation', index, 'player') or _check_references('nation', index, 'league'):
-        return False
+        raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('nation', index)
 
 

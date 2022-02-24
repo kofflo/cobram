@@ -1,13 +1,29 @@
 from flask import Flask
 from flask import request, render_template, redirect
-from flask_principal import Principal, Permission, RoleNeed
 from werkzeug.routing import BaseConverter
 import environment
 from inspect import signature, Parameter
+import datetime
+
+from flask_apscheduler import APScheduler
+
+
+# set configuration values
+class Config:
+    SCHEDULER_API_ENABLED = True
+
 
 from base_error import BaseError
 
 app = Flask(__name__)
+app.config.from_object(Config())
+
+# initialize scheduler
+scheduler = APScheduler()
+# if you don't wanna use a config, you can set options here:
+# scheduler.api_enabled = True
+scheduler.init_app(app)
+scheduler.start()
 
 
 class RegexConverter(BaseConverter):
@@ -100,13 +116,6 @@ def _check_args(args, allowed):
     for arg in allowed:
         if allowed[arg].default is Parameter.empty and arg not in args:
             raise ArgumentError(f"Mandatory argument not provided: {arg}".format(arg=arg))
-
-
-# load the extension
-principals = Principal(app)
-
-# Create a permission with a single Need, in this case a RoleNeed.
-admin_permission = Permission(RoleNeed('admin'))
 
 
 class ArgumentError(BaseError):
@@ -249,51 +258,66 @@ def _load(**kwargs):
 
 @app.route('/web/leagues', methods=['GET'])
 def _manage_web_leagues():
-    all_leagues_info = _get_all_entities_info('league')
-    return render_template('leagues.html', entities=all_leagues_info)
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return render_template('leagues.html')
 
 
 @app.route('/web/players', methods=['GET'])
 def _manage_web_players():
-    all_players_info = _get_all_entities_info('player')
-    for player_info in all_players_info:
-        player_info['nation_code'] = environment.get_nation_info(index=player_info['nation'])['code']
-    return render_template('players.html', entities=all_players_info)
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return render_template('players.html')
 
 
 @app.route('/web/nations', methods=['GET'])
 def _manage_web_nations():
+    _check_args(request.json, [])
+    _check_args(request.args, [])
     return render_template('nations.html')
 
 
 @app.route('/web/gamblers', methods=['GET'])
 def _manage_web_gamblers():
-    all_gamblers_info = _get_all_entities_info('gambler')
-    for gambler_info in all_gamblers_info:
-        gambler_info['leagues'].append({'name': 'Pippo'})
-    return render_template('gamblers.html', entities=all_gamblers_info)
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return render_template('gamblers.html')
 
 
 @app.route('/web/leagues/<int:index>', methods=['GET'])
 def _manage_web_league(index):
+    _check_args(request.json, [])
+    _check_args(request.args, [])
     return render_template('league.html', league_index=index)
 
 
 @app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>', methods=['GET'])
 def _manage_web_tournament(league_index, tournament_index):
+    _check_args(request.json, [])
+    _check_args(request.args, [])
     return render_template('tournament.html', league_index=league_index, tournament_index=tournament_index)
 
 
 @app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>', methods=['GET'])
 def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index):
+    _check_args(request.json, [])
+    _check_args(request.args, [])
     return render_template('tournament_gambler.html', league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index)
 
 
 @app.route('/', methods=['GET'])
 def _index():
+    _check_args(request.json, [])
+    _check_args(request.args, [])
     return redirect('/web/leagues/0')
+
+
+@scheduler.task('cron', id='automatic_save', hour=0)
+def automatic_save():
+    filename = 'AUTOSAVE_' + datetime.date.today().strftime("%Y%m%d") + ".dat"
+    environment.save(filename=filename)
 
 
 #from waitress import serve
 #serve(app, listen='*:8080')
-app.run(debug=True, host="0.0.0.0")
+app.run(debug=True, use_reloader=False, host="0.0.0.0")

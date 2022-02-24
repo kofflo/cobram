@@ -198,9 +198,6 @@
         table.innerText = "";
         any_open_match = false;
         for (var key in matches) {
-            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
-                continue;
-            }
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
@@ -213,6 +210,13 @@
                 any_open_match = true;
             }
             const player_1_cell = row.insertCell();
+            const player_2_cell = row.insertCell();
+            const score_cell = row.insertCell();
+            const joker_cell = row.insertCell();
+            const points_cell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
             seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
             if (seed_player_1 != 0) {
                 seed_string = " [" + seed_player_1 + "]";
@@ -220,7 +224,6 @@
                 seed_string = "";
             }
             player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
-            const player_2_cell = row.insertCell();
             seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
             if (seed_player_2 != 0) {
                 seed_string = " [" + seed_player_2 + "]";
@@ -228,15 +231,12 @@
                 seed_string = "";
             }
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
-            const score_cell = row.insertCell();
             score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
-            const joker_cell = row.insertCell();
             if (bets[key]["bet"]["joker"]) {
                 const joker_image = document.createElement("img");
                 joker_image.src = '/static/star.png';
                 joker_cell.appendChild(joker_image);
             }
-            const points_cell = row.insertCell();
             if (matches[key]["bets_closed"]) {
                 points_cell.innerText = bets[key]["points"];
             }
@@ -298,9 +298,6 @@
         table.innerText = "";
         joker_already_used = false;
         for (var key in matches) {
-            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
-                continue;
-            }
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
@@ -311,13 +308,17 @@
                 id_cell.appendChild(lock);
             }
             const player_1_cell = row.insertCell();
-            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
             const player_2_cell = row.insertCell();
+            const score_cell = row.insertCell();
+            const joker_cell = row.insertCell();
+            const points_cell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
+            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
             if (matches[key]["bets_closed"]) {
-                const score_cell = row.insertCell();
                 score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
-                const joker_cell = row.insertCell();
                 if (bets[key]["bet"]["joker"]) {
                     joker_already_used = true;
                 }
@@ -326,10 +327,8 @@
                     joker_image.src = '/static/star.png';
                     joker_cell.appendChild(joker_image);
                 }
-                const points_cell = row.insertCell();
                 points_cell.innerText = bets[key]["points"];
             } else {
-                const score_cell = row.insertCell();
                 inner_table = document.createElement("table");
                 inner_table.setAttribute("class", "forms-table");
                 inner_row = inner_table.insertRow();
@@ -369,19 +368,17 @@
                     forms[key] = form;
                     score_cell.appendChild(form);
                 }
-                checkbox_cell = row.insertCell();
                 if (!joker_already_used) {
                     let checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkboxes[key] = checkbox;
                     checkbox.setAttribute("id", key)
                     checkbox.onchange = checkbox_change;
-                    checkbox_cell.appendChild(checkbox);
+                    joker_cell.appendChild(checkbox);
                     if (bets[key]["bet"]["joker"]) {
                         checkbox.checked = true;
                     }
                 }
-                const points_cell = row.insertCell();
             }
         }
     }
