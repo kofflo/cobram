@@ -76,7 +76,8 @@ def create_bet_tournament(n_sets=None):
 def create_gambler(initial_credit=0):
     nickname = "Nickname_" + str(random_int(0, 100))
     email = "nick" + str(random_int(0, 100)) + "@cobram.com"
-    return Gambler(nickname=nickname, email=email)
+    password = "passw" + str(random_int(0, 100))
+    return Gambler(nickname=nickname, email=email, password=password)
 
 
 def create_league():

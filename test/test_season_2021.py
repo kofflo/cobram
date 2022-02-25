@@ -250,7 +250,7 @@ def test_season_2021():
     ]
 
     for gambler in gamblers_list:
-        r = requests.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1]})
+        r = requests.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1], 'password': gambler[0][0]})
     add_gamblers_to_league(coppa_cobram_index, *gamblers_list)
 
     r = requests.get(URL + '/gamblers')
@@ -656,5 +656,5 @@ def test_season_2021():
 
 
 
-#test_season_2021()
+test_season_2021()
 r = requests.post(URL + '/load', json={'filename': 'coppa_cobram.dat'})

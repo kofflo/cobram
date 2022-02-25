@@ -9,24 +9,27 @@ from setup import create_gambler, create_league, create_bet_tournament
 class TestGambler(unittest.TestCase):
 
     def test_create_gambler(self):
-        gufone = Gambler(nickname="Gufone", email="gufone@yahoo.com")
+        gufone = Gambler(nickname="Gufone", email="gufone@yahoo.com", password="passw")
         self.assertEqual(gufone.nickname, "Gufone")
         self.assertEqual(gufone.email, "gufone@yahoo.com")
+        self.assertEqual(gufone.password, "passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="", email="gufone@yahoo.com")
+            Gambler(nickname="", email="gufone@yahoo.com", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname=234, email="gufone@yahoo.com")
+            Gambler(nickname=234, email="gufone@yahoo.com", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="Gufone", email="gufoneyahoo.com")
+            Gambler(nickname="Gufone", email="gufoneyahoo.com", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="Gufone", email="gufone@yah@oo.com")
+            Gambler(nickname="Gufone", email="gufone@yah@oo.com", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="Gufone", email="gufone@yahoocom")
+            Gambler(nickname="Gufone", email="gufone@yahoocom", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="Gufone", email="@yahoo.com")
+            Gambler(nickname="Gufone", email="@yahoo.com", password="passw")
         with self.assertRaises(GamblerError):
-            Gambler(nickname="Gufone", email="gufone@")
-        self.assertEqual(gufone.info, {'id': {'nickname': 'Gufone'}, 'nickname': 'Gufone', 'email': "gufone@yahoo.com", 'leagues': []})
+            Gambler(nickname="Gufone", email="gufone@", password="passw")
+        with self.assertRaises(GamblerError):
+            Gambler(nickname="Gufone", email="gufone@yahoo.com", password="")
+        self.assertEqual(gufone.info, {'id': {'nickname': 'Gufone'}, 'nickname': 'Gufone', 'email': "gufone@yahoo.com", 'password': "passw", 'leagues': []})
 
     def test_change_gambler(self):
         a_gambler = create_gambler(initial_credit=34)
@@ -43,6 +46,10 @@ class TestGambler(unittest.TestCase):
             a_gambler.email = ""
         with self.assertRaises(GamblerError):
             a_gambler.email = "newemail.it"
+        a_gambler.password = "newpassw"
+        self.assertEqual(a_gambler.password, "newpassw")
+        with self.assertRaises(GamblerError):
+            a_gambler.password = ""
         a_league = create_league()
         another_league = create_league()
         a_gambler.add_to_league(a_league)
