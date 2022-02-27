@@ -131,8 +131,8 @@
     }
     function sendPlayer() {
         requestJson = Object();
-        requestJson["name"] = forms["name"].value;
-        requestJson["surname"] = forms["surname"].value;
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["surname"] = forms["surname"].value.trim();
         requestJson["nation_index"] = forms["nation"].value;
         Promise.all([sendPlayerRequest(requestJson)]).then(function (values) {
             new_player = JSON.parse(values[0]);

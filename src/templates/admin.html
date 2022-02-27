@@ -1,0 +1,107 @@
+<!doctype html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+</head>
+<body>
+<script>
+    window.onload = updatePage;
+    var timestamps;
+    function callSave() {
+        return new Promise(function(resolve, reject) {
+            var saveRequest = new XMLHttpRequest();
+            saveRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            saveRequest.open("POST", "/save", true);
+            saveRequest.send();
+        })
+    }
+    function callLoad(timestamp) {
+        return new Promise(function(resolve, reject) {
+            var loadRequest = new XMLHttpRequest();
+            loadRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            loadRequest.open("POST", "/load", true);
+            loadRequest.send();
+            loadRequest.setRequestHeader("Content-Type", "application/json");
+            loadRequest.send(JSON.stringify(timestamp));
+        })
+    }
+    function callGetTimestamps() {
+        return new Promise(function(resolve, reject) {
+            var timestampsRequest = new XMLHttpRequest();
+            timestampsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            timestampsRequest.open("GET", "/load", true);
+            timestampsRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callGetTimestamps()]).then(function (values) {
+            timestamps = JSON.parse(values[0]);
+            updateChoice();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateChoice() { // TODO
+        table = document.getElementById("tableBody");
+        table.innerText = "";
+        for (var key in gamblers) {
+            const row = table.insertRow();
+            const name_cell = row.insertCell();
+            name_cell.innerText = gamblers[key]["nickname"];
+            const code_cell = row.insertCell();
+            code_cell.innerText = gamblers[key]["email"];
+            const password_cell = row.insertCell();
+            password_cell.innerText = gamblers[key]["password"];
+            const leagues_cell = row.insertCell();
+            const inner_table = document.createElement('table');
+            for (var league in gamblers[key]["leagues"]) {
+                const inner_row = inner_table.insertRow();
+                const inner_cell = inner_row.insertCell();
+                inner_cell.innerText = leagues[league].name;
+            }
+            leagues_cell.appendChild(inner_table);
+            tools_cell = row.insertCell();
+            const delete_img = document.createElement('img');
+            delete_img.src = '/static/delete.png';
+            delete_img.id = key;
+            delete_img.onclick = deleteGambler;
+            delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(delete_img);
+        }
+    }
+    function save() {
+    }
+    function load() {
+    }
+</script>
+<a href="/web/leagues">Leghe</a>
+<a href="/web/leagues">Nazioni</a>
+<a href="/web/leagues">Tennisti</a>
+<a href="/web/leagues">Scomettitori</a>
+<button type="button" onclick="save">Salva</button>
+<select name="saved" id="saved"></select>
+<button type="button" onclick="load">Carica</button>
+</body>

@@ -138,8 +138,8 @@
     }
     function sendNation() {
         requestJson = Object();
-        requestJson["name"] = forms["name"].value;
-        requestJson["code"] = forms["code"].value;
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["code"] = forms["code"].value.trim();
         Promise.all([sendNationRequest(requestJson)]).then(function (values) {
             new_nation = JSON.parse(values[0]);
             for (key in new_nation) {

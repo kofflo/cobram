@@ -1,4 +1,6 @@
 import pickle
+from pathlib import Path
+from datetime import datetime
 
 from league import League, LeagueError
 from nation import Nation
@@ -19,6 +21,8 @@ NEGATIVE_INDEXES_ARE_NOT_ALLOWED = "Negative indexes are not allowed"
 ERROR_DURING_ENVIRONMENT_LOADING = "Error during environment loading [{message}]"
 ERROR_DURING_ENVIRONMENT_SAVING = "Error during environment saving [{message}]"
 ENTITY_IS_REFERENCED = "Entity is referenced"
+
+SAVE_FOLDER = "save"
 
 
 def create_league(*, name):
@@ -381,23 +385,38 @@ def get_tournament_ranking(*, league_index, tournament_index):
             'joker_gambler_seed_points': joker_gambler_seed_points, 'is_open': is_open}
 
 
-def save(*, filename):
+def save():
+    save_folder = Path(SAVE_FOLDER)
+    save_folder.mkdir(parents=True, exist_ok=True)
+    filename = "save_{timestamp}.dat".format(timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"))
+    full_path = save_folder / filename
     try:
-        with open(filename, 'wb') as file:
+        with open(full_path, 'wb') as file:
             pickler = pickle.Pickler(file)
             pickler.dump(_league_objects)
             pickler.dump(_player_objects)
             pickler.dump(_gambler_objects)
             pickler.dump(_nation_objects)
-        return {}
+        return {
+            "filename": filename
+        }
     except (IOError, pickle.PickleError) as e:
         raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str(e))))
 
 
-def load(*, filename):
+def get_saved():
+    save_folder = Path(SAVE_FOLDER)
+    all_saved = [str(path) for path in save_folder.glob("*.dat")]
+    return all_saved
+
+
+def load(*, timestamp):
+    save_folder = Path(SAVE_FOLDER)
+    filename = "save_{timestamp}.dat".format(timestamp=timestamp)
+    full_path = save_folder / filename
     global _league_objects, _player_objects, _gambler_objects, _nation_objects
     try:
-        with open(filename, 'rb') as file:
+        with open(full_path, 'rb') as file:
             unpickler = pickle.Unpickler(file)
             _league_temp = unpickler.load()
             _player_temp = unpickler.load()

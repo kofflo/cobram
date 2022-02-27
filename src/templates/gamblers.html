@@ -123,8 +123,8 @@
     }
     function sendGambler() {
         requestJson = Object();
-        requestJson["nickname"] = forms["nickname"].value;
-        requestJson["email"] = forms["email"].value;
+        requestJson["nickname"] = forms["nickname"].value.trim();
+        requestJson["email"] = forms["email"].value.trim();
         requestJson["password"] = forms["password"].value;
         Promise.all([sendGamblerRequest(requestJson)]).then(function (values) {
             new_gambler = JSON.parse(values[0]);

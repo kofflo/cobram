@@ -234,9 +234,12 @@ def _save(**kwargs):
     return _redirect_to_function(environment.save, 'JSON')
 
 
-@app.route('/load', methods=['POST'])
+@app.route('/load', methods=['GET', 'POST'])
 def _load(**kwargs):
-    return _redirect_to_function(environment.load, 'JSON')
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_saved, '')
+    elif request.method == 'PUT':
+        return _redirect_to_function(environment.load, 'JSON')
 
 
 @app.route('/web/leagues', methods=['GET'])
@@ -286,6 +289,13 @@ def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index
     _check_args(request.json, [])
     _check_args(request.args, [])
     return render_template('tournament_gambler.html', league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index)
+
+
+@app.route('/web/admin', methods=['GET'])
+def _manage_web_tournament():
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return render_template('admin.html')
 
 
 @app.route('/', methods=['GET'])
