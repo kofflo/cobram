@@ -8,6 +8,7 @@ class Gambler(Entity):
     class_id = class_id_strings.GAMBLER_ID
     INVALID_NICKNAME_FOR_A_GAMBLER = "Invalid nickname for a gambler"
     INVALID_EMAIL_FOR_A_GAMBLER = "Invalid email for a gambler"
+    INVALID_PASSWORD_FOR_A_GAMBLER = "Invalid password for a gambler"
     INVALID_LEAGUE_FOR_A_GAMBLER = "Invalid league for a gambler"
     GAMBLER_ALREADY_IN_LEAGUE = "Gambler already in league"
     GAMBLER_NOT_IN_LEAGUE = "Gambler not in league"
@@ -16,12 +17,14 @@ class Gambler(Entity):
     GAMBLER_NOT_IN_BET_TOURNAMENT = "Gambler not in bet tournament"
     EMAIL_RE = r"[^@]+@[^@]+\.[^@]+"
 
-    def __init__(self, *, nickname, email):
+    def __init__(self, *, nickname, email, password):
         super().__init__('nickname', unique_attributes=['email'])
         self._nickname = None
         self._email = None
+        self._password = None
         self.nickname = nickname
         self.email = email
+        self.password = password
         self._leagues = set()
         self._bet_tournaments = set()
 
@@ -46,9 +49,19 @@ class Gambler(Entity):
         self._email = input_email
 
     @property
+    def password(self):
+        return self._password
+
+    @password.setter
+    def password(self, input_password):
+        if not isinstance(input_password, str) or len(input_password) == 0:
+            raise GamblerError(Gambler.INVALID_PASSWORD_FOR_A_GAMBLER)
+        self._password = input_password
+
+    @property
     def info(self):
         info = super().info
-        info.update({'nickname': self.nickname, 'email': self.email, 'leagues': [league for league in self._leagues]})
+        info.update({'nickname': self.nickname, 'email': self.email, 'password': self.password, 'leagues': [league for league in self._leagues]})
         return info
 
     def add_to_league(self, league, initial_score=0, initial_credit=0):

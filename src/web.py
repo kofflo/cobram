@@ -3,27 +3,10 @@ from flask import request, render_template, redirect
 from werkzeug.routing import BaseConverter
 import environment
 from inspect import signature, Parameter
-import datetime
-
-from flask_apscheduler import APScheduler
-
-
-# set configuration values
-class Config:
-    SCHEDULER_API_ENABLED = True
-
 
 from base_error import BaseError
 
 app = Flask(__name__)
-app.config.from_object(Config())
-
-# initialize scheduler
-scheduler = APScheduler()
-# if you don't wanna use a config, you can set options here:
-# scheduler.api_enabled = True
-scheduler.init_app(app)
-scheduler.start()
 
 
 class RegexConverter(BaseConverter):
@@ -310,12 +293,6 @@ def _index():
     _check_args(request.json, [])
     _check_args(request.args, [])
     return redirect('/web/leagues/0')
-
-
-@scheduler.task('cron', id='automatic_save', hour=0)
-def automatic_save():
-    filename = 'AUTOSAVE_' + datetime.date.today().strftime("%Y%m%d") + ".dat"
-    environment.save(filename=filename)
 
 
 #from waitress import serve

@@ -79,8 +79,8 @@ def delete_player(*, index):
     return _delete_entity('player', index)
 
 
-def create_gambler(*, nickname, email):
-    return _create_entity('gambler', nickname=nickname, email=email)
+def create_gambler(*, nickname, email, password):
+    return _create_entity('gambler', nickname=nickname, email=email, password=password)
 
 
 def get_gamblers(*, nickname=None, email=None):
@@ -101,7 +101,7 @@ def update_gambler(*, index, nickname=None, email=None):
 
 
 def delete_gambler(*, index):
-    if _check_references('player', index, 'league'):
+    if _check_references('gambler', index, 'league'):
         raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('gambler', index)
 
@@ -480,7 +480,7 @@ def _update_entity(entity_name, index, **attributes):
             except EntityError:
                 update_entity.restore(old_entity)
                 raise
-    return update_entity.info
+    return {index: update_entity.info}
 
 
 def _get_gambler_index(gambler):

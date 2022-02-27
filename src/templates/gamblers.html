@@ -50,12 +50,15 @@
     }
     function updateTable() {
         table = document.getElementById("tableBody");
+        table.innerText = "";
         for (var key in gamblers) {
             const row = table.insertRow();
             const name_cell = row.insertCell();
             name_cell.innerText = gamblers[key]["nickname"];
             const code_cell = row.insertCell();
             code_cell.innerText = gamblers[key]["email"];
+            const password_cell = row.insertCell();
+            password_cell.innerText = gamblers[key]["password"];
             const leagues_cell = row.insertCell();
             const inner_table = document.createElement('table');
             for (var league in gamblers[key]["leagues"]) {
@@ -64,17 +67,131 @@
                 inner_cell.innerText = leagues[league].name;
             }
             leagues_cell.appendChild(inner_table);
+            tools_cell = row.insertCell();
+            const delete_img = document.createElement('img');
+            delete_img.src = '/static/delete.png';
+            delete_img.id = key;
+            delete_img.onclick = deleteGambler;
+            delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(delete_img);
         }
+    }
+    function deleteGambler(event) {
+        index = event.target.id;
+        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+            delete gamblers[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function newGambler() {
+        table = document.getElementById("gamblerInsert");
+        table.hidden = false;
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Email";
+        row.insertCell().innerText = "Password";
+        row = table.insertRow();
+        nickname_cell = row.insertCell();
+        forms = Object();
+        let form_nickname = document.createElement("input");
+        form_nickname.setAttribute("type", "text");
+        form_nickname.setAttribute("size", 15);
+        nickname_cell.appendChild(form_nickname);
+        email_cell = row.insertCell();
+        forms["nickname"] = form_nickname;
+        let form_email = document.createElement("input");
+        form_email.setAttribute("type", "email");
+        form_email.setAttribute("size", 20);
+        email_cell.appendChild(form_email);
+        forms["email"] = form_email;
+        password_cell = row.insertCell();
+        let form_password = document.createElement("input");
+        form_password.setAttribute("type", "password");
+        form_password.setAttribute("size", 15);
+        password_cell.appendChild(form_password);
+        forms["password"] = form_password;
+        button = document.getElementById("gamblersButton");
+        button.innerText = "Invia";
+        button.onclick = sendGambler;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreGamblers;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+    }
+    function sendGambler() {
+        requestJson = Object();
+        requestJson["nickname"] = forms["nickname"].value;
+        requestJson["email"] = forms["email"].value;
+        requestJson["password"] = forms["password"].value;
+        Promise.all([sendGamblerRequest(requestJson)]).then(function (values) {
+            new_gambler = JSON.parse(values[0]);
+            for (key in new_gambler) {
+                gamblers[key] = new_gambler[key];
+            }
+            restoreGamblers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendGamblerRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("POST", "/gamblers", true);
+            betPutRequest.setRequestHeader("Content-Type", "application/json");
+            betPutRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendDeleteRequest(index) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("DELETE", "/gamblers/" + index, true);
+            betPutRequest.send();
+        })
+    }
+    function restoreGamblers() {
+        button = document.getElementById("gamblersButton");
+        button.innerText = "Crea uno scommettitore";
+        button.onclick = newGambler;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("gamblerInsert").innerText = "";
+        document.getElementById("gamblerInsert").hidden = true;
+        forms = Object();
+        updateTable();
     }
 </script>
 <title>Scommettitori</title>
 <h1>Scommettitori</h1>
+<button id="gamblersButton" onclick="newGambler()">Crea uno scommettitore</button>
+<table id="gamblerInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>
         <tr>
             <td>Nome</td>
-            <td>Email</td>
+            <td>E-mail</td>
+            <td>Password</td>
             <td>Leghe</td>
+            <td></td>
         </tr>
     </thead>
     <tbody id="tableBody">

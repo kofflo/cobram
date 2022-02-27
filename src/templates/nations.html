@@ -48,11 +48,18 @@
             img.setAttribute("class", "bordered");
             flag.appendChild(img);
             tools_cell = row.insertCell();
+            const edit_img = document.createElement('img');
+            edit_img.src = '/static/edit.png';
+            edit_img.id = key;
+            edit_img.onclick = editNation;
+            edit_img.style.cursor = "pointer";
+            tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
             delete_img.src = '/static/delete.png';
             delete_img.id = key;
             delete_img.onclick = deleteNation;
             delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(document.createTextNode(' '));
             tools_cell.appendChild(delete_img);
         }
     }
@@ -65,6 +72,41 @@
             window.alert(reason);
         });
     }
+    function editNation(event) {
+        index = event.target.id;
+        nation = nations[index];
+        table = document.getElementById("nationInsert");
+        table.hidden = false;
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Codice";
+        row = table.insertRow();
+        forms = Object();
+        name_cell = row.insertCell();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", 15);
+        form_name.value = nation["name"];
+        name_cell.appendChild(form_name);
+        forms["name"] = form_name;
+        code_cell = row.insertCell();
+        let form_code = document.createElement("input");
+        form_code.setAttribute("type", "text");
+        form_code.setAttribute("size", 3);
+        form_code.value = nation["code"];
+        code_cell.appendChild(form_code);
+        forms["code"] = form_code;
+        button = document.getElementById("nationsButton");
+        button.innerText = "Invia";
+        button.onclick = function() {
+            sendNationUpdate(index);
+        }
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreNations;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+    }
     function newNation() {
         table = document.getElementById("nationInsert");
         table.hidden = false;
@@ -72,18 +114,18 @@
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Codice";
         row = table.insertRow();
-        name_cell = row.insertCell();
         forms = Object();
+        name_cell = row.insertCell();
         let form_name = document.createElement("input");
         form_name.setAttribute("type", "text");
         form_name.setAttribute("size", 15);
         name_cell.appendChild(form_name);
-        surname_cell = row.insertCell();
         forms["name"] = form_name;
+        code_cell = row.insertCell();
         let form_code = document.createElement("input");
         form_code.setAttribute("type", "text");
         form_code.setAttribute("size", 3);
-        surname_cell.appendChild(form_code);
+        code_cell.appendChild(form_code);
         forms["code"] = form_code;
         button = document.getElementById("nationsButton");
         button.innerText = "Invia";
@@ -108,6 +150,20 @@
             window.alert(reason);
         });
     }
+    function sendNationUpdate(index) {
+        requestJson = Object();
+        requestJson["name"] = forms["name"].value;
+        requestJson["code"] = forms["code"].value;
+        Promise.all([sendNationUpdateRequest(requestJson, index)]).then(function (values) {
+            updated_nation = JSON.parse(values[0]);
+            for (key in updated_nation) {
+                nations[key] = updated_nation[key];
+            }
+            restoreNations();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
     function sendNationRequest(requestJson) {
         return new Promise(function (resolve, reject) {
             var betPutRequest = new XMLHttpRequest();
@@ -121,6 +177,23 @@
                 }
             };
             betPutRequest.open("POST", "/nations", true);
+            betPutRequest.setRequestHeader("Content-Type", "application/json");
+            betPutRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendNationUpdateRequest(requestJson, index) {
+        return new Promise(function (resolve, reject) {
+            var betPutRequest = new XMLHttpRequest();
+            betPutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            betPutRequest.open("PUT", "/nations/" + index, true);
             betPutRequest.setRequestHeader("Content-Type", "application/json");
             betPutRequest.send(JSON.stringify(requestJson));
         })
