@@ -1,8 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Scommettitori</title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var leagues;
@@ -57,8 +59,6 @@
             name_cell.innerText = gamblers[key]["nickname"];
             const code_cell = row.insertCell();
             code_cell.innerText = gamblers[key]["email"];
-            const password_cell = row.insertCell();
-            password_cell.innerText = gamblers[key]["password"];
             const leagues_cell = row.insertCell();
             const inner_table = document.createElement('table');
             for (var league in gamblers[key]["leagues"]) {
@@ -99,8 +99,8 @@
         form_nickname.setAttribute("type", "text");
         form_nickname.setAttribute("size", 15);
         nickname_cell.appendChild(form_nickname);
-        email_cell = row.insertCell();
         forms["nickname"] = form_nickname;
+        email_cell = row.insertCell();
         let form_email = document.createElement("input");
         form_email.setAttribute("type", "email");
         form_email.setAttribute("size", 20);
@@ -180,7 +180,9 @@
         updateTable();
     }
 </script>
-<title>Scommettitori</title>
+{% endblock %}
+
+{% block content %}
 <h1>Scommettitori</h1>
 <button id="gamblersButton" onclick="newGambler()">Crea uno scommettitore</button>
 <table id="gamblerInsert" hidden="true"></table>
@@ -189,7 +191,6 @@
         <tr>
             <td>Nome</td>
             <td>E-mail</td>
-            <td>Password</td>
             <td>Leghe</td>
             <td></td>
         </tr>
@@ -197,4 +198,4 @@
     <tbody id="tableBody">
     </tbody>
 </table>
-</body>
+{% endblock %}

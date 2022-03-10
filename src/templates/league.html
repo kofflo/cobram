@@ -1,9 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
-<title></title>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title></title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var leagues;
@@ -241,6 +242,9 @@
         }
     }
 </script>
+{% endblock %}
+
+{% block content %}
 <h1 id="mainHeader"></h1>
 <div id="tournamentDiv">
     <h2>Tornei</h2>
@@ -293,4 +297,4 @@
         </table>
     </div>
 </div>
-</body>
+{% endblock %}

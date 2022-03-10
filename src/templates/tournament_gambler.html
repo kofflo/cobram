@@ -1,9 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
-<title></title>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title></title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     window.mobileCheck = function() {
@@ -20,8 +21,6 @@
     var tournamentPlayers;
     var matches;
     var bets;
-    var forms = Object();
-    var checkboxes = Object();
     function callLeagues() {
         return new Promise(function(resolve, reject) {
             var leaguesRequest = new XMLHttpRequest();
@@ -231,8 +230,8 @@
                 seed_string = "";
             }
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
-            score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
-            if (bets[key]["bet"]["joker"]) {
+            score_cell.innerText = formatScore(bets[key]["score"]);
+            if (bets["joker"] == key) {
                 const joker_image = document.createElement("img");
                 joker_image.src = '/static/star.png';
                 joker_cell.appendChild(joker_image);
@@ -285,6 +284,9 @@
         }
         return formatted;
     }
+    {% if is_privileged %}
+    var forms = Object();
+    var checkboxes = Object();
     function insertBets() {
         button = document.getElementById("betsButton");
         button.innerText = "Manda i punteggi";
@@ -296,7 +298,6 @@
         button.parentNode.insertBefore(cancelButton, button.nextSibling);
         table = document.getElementById("matches");
         table.innerText = "";
-        joker_already_used = false;
         for (var key in matches) {
             const row = table.insertRow();
             const id_cell = row.insertCell();
@@ -318,11 +319,8 @@
             player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
             if (matches[key]["bets_closed"]) {
-                score_cell.innerText = formatScore(bets[key]["bet"]["score"]);
-                if (bets[key]["bet"]["joker"]) {
-                    joker_already_used = true;
-                }
-                if (bets[key]["bet"]["joker"]) {
+                score_cell.innerText = formatScore(bets[key]["score"]);
+                if (bets["joker"] == key) {
                     const joker_image = document.createElement("img");
                     joker_image.src = '/static/star.png';
                     joker_cell.appendChild(joker_image);
@@ -340,7 +338,7 @@
                         let form = document.createElement("input");
                         form.setAttribute("type", "text");
                         form.setAttribute("size", 1);
-                        score = bets[key]["bet"]["score"];
+                        score = bets[key]["score"];
                         if (score != null && score[set] != undefined) {
                             if (score[set][0] == -1) {
                                 form.value = "A-";
@@ -361,21 +359,21 @@
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
                     form.setAttribute("size", 3 * tournaments[{{ tournament_index }}]["n_sets"]);
-                    score = bets[key]["bet"]["score"];
+                    score = bets["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);
                     }
                     forms[key] = form;
                     score_cell.appendChild(form);
                 }
-                if (!joker_already_used) {
+                if (bets["joker"] == null || !matches[bets["joker"]]["bets_closed"]) {
                     let checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkboxes[key] = checkbox;
                     checkbox.setAttribute("id", key)
                     checkbox.onchange = checkbox_change;
                     joker_cell.appendChild(checkbox);
-                    if (bets[key]["bet"]["joker"]) {
+                    if (bets["joker"] == key) {
                         checkbox.checked = true;
                     }
                 }
@@ -396,7 +394,6 @@
         const re_score_minus = /^([0-9]*)-([0-9]*)$/;
         const re_score_simple = /^([0-9])([0-9])$/;
         put_json = Object();
-        all_values = "";
         all_bets = Object();
         for (var key in forms) {
             if (!window.mobileCheck()) {
@@ -459,7 +456,10 @@
                 if (results[index]["status"] == "fulfilled") {
                     match_id = results[index]["value"]["match_id"];
                     bet = JSON.parse(results[index]["value"]["response"]);
-                    bets[match_id] = bet;
+                    bets[match_id]["score"] = bet["score"];
+                    if (bet["joker"]) {
+                        bets["joker"] = match_id;
+                    }
                 } else {
                     match_id = results[index]["reason"]["match_id"];
                     message = results[index]["reason"]["response"];
@@ -498,10 +498,16 @@
             betPutRequest.send(JSON.stringify(bet));
         })
     }
+    {% endif %}
 </script>
+{% endblock %}
+
+{% block content %}
 <h1 id="mainHeader"></h1>
 <h2 id="subHeader"></h2>
+{% if is_privileged %}
 <button id="betsButton" onclick="insertBets()">Cambia i punteggi</button>
+{% endif %}
 <h2 id="pointsHeader"></h2>
 <div>
     <table class="styled-table">
@@ -519,4 +525,4 @@
         </tbody>
     </table>
 </div>
-</body>
+{% endblock %}

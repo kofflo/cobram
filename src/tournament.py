@@ -230,7 +230,8 @@ class Tournament:
 
     def set_match_score(self, *, match_id, score, force=False):
         _, players, _, _ = self._draw.get_match(match_id)
-        if self._players[players[0]] is None or self._players[players[1]] is None:
+        if players[0] is None or self._players[players[0]] is None \
+                or players[1] is None or self._players[players[1]] is None:
             raise TournamentError(Tournament.NOT_ALL_MATCH_PLAYERS_ARE_DEFINED)
         if self._players[players[0]] is Tournament.BYE or self._players[players[1]] is Tournament.BYE:
             raise TournamentError(Tournament.CANNOT_SET_SCORE_OF_MATCH_WITH_BYE)

@@ -1,8 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Amministratore</title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var timestamps;
@@ -35,9 +37,10 @@
                 }
             };
             loadRequest.open("POST", "/load", true);
-            loadRequest.send();
             loadRequest.setRequestHeader("Content-Type", "application/json");
-            loadRequest.send(JSON.stringify(timestamp));
+            json_content = Object();
+            json_content['timestamp'] = timestamp;
+            loadRequest.send(JSON.stringify(json_content));
         })
     }
     function callGetTimestamps() {
@@ -64,44 +67,42 @@
             window.alert(reason);
         });
     }
-    function updateChoice() { // TODO
-        table = document.getElementById("tableBody");
-        table.innerText = "";
-        for (var key in gamblers) {
-            const row = table.insertRow();
-            const name_cell = row.insertCell();
-            name_cell.innerText = gamblers[key]["nickname"];
-            const code_cell = row.insertCell();
-            code_cell.innerText = gamblers[key]["email"];
-            const password_cell = row.insertCell();
-            password_cell.innerText = gamblers[key]["password"];
-            const leagues_cell = row.insertCell();
-            const inner_table = document.createElement('table');
-            for (var league in gamblers[key]["leagues"]) {
-                const inner_row = inner_table.insertRow();
-                const inner_cell = inner_row.insertCell();
-                inner_cell.innerText = leagues[league].name;
-            }
-            leagues_cell.appendChild(inner_table);
-            tools_cell = row.insertCell();
-            const delete_img = document.createElement('img');
-            delete_img.src = '/static/delete.png';
-            delete_img.id = key;
-            delete_img.onclick = deleteGambler;
-            delete_img.style.cursor = "pointer";
-            tools_cell.appendChild(delete_img);
+    function updateChoice() {
+        choice = document.getElementById("saved");
+        for (key in timestamps) {
+            option = document.createElement("option");
+            option.value = key;
+            option.innerText = timestamps[key];
+            choice.appendChild(option);
         }
     }
     function save() {
+        Promise.all([callSave()]).then(function (values) {
+            timestamp = JSON.parse(values[0]);
+            timestamps = {...timestamps, ...timestamp};
+            updateChoice();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
     }
     function load() {
+        choice = document.getElementById("saved");
+        index = choice.value;
+        Promise.all([callLoad(timestamps[index])]).then(function (values) {
+            window.alert("Loading successful");
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
     }
 </script>
+{% endblock %}
+
+{% block content %}
 <a href="/web/leagues">Leghe</a>
-<a href="/web/leagues">Nazioni</a>
-<a href="/web/leagues">Tennisti</a>
-<a href="/web/leagues">Scomettitori</a>
-<button type="button" onclick="save">Salva</button>
+<a href="/web/nations">Nazioni</a>
+<a href="/web/players">Tennisti</a>
+<a href="/web/gamblers">Scomettitori</a>
+<button type="button" onclick="save()">Salva</button>
 <select name="saved" id="saved"></select>
-<button type="button" onclick="load">Carica</button>
-</body>
+<button type="button" onclick="load()">Carica</button>
+{% endblock %}

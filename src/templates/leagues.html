@@ -1,8 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title_content %}
+<title>Leghe</title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var leagues;
@@ -32,6 +34,7 @@
     }
     function updateTable() {
         table = document.getElementById("tableBody");
+        table.innerText = "";
         for (var key in leagues) {
             const row = table.insertRow();
             const name_cell = row.insertCell();
@@ -39,18 +42,117 @@
             leagueLink.innerText = leagues[key]["name"];
             leagueLink.setAttribute("href", "/web/leagues/" + key);
             name_cell.appendChild(leagueLink);
+            tools_cell = row.insertCell();
+            const delete_img = document.createElement('img');
+            delete_img.src = '/static/delete.png';
+            delete_img.id = key;
+            delete_img.onclick = deleteLeague;
+            delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(delete_img);
         }
     }
+    function deleteLeague(event) {
+        index = event.target.id;
+        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+            delete leagues[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function newLeague() {
+        table = document.getElementById("leagueInsert");
+        table.hidden = false;
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row = table.insertRow();
+        name_cell = row.insertCell();
+        forms = Object();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", 15);
+        name_cell.appendChild(form_name);
+        forms["name"] = form_name;
+        button = document.getElementById("leaguesButton");
+        button.innerText = "Invia";
+        button.onclick = sendLeague;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreLeagues;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+    }
+    function sendLeague() {
+        requestJson = Object();
+        requestJson["name"] = forms["name"].value.trim();
+        Promise.all([sendLeagueRequest(requestJson)]).then(function (values) {
+            new_League = JSON.parse(values[0]);
+            for (key in new_League) {
+                leagues[key] = new_League[key];
+            }
+            restoreLeagues();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendLeagueRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var leaguePutRequest = new XMLHttpRequest();
+            leaguePutRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leaguePutRequest.open("POST", "/leagues", true);
+            leaguePutRequest.setRequestHeader("Content-Type", "application/json");
+            leaguePutRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendDeleteRequest(index) {
+        return new Promise(function (resolve, reject) {
+            var leagueDeleteRequest = new XMLHttpRequest();
+            leagueDeleteRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leagueDeleteRequest.open("DELETE", "/leagues/" + index, true);
+            leagueDeleteRequest.send();
+        })
+    }
+    function restoreLeagues() {
+        button = document.getElementById("leaguesButton");
+        button.innerText = "Crea una lega";
+        button.onclick = newLeague;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("leagueInsert").innerText = "";
+        document.getElementById("leagueInsert").hidden = true;
+        forms = Object();
+        updateTable();
+    }
 </script>
-<title>Leghe</title>
+{% endblock %}
+
+{% block content %}
 <h1>Leghe</h1>
+<button id="leaguesButton" onclick="newLeague()">Crea una lega</button>
+<table id="leagueInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>
         <tr>
             <td>Nome</td>
+            <td></td>
         </tr>
     </thead>
     <tbody id="tableBody">
     </tbody>
 </table>
-</body>
+{% endblock %}

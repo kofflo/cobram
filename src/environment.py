@@ -1,18 +1,19 @@
 import pickle
 from pathlib import Path
 from datetime import datetime
+import re
 
 from league import League, LeagueError
 from nation import Nation
 from player import Player
-from gambler import Gambler
+from gambler import Gambler, ADMIN
 from entity import EntityError
 from draw import Draw16, DrawRoundRobin, DrawError
 from tournament import Tournament, TournamentCategory, TieBreaker5th, TournamentError
 
 _league_objects = []
 _player_objects = [Tournament.BYE]
-_gambler_objects = []
+_gambler_objects = [ADMIN]
 _nation_objects = [Tournament.BYE_NATION]
 
 
@@ -42,6 +43,8 @@ def update_league(*, index, name=None):
 
 
 def delete_league(*, index):
+    if _check_references('league', index, 'gambler'):
+        raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('league', index)
 
 
@@ -330,7 +333,7 @@ def update_tournament_match(*, league_index, tournament_index, match_id, players
         league.add_players_to_match(tournament_id=tournament_id, match_id=match_id,
                                     player_1=player_1, player_2=player_2)
     if score is not None:
-        league.set_match_score(tournament_id=tournament_id, match_id=match_id, score=score)
+        league.set_match_score(tournament_id=tournament_id, match_id=match_id, score=score, force=True)
     if bets_closed is not None:
         league.set_bets_closed_on_match(tournament_id=tournament_id, match_id=match_id, bets_closed=bets_closed)
     return _create_match_dictionary(league.get_match(tournament_id=tournament_id, match_id=match_id))
@@ -340,11 +343,12 @@ def get_tournament_bets(*, league_index, tournament_index, gambler_index):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     gambler = _get_gambler(gambler_index)
-    matches = league.get_matches(tournament_id=tournament_id, gambler=gambler)
+    bets = league.get_matches(tournament_id=tournament_id, gambler=gambler)
     return_structure = {}
     joker = None
-    for match_id, bet in matches.items():
+    for match_id, bet in bets.items():
         return_structure[match_id] = _create_bet_dictionary(bet)
+        return_structure[match_id]['bets_closed'] = bet['bets_closed']
         if bet['joker']:
             joker = match_id
     return_structure['joker'] = joker
@@ -360,7 +364,10 @@ def update_tournament_bet(*, league_index, tournament_index, gambler_index, matc
         joker = bet['joker']
         league.set_match_score(tournament_id=tournament_id, gambler=gambler,
                                match_id=match_id, score=score, joker=joker)
-    return _create_bet_dictionary(league.get_match(tournament_id=tournament_id, gambler=gambler, match_id=match_id))
+    bet = league.get_match(tournament_id=tournament_id, gambler=gambler, match_id=match_id)
+    bet_dictionary = _create_bet_dictionary(bet)
+    bet_dictionary['joker'] = bet['joker']
+    return bet_dictionary
 
 
 def get_tournament_ranking(*, league_index, tournament_index):
@@ -388,7 +395,8 @@ def get_tournament_ranking(*, league_index, tournament_index):
 def save():
     save_folder = Path(SAVE_FOLDER)
     save_folder.mkdir(parents=True, exist_ok=True)
-    filename = "save_{timestamp}.dat".format(timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = "save_{timestamp}.dat".format(timestamp=timestamp)
     full_path = save_folder / filename
     try:
         with open(full_path, 'wb') as file:
@@ -398,7 +406,7 @@ def save():
             pickler.dump(_gambler_objects)
             pickler.dump(_nation_objects)
         return {
-            "filename": filename
+            len(list(save_folder.glob("*.dat"))) - 1: filename
         }
     except (IOError, pickle.PickleError) as e:
         raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str(e))))
@@ -406,7 +414,9 @@ def save():
 
 def get_saved():
     save_folder = Path(SAVE_FOLDER)
-    all_saved = [str(path) for path in save_folder.glob("*.dat")]
+    all_saved = {}
+    for index, path in enumerate(save_folder.glob("*.dat")):
+        all_saved[index] = re.match("save_(.+).dat", path.name)[1]
     return all_saved
 
 
@@ -469,6 +479,12 @@ def _check_references(entity_name, index, reference_entity_name):
         for player in _player_objects:
             entity_in_player = getattr(player, '{entity_name}'.format(entity_name=entity_name))
             if entity is entity_in_player:
+                return True
+    elif reference_entity_name == 'gambler':
+        for gambler in _gambler_objects:
+            getter = getattr(gambler, 'get_{entity_name}s'.format(entity_name=entity_name))
+            all_entities_in_gambler = getter()
+            if entity in all_entities_in_gambler:
                 return True
     return False
 
@@ -570,9 +586,16 @@ def _create_match_dictionary(match):
 
 def _create_bet_dictionary(bet):
     return {
-        'bet': {
-            'score': bet['score'],
-            'joker': bet['joker']
-        },
+        'score': bet['score'],
         'points': bet['points']
     }
+
+
+def get_user(nickname):
+    for gambler in _gambler_objects:
+        if gambler.nickname == nickname:
+            return gambler
+    return None
+
+def check_current_user(current_user, gambler_index):
+    return current_user == _get_gambler(gambler_index)

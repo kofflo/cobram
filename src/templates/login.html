@@ -1,0 +1,82 @@
+<!-- templates/login.html -->
+
+{% extends "base.html" %}
+
+{% block script_content %}
+    <script>
+    function sendLogin() {
+        requestJson = Object();
+        requestJson["nickname"] = document.getElementById("nickname").value.trim();
+        requestJson["password"] = document.getElementById("password").value;
+        requestJson["remember"] = document.getElementById("password").value;
+        Promise.all([sendLoginRequest(requestJson)]).then(function (values) {
+            var qd = {};
+            if (location.search) location.search.substr(1).split("&").forEach(function(item) {
+                var s = item.split("="),
+                    k = s[0],
+                    v = s[1] && decodeURIComponent(s[1]); //  null-coalescing / short-circuit
+                (qd[k] = qd[k] || []).push(v) // null-coalescing / short-circuit
+            });
+            if (qd["next"] != undefined) {
+                window.location.href = qd["next"];
+            } else {
+                window.location.href = "/";
+            }
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendLoginRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var loginRequest = new XMLHttpRequest();
+            loginRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            loginRequest.open("POST", "/login", true);
+            loginRequest.setRequestHeader("Content-Type", "application/json");
+            loginRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="column is-4 is-offset-4">
+    <h3 class="title">Login</h3>
+    <div class="box">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="notification is-danger">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+        {% endwith %}
+        <form>
+            <div class="field">
+                <div class="control">
+                    <input id="nickname" class="input is-large" type="text" placeholder="Nickname" autofocus="">
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="control">
+                    <input id="password" class="input is-large" type="password" placeholder="Your Password">
+                </div>
+            </div>
+            <div class="field">
+                <label class="checkbox">
+                    <input type="checkbox" id="remember">
+                    Remember me
+                </label>
+            </div>
+            <button class="button is-block is-info is-large is-fullwidth" onclick="sendLogin()">Login</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

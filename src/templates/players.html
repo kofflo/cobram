@@ -1,8 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Tennisti</title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var players;
@@ -188,7 +190,9 @@
         updateTable();
     }
 </script>
-<title>Tennisti</title>
+{% endblock %}
+
+{% block content %}
 <h1>Tennisti</h1>
 <button id="playersButton" onclick="newPlayer()">Crea un tennista</button>
 <table id="playerInsert" hidden="true"></table>
@@ -205,4 +209,4 @@
     <tbody id="tableBody">
     </tbody>
 </table>
-</body>
+{% endblock %}

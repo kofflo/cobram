@@ -1,10 +1,16 @@
 import re
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash
 
 from entity import Entity, EntityError
 import class_id_strings
 
+ADMIN_NICKNAME = 'admin'
+ADMIN_EMAIL = 'admin@admin.com'
+ADMIN_PASSWORD = generate_password_hash('admin_password', method='sha256')
 
-class Gambler(Entity):
+
+class Gambler(Entity, UserMixin):
     class_id = class_id_strings.GAMBLER_ID
     INVALID_NICKNAME_FOR_A_GAMBLER = "Invalid nickname for a gambler"
     INVALID_EMAIL_FOR_A_GAMBLER = "Invalid email for a gambler"
@@ -112,6 +118,12 @@ class Gambler(Entity):
     def restore(self, old_gambler):
         self.nickname = old_gambler.nickname
 
+    def get_id(self):
+        return self.nickname
+
 
 class GamblerError(EntityError):
     _reference_class = Gambler
+
+
+ADMIN = Gambler(nickname=ADMIN_NICKNAME, email=ADMIN_EMAIL, password=ADMIN_PASSWORD)

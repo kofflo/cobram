@@ -1,8 +1,10 @@
-<!doctype html>
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Nazioni</title>
+{% endblock %}
+
+{% block script_content %}
 <script>
     window.onload = updatePage;
     var nations;
@@ -225,7 +227,9 @@
         updateTable();
     }
 </script>
-<title>Nazioni</title>
+{% endblock %}
+
+{% block content %}
 <h1>Nazioni</h1>
 <button id="nationsButton" onclick="newNation()">Crea una nazione</button>
 <table id="nationInsert" hidden="true"></table>
@@ -241,4 +245,4 @@
     <tbody id="tableBody">
     </tbody>
 </table>
-</body>
+{% endblock %}

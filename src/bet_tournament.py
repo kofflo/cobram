@@ -110,8 +110,14 @@ class BetTournament:
         if not self.is_open:
             raise BetTournamentError(BetTournament.CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT)
         if gambler is None:
+            print("Aggiungo score a ", match_id, ": ", score)
             self._tournament.set_match_score(match_id=match_id, score=score, force=force)
-            self._bets_closed[match_id] = True
+            if score is None:
+                print("apro le scommesse su ", match_id)
+                self._bets_closed[match_id] = False
+            else:
+                print("chiudo le scommesse su", match_id)
+                self._bets_closed[match_id] = True
             self._need_recompute_scores = True
             return
         if not force and self._bets_closed[match_id]:
@@ -169,11 +175,15 @@ class BetTournament:
             match_dict = self._create_match_dict(*match)
             match_dict.update(joker=self._joker[gambler] == match_id)
             match_dict.update(points=self._points[gambler][match_id])
+            match_dict.update(bets_closed=self._bets_closed[match_id])
             matches[match_id] = match_dict
         return matches
 
     def open_bets_on_match(self, match_id):
+        if self._tournament.get_match(match_id=match_id)['score'] is not None:
+            return
         if match_id in self._bets_closed:
+            print("*** apro le scommesse su ", match_id)
             self._bets_closed[match_id] = False
         else:
             raise BetTournamentError(BetTournament.INVALID_MATCH_ID)
@@ -181,6 +191,7 @@ class BetTournament:
     def close_bets_on_match(self, match_id):
         if match_id in self._bets_closed:
             self._bets_closed[match_id] = True
+            print("*** chiudo le scommesse su ", match_id)
         else:
             raise BetTournamentError(BetTournament.INVALID_MATCH_ID)
 
