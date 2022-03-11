@@ -2,6 +2,8 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 import re
+import logging
+logging.basicConfig(filename='cobram.log', level=logging.INFO)
 
 from league import League, LeagueError
 from nation import Nation
@@ -359,6 +361,10 @@ def update_tournament_bet(*, league_index, tournament_index, gambler_index, matc
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     gambler = _get_gambler(gambler_index)
+    logging.info("Time: '%s' Gambler: '%s' League: '%s' Tournament: '%s' Match: '%s' Score: '%s' Joker '%s'",
+                 datetime.now().strftime("%Y%m%d_%H%M%S"),
+                 gambler.nickname, league.name, str(tournament_id), match_id,
+                 str(bet['score']), str(bet['joker']))
     if bet is not None:
         score = bet['score']
         joker = bet['joker']

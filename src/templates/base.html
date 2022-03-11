@@ -15,20 +15,12 @@
     <div>
         <nav class="navbar">
             <div class="navbar-end">
-                <a href="{{ url_for('index') }}" class="navbar-item">
-                    Home
-                </a>
                 {% if current_user.is_authenticated %}
-                <a href="{{ url_for('profile') }}" class="navbar-item">
-                    Profile
-                </a>
+                    Accesso come: {{ current_user.nickname }}
                 {% endif %}
                 {% if not current_user.is_authenticated %}
                 <a href="{{ url_for('login') }}" class="navbar-item">
                     Login
-                </a>
-                <a href="{{ url_for('signup') }}" class="navbar-item">
-                    Sign Up
                 </a>
                 {% endif %}
                 {% if current_user.is_authenticated %}
