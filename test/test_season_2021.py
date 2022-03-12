@@ -66,7 +66,7 @@ def _indexes_to_match_id(round_index, match_index):
 
 
 def add_gamblers_to_league(league_index, *gamblers):
-    for ((nickname, _), initial_score, *_) in gamblers:
+    for ((nickname, _, _), initial_score, *_) in gamblers:
         gambler_index = gambler_nickname_to_index(nickname)
         r = session.post(URL + '/leagues/{league_index}/gamblers/{gambler_index}'.format(league_index=league_index, gambler_index=gambler_index), json={'initial_score': initial_score, 'initial_credit': 0})
 
@@ -74,7 +74,7 @@ def add_gamblers_to_league(league_index, *gamblers):
 def add_tournaments_to_league(league_index, gamblers, *tournaments):
     for index, (name, nation_code, year, n_sets, tie_breaker_5th, category, draw_type) in enumerate(tournaments):
         previous_year_scores = {}
-        for ((nickname, _), _, scores) in gamblers:
+        for ((nickname, _, _), _, scores) in gamblers:
             if index < len(scores):
                 gambler_index = gambler_nickname_to_index(nickname)
                 previous_year_scores[gambler_index] = scores[index]
@@ -238,23 +238,23 @@ def test_season_2021():
     r = session.post(URL + '/leagues', json={'name': 'Coppa Cobram'})
     coppa_cobram_index = list(r.json().keys())[0]
     gamblers_list = [
-        [["Ciccio", "fra.greco83@gmail.com"], 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
-        [["Conte", "contekofflo@gmail.com"], 3175, [125, 400, 75, 75, 0, 50, 0, 600, 600, 800, 200, 200, 50]],
-        [["Franki", "franki.cavadini@gmail.com"], 1570, [50, 0, 10, 50, 50, 75, 0, 0, 0, 125, 300, 10, 900]],
-        [["Giovanni", "g.migliaccio4@alice.it"], 3985, [800, 10, 1000, 600, 600, 100, 0, 25, 200, 200, 150, 150, 150]],
-        [["Mimmo", "cosimo.derinaldis@leonardocompany.com"], 1960, [0, 600, 50, 0, 300, 200, 0, 10, 75, 125, 0, 0, 600]],
-        [["Monci", "carmelo.raciti@leonardocompany.com"], 8300, [300, 400, 1000, 1000, 800, 1200, 0, 300, 1000, 800, 600, 600, 300]],
-        [["Zoo", "massimiliano.bianchi01.ext@leonardocompany.com"], 7575, [125, 25, 100, 600, 1200, 2000, 0, 1000, 150, 75, 400, 400, 1500]],
-        [["Celli", "francesco.celli.ext@leonardocompany.com"], 6050, [200, 200, 150, 200, 2000, 400, 0, 200, 400, 2000, 75, 150, 75]],
-        [["Simone", "simone.caprioli.ext@leonardocompany.com"], 4275, [600, 75, 400, 600, 125, 800, 0, 50, 400, 400, 75, 300, 450]],
-        [["Furone", "furone@cobram.it"], 4110, [2000, 100, 300, 100, 300, 600, 0, 400, 100, 50, 10, 150, 0]],
-        [["Muffo", "davide.muffo@leonardocompany.com"], 810, [75, 200, 50, 10, 75, 125, 0, 100, 25, 0, 75, 50, 25]],
-        [["Macchia", "luca.macchiaiolo.ext@leonardocompany.com"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-        [["Francesco", "francesco.romano05.ext@leonardocompany.com"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+        [["Ciccio", "fra.greco83@gmail.com", "pippo_34"], 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
+        [["Conte", "contekofflo@gmail.com", "peppe_42"], 3175, [125, 400, 75, 75, 0, 50, 0, 600, 600, 800, 200, 200, 50]],
+        [["Franki", "franki.cavadini@gmail.com", "paperino_12"], 1570, [50, 0, 10, 50, 50, 75, 0, 0, 0, 125, 300, 10, 900]],
+        [["Giovanni", "g.migliaccio4@alice.it", "topolino_78"], 3985, [800, 10, 1000, 600, 600, 100, 0, 25, 200, 200, 150, 150, 150]],
+        [["Mimmo", "cosimo.derinaldis@leonardocompany.com", "orazio_22"], 1960, [0, 600, 50, 0, 300, 200, 0, 10, 75, 125, 0, 0, 600]],
+        [["Monci", "carmelo.raciti@leonardocompany.com", "nonnapapera_19"], 8300, [300, 400, 1000, 1000, 800, 1200, 0, 300, 1000, 800, 600, 600, 300]],
+        [["Zoo", "massimiliano.bianchi01.ext@leonardocompany.com", "clarabella_54"], 7575, [125, 25, 100, 600, 1200, 2000, 0, 1000, 150, 75, 400, 400, 1500]],
+        [["Celli", "francesco.celli.ext@leonardocompany.com", "qui_76"], 6050, [200, 200, 150, 200, 2000, 400, 0, 200, 400, 2000, 75, 150, 75]],
+        [["Simone", "simone.caprioli.ext@leonardocompany.com", "quo_89"], 4275, [600, 75, 400, 600, 125, 800, 0, 50, 400, 400, 75, 300, 450]],
+        [["Furone", "furone@cobram.it", "qua_02"], 4110, [2000, 100, 300, 100, 300, 600, 0, 400, 100, 50, 10, 150, 0]],
+        [["Muffo", "davide.muffo@leonardocompany.com", "paperone_43"], 810, [75, 200, 50, 10, 75, 125, 0, 100, 25, 0, 75, 50, 25]],
+        [["Macchia", "luca.macchiaiolo.ext@leonardocompany.com", "gastone_45"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+        [["Francesco", "francesco.romano05.ext@leonardocompany.com", "paperoga_19"], 0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
     ]
 
     for gambler in gamblers_list:
-        r = session.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1], 'password': generate_password_hash(gambler[0][0], method='sha256')})
+        r = session.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1], 'password': generate_password_hash(gambler[0][2], method='sha256')})
     add_gamblers_to_league(coppa_cobram_index, *gamblers_list)
 
     r = session.get(URL + '/gamblers')
@@ -383,7 +383,7 @@ def test_season_2021():
         r = session.post(URL + '/players', json={'name': name, 'surname': surname, 'nation_index': nation_index})
 
     all_bets = {}
-    for ((nickname, _), *_) in gamblers_list:
+    for ((nickname, _, _), *_) in gamblers_list:
         all_bets[nickname] = rearrange_results(tournaments, read_results_file(nickname))
 
     jokers = {
@@ -561,7 +561,7 @@ def test_season_2021():
     add_tournaments_to_league(coppa_cobram_index, gamblers_list, *tournaments_2022)
 
     all_bets = {}
-    for ((nickname, _), *_) in gamblers_list:
+    for ((nickname, _, _), *_) in gamblers_list:
         all_bets[nickname] = rearrange_results(tournaments_2022, read_results_file(nickname + '_2022'))
 
     jokers_2022 = {
