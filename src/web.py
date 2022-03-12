@@ -73,9 +73,9 @@ class RegexConverter(BaseConverter):
 app.url_map.converters['regex'] = RegexConverter
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+#@app.route('/')
+#def index():
+#    return render_template('index.html')
 
 
 @app.route('/profile')
@@ -479,11 +479,11 @@ def _manage_web_admin():
     return render_template('admin.html')
 
 
-#@app.route('/', methods=['GET'])
-#def _index():
-#    _check_args(request.json, [])
-#    _check_args(request.args, [])
-#    return redirect('/web/leagues/0')
+@app.route('/', methods=['GET'])
+def _index():
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return redirect('/web/leagues/0')
 
 
 
@@ -507,10 +507,12 @@ def login_post():
     # check if user actually exists
     # take the user supplied password, hash it, and compare it to the hashed password in database
     if not gambler or not check_password_hash(gambler.password, password):
+        print("NON LOGGATO")
         return 'Please check your login details and try again.', 400
 
     # if the above check passes, then we know the user has the right credentials
     login_user(gambler, remember=remember)
+    print("LOGGATO")
     return "", 200
 
 @app.route('/signup')
@@ -539,9 +541,13 @@ def signup_post():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 
-#from waitress import serve
-#serve(app, listen='*:8080')
-app.run(debug=True, use_reloader=False, host="0.0.0.0", threaded=False)
+all_saved = environment.get_saved()
+to_load = max(all_saved)
+environment.load(timestamp=all_saved[to_load])
+
+from waitress import serve
+serve(app, listen='*:8080')
+#app.run(debug=True, use_reloader=False, host="0.0.0.0", threaded=False)

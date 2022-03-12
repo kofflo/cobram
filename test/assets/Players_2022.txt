@@ -14,3 +14,20 @@ Marin	Cilic	27
 Felix	Auger-Aliassime	9
 Maxime	Cressy
 Daniil	Medvedev	2
+
+Daniil	Medvedev	1
+Roberto	Bautista Agut	15
+Cameron	Norrie	12
+Stefanos	Tsitsipas	5
+Rafael	Nadal	4
+Denis	Shapovalov	13
+Jannik	Sinner	10
+Casper	Ruud	8
+Matteo	Berrettini	6
+Felix	Auger-Aliassime	9
+Pablo	Carreno Busta	16
+Alexander	Zverev	3
+Andrey	Rublev	7
+Hubert	Hurkacz	11
+Diego	Schwartzman	14
+Grigor	Dimitrov	33

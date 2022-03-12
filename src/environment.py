@@ -420,9 +420,13 @@ def save():
 
 def get_saved():
     save_folder = Path(SAVE_FOLDER)
+    all_saved_list = []
+    for path in save_folder.glob("*.dat"):
+        all_saved_list.append(re.match("save_(.+).dat", path.name)[1])
+    all_saved_list.sort()
     all_saved = {}
-    for index, path in enumerate(save_folder.glob("*.dat")):
-        all_saved[index] = re.match("save_(.+).dat", path.name)[1]
+    for index, value in enumerate(all_saved_list):
+        all_saved[index] = value
     return all_saved
 
 

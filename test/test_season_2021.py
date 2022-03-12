@@ -6,7 +6,8 @@ from werkzeug.security import generate_password_hash
 #import environment
 import requests
 
-URL = 'http://127.0.0.1:5000'
+#URL = 'http://127.0.0.1:5000'
+URL = 'http://127.0.0.1:8080'
 
 _NUMBER_MATCHES_FOR_ROUND = {
     'Draw16': [8, 4, 2, 1],
@@ -136,8 +137,12 @@ def rearrange_results(tournaments, results_list):
         tournament_results = []
         for match in range(15):
             line_index = index*30 + match*2
-            first_line = results_list[line_index]
-            second_line = results_list[line_index + 1]
+            try:
+                first_line = results_list[line_index]
+                second_line = results_list[line_index + 1]
+            except IndexError:
+                first_line = '', '', ''
+                second_line = '', '', ''
             match = []
             for set_score in zip(first_line, second_line):
                 if set_score != ('', '') and set_score != ('0', '0'):
@@ -556,7 +561,8 @@ def test_season_2021():
     r = session.put(URL + '/leagues/{league_index}/gamblers/{gambler_index}'.format(league_index=coppa_cobram_index, gambler_index=gambler_index), json={'is_active': False})
 
     del gamblers_list[11] # Tolgo Macchia
-    tournaments_2022 = [["Australian Open", "AUS", 2022, 5, 'TIE_BREAKER_AT_7', 'GRAND_SLAM', 'Draw16']]
+    tournaments_2022 = [["Australian Open", "AUS", 2022, 5, 'TIE_BREAKER_AT_7', 'GRAND_SLAM', 'Draw16'],
+                        ["Indian Wells Masters", "USA", 2022, 3, None, 'MASTER_1000', 'Draw16']]
 
     add_tournaments_to_league(coppa_cobram_index, gamblers_list, *tournaments_2022)
 
@@ -565,19 +571,19 @@ def test_season_2021():
         all_bets[nickname] = rearrange_results(tournaments_2022, read_results_file(nickname + '_2022'))
 
     jokers_2022 = {
-        #              AO
-        "Ciccio":    ['B3'],
-        "Conte":     ['B3'],
-        "Franki":    ['B1'],
-        "Giovanni":  ['D1'],
-        "Mimmo":     [None],
-        "Monci":     ['C1'],
-        "Zoo":       ['C2'],
-        "Celli":     ['B1'],
-        "Simone":    ['D1'],
-        "Furone":    ['D1'],
-        "Muffo":     ['B4'],
-        "Francesco": ['B1']
+        #              AO    IW
+        "Ciccio":    ['B3', None],
+        "Conte":     ['B3', None],
+        "Franki":    ['B1', None],
+        "Giovanni":  ['D1', None],
+        "Mimmo":     [None, None],
+        "Monci":     ['C1', None],
+        "Zoo":       ['C2', None],
+        "Celli":     ['B1', None],
+        "Simone":    ['D1', None],
+        "Furone":    ['D1', None],
+        "Muffo":     ['B4', None],
+        "Francesco": ['B1', None]
     }
 
     results = rearrange_results(tournaments_2022, read_results_file('Results_2022'))
@@ -589,7 +595,7 @@ def test_season_2021():
         name, year = tournament[0], tournament[2]
         add_players_to_tournament(coppa_cobram_index, name, year, *all_players[name, year])
 
-        for round_index in range(1):
+        for round_index in range(4):
             for gambler in gamblers_list:
                 gambler_nickname = gambler[0][0]
                 gambler_bets = all_bets[gambler_nickname][tournament[0], tournament[2]]
@@ -599,8 +605,9 @@ def test_season_2021():
             scores = results[tournament[0], tournament[2]]
             set_round_results(coppa_cobram_index, tournament, round_index, scores)
 
-#        tournament_index = tournament_id_to_index(coppa_cobram_index, (name, year))
-#        r = session.put(URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=coppa_cobram_index, tournament_index=tournament_index), json= {'is_open': False})
+        if name == "Australian Open":
+            tournament_index = tournament_id_to_index(coppa_cobram_index, (name, year))
+            r = session.put(URL + '/leagues/{league_index}/tournaments/{tournament_index}'.format(league_index=coppa_cobram_index, tournament_index=tournament_index), json= {'is_open': False})
 
         print(name, year)
 
@@ -655,12 +662,12 @@ def test_season_2021():
     tournament_ranking = r.json()
     print(tournament_ranking)
 
-    r = session.post(URL + '/save', json={'filename': 'coppa_cobram.dat'})
+    r = session.post(URL + '/save')
 
 
 
 
-test_season_2021()
-r = session.post(URL + '/load', json={'filename': 'coppa_cobram.dat'})
+#test_season_2021()
+r = session.post(URL + '/load', json={'timestamp': '20220312_184349'})
 
 session.close()
