@@ -69,6 +69,7 @@
     }
     function updateChoice() {
         choice = document.getElementById("saved");
+        choice.options.length = 0;
         for (key in timestamps) {
             option = document.createElement("option");
             option.value = key;

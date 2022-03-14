@@ -11,6 +11,10 @@ import gambler
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '9OeWZNd4oa3j4KjiuowO'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = True
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -480,11 +484,16 @@ def _manage_web_admin():
 
 
 @app.route('/', methods=['GET'])
-def _index():
+def _root():
     _check_args(request.json, [])
     _check_args(request.args, [])
     return redirect('/web/leagues/0')
 
+@app.route('/index', methods=['GET'])
+def _index():
+    _check_args(request.json, [])
+    _check_args(request.args, [])
+    return redirect('/web/leagues/0')
 
 
 
@@ -507,12 +516,10 @@ def login_post():
     # check if user actually exists
     # take the user supplied password, hash it, and compare it to the hashed password in database
     if not gambler or not check_password_hash(gambler.password, password):
-        print("NON LOGGATO")
         return 'Please check your login details and try again.', 400
 
     # if the above check passes, then we know the user has the right credentials
     login_user(gambler, remember=remember)
-    print("LOGGATO")
     return "", 200
 
 @app.route('/signup')
@@ -544,10 +551,8 @@ def logout():
     return redirect(url_for('login'))
 
 
-all_saved = environment.get_saved()
-to_load = max(all_saved)
-environment.load(timestamp=all_saved[to_load])
+environment.load(timestamp='autosave')
 
-from waitress import serve
-serve(app, listen='*:8080')
-#app.run(debug=True, use_reloader=False, host="0.0.0.0", threaded=False)
+#from waitress import serve
+#serve(app, listen='*:8080')
+app.run(debug=True, use_reloader=False, host="0.0.0.0", threaded=False)

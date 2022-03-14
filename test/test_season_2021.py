@@ -6,8 +6,8 @@ from werkzeug.security import generate_password_hash
 #import environment
 import requests
 
-#URL = 'http://127.0.0.1:5000'
-URL = 'http://127.0.0.1:8080'
+URL = 'http://127.0.0.1:5000'
+#URL = 'http://127.0.0.1:8080'
 
 _NUMBER_MATCHES_FOR_ROUND = {
     'Draw16': [8, 4, 2, 1],
@@ -662,12 +662,10 @@ def test_season_2021():
     tournament_ranking = r.json()
     print(tournament_ranking)
 
-    r = session.post(URL + '/save')
 
 
 
 
-#test_season_2021()
-r = session.post(URL + '/load', json={'timestamp': '20220312_184349'})
+test_season_2021()
 
 session.close()

@@ -171,7 +171,9 @@
         subHeaderLink = document.createElement("a");
         subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
         subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
-        document.getElementById("subHeader").appendChild(subHeaderLink);
+        subHeader = document.getElementById("subHeader");
+        subHeader.innerHTML = "";
+        subHeader.appendChild(subHeaderLink);
         document.title = tournamentInfo["name"] + "  " + tournamentInfo["year"];
     }
     function updateInfo() {
@@ -265,6 +267,21 @@
         }
         return formatted.slice(0, -2);
     }
+    function formatScoreForm(score) {
+        formatted = "";
+        for (set in score) {
+            if (score[set][0] == -1) {
+                formatted += "A- ";
+            } else if (score[set][1] == -1) {
+                formatted += "-A ";
+            } else if (score[set][0] < 10 && score[set][1] < 10) {
+                formatted += String(score[set][0]) + String(score[set][1]) + " ";
+            } else {
+                formatted += score[set][0] + "-" + score[set][1] + " ";
+            }
+        }
+        return formatted;
+    }
     function updateTablesRanking() {
         table = document.getElementById("tableRankingBody");
         table.innerText = "";
@@ -330,12 +347,12 @@
                 forms[key] = Object();
                 if (!window.mobileCheck()) {
                     // desktop
+                    score = matches[key]["score"];
                     for (var set = 0; set < tournamentInfo["n_sets"]; set++) {
                         set_cell = inner_row.insertCell();
                         let form = document.createElement("input");
                         form.setAttribute("type", "text");
                         form.setAttribute("size", 1);
-                        score = matches[key]["score"];
                         if (score != null && score[set] != undefined) {
                             if (score[set][0] == -1) {
                                 form.value = "A-";
@@ -356,7 +373,7 @@
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
                     form.setAttribute("size", 3 * tournamentInfo["n_sets"]);
-                    score = matches["score"];
+                    score = matches[key]["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);
                     }

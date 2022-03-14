@@ -2,6 +2,8 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 import re
+from functools import wraps
+
 import logging
 logging.basicConfig(filename='cobram.log', level=logging.INFO)
 
@@ -26,6 +28,15 @@ ERROR_DURING_ENVIRONMENT_SAVING = "Error during environment saving [{message}]"
 ENTITY_IS_REFERENCED = "Entity is referenced"
 
 SAVE_FOLDER = "save"
+
+
+def autosave(func):
+    @wraps(func)
+    def func_with_autosave(*args, **kwargs):
+        retval = func(*args, **kwargs)
+        save(autosave=True)
+        return retval
+    return func_with_autosave
 
 
 def create_league(*, name):
@@ -137,6 +148,7 @@ def delete_nation(*, index):
     return _delete_entity('nation', index)
 
 
+@autosave
 def add_gambler_to_league(*, league_index, gambler_index, initial_score, initial_credit):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
@@ -159,6 +171,7 @@ def get_gambler_info_from_league(*, league_index, gambler_index):
     return league.get_gambler_info(gambler)
 
 
+@autosave
 def update_gambler_in_league(*, league_index, gambler_index, is_active=None, credit_change=None):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
@@ -166,6 +179,7 @@ def update_gambler_in_league(*, league_index, gambler_index, is_active=None, cre
     return league.get_gambler_info(gambler)
 
 
+@autosave
 def remove_gambler_from_league(*, league_index, gambler_index):
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
@@ -192,6 +206,7 @@ def get_league_ranking(*, league_index):
             'winners': winners, 'last_tournament': last_tournament}
 
 
+@autosave
 def create_tournament(*, league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
                       previous_year_scores, ghost):
     league = _get_league(league_index)
@@ -237,6 +252,7 @@ def get_tournament_info(*, league_index, tournament_index):
     return tournament_info
 
 
+@autosave
 def update_tournament(*, league_index, tournament_index, nation_index=None, is_open=None):
     league = _get_league(league_index)
     if nation_index is not None:
@@ -248,6 +264,7 @@ def update_tournament(*, league_index, tournament_index, nation_index=None, is_o
     return get_tournament_info(league_index=league_index, tournament_index=tournament_index)
 
 
+@autosave
 def delete_tournament(*, league_index, tournament_index):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
@@ -255,6 +272,7 @@ def delete_tournament(*, league_index, tournament_index):
     return {}
 
 
+@autosave
 def add_player_to_tournament(*, league_index, tournament_index, place, player_index, seed):
     league = _get_league(league_index)
     player = _get_player(player_index)
@@ -292,6 +310,7 @@ def get_player_info_from_tournament(*, league_index, tournament_index, place):
     } if player is not None else None
 
 
+@autosave
 def update_player_in_tournament(*, league_index, tournament_index, place, seed=None):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
@@ -301,6 +320,7 @@ def update_player_in_tournament(*, league_index, tournament_index, place, seed=N
     return get_player_info_from_tournament(league_index=league_index, tournament_index=tournament_index, place=place)
 
 
+@autosave
 def remove_player_from_tournament(*, league_index, tournament_index, place):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
@@ -318,6 +338,7 @@ def get_tournament_matches(*, league_index, tournament_index):
     return return_structure
 
 
+@autosave
 def update_tournament_match(*, league_index, tournament_index, match_id, players=None, score=None, bets_closed=None):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
@@ -357,6 +378,7 @@ def get_tournament_bets(*, league_index, tournament_index, gambler_index):
     return return_structure
 
 
+@autosave
 def update_tournament_bet(*, league_index, tournament_index, gambler_index, match_id, bet=None):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
@@ -398,10 +420,13 @@ def get_tournament_ranking(*, league_index, tournament_index):
             'joker_gambler_seed_points': joker_gambler_seed_points, 'is_open': is_open}
 
 
-def save():
+def save(autosave=False):
     save_folder = Path(SAVE_FOLDER)
     save_folder.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if autosave:
+        timestamp = 'autosave'
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = "save_{timestamp}.dat".format(timestamp=timestamp)
     full_path = save_folder / filename
     try:
@@ -411,9 +436,14 @@ def save():
             pickler.dump(_player_objects)
             pickler.dump(_gambler_objects)
             pickler.dump(_nation_objects)
-        return {
-            len(list(save_folder.glob("*.dat"))) - 1: filename
-        }
+        if autosave:
+            return None
+        else:
+            all_saved = get_saved()
+            for key, value in all_saved.items():
+                if timestamp == value:
+                    return {key: value}
+            raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str("Unknown error"))))
     except (IOError, pickle.PickleError) as e:
         raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str(e))))
 
@@ -422,7 +452,8 @@ def get_saved():
     save_folder = Path(SAVE_FOLDER)
     all_saved_list = []
     for path in save_folder.glob("*.dat"):
-        all_saved_list.append(re.match("save_(.+).dat", path.name)[1])
+        if 'autosave' not in path.name:
+            all_saved_list.append(re.match("save_(.+).dat", path.name)[1])
     all_saved_list.sort()
     all_saved = {}
     for index, value in enumerate(all_saved_list):
@@ -499,6 +530,7 @@ def _check_references(entity_name, index, reference_entity_name):
     return False
 
 
+@autosave
 def _delete_entity(entity_name, index):
     all_entities = globals()[f'_{entity_name}_objects']
     try:
@@ -508,6 +540,7 @@ def _delete_entity(entity_name, index):
     return {}
 
 
+@autosave
 def _update_entity(entity_name, index, **attributes):
     all_entities = globals()[('_{entity_name}_objects'.format(entity_name=entity_name))]
     update_entity = all_entities[index]
@@ -569,6 +602,7 @@ def _get_entity_info(entity_name, index):
     return entity.info
 
 
+@autosave
 def _create_entity(entity_name, **attributes):
     all_entities = globals()[f'_{entity_name}_objects']
     for entity in all_entities:
