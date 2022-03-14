@@ -187,7 +187,9 @@
         subHeaderLink = document.createElement("a");
         subHeaderLink.innerText = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
         subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}");
-        document.getElementById("subHeader").appendChild(subHeaderLink);
+        subHeader = document.getElementById("subHeader");
+        subHeader.innerHTML = "";
+        subHeader.appendChild(subHeaderLink);
         points = "Punti: " + ranking["tournament_scores"][{{ gambler_index }}] + "   (Jolly finale: " + ranking["joker_gambler_seed_points"][{{ gambler_index }}] + ")";
         document.getElementById("pointsHeader").innerText = points;
         document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
@@ -359,7 +361,7 @@
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
                     form.setAttribute("size", 3 * tournaments[{{ tournament_index }}]["n_sets"]);
-                    score = bets["score"];
+                    score = bets[key]["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);
                     }

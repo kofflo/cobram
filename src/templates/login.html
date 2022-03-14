@@ -10,21 +10,24 @@
         requestJson["password"] = document.getElementById("password").value;
         requestJson["remember"] = document.getElementById("password").value;
         Promise.all([sendLoginRequest(requestJson)]).then(function (values) {
-            var qd = {};
-            if (location.search) location.search.substr(1).split("&").forEach(function(item) {
-                var s = item.split("="),
-                    k = s[0],
-                    v = s[1] && decodeURIComponent(s[1]); //  null-coalescing / short-circuit
-                (qd[k] = qd[k] || []).push(v) // null-coalescing / short-circuit
-            });
-            if (qd["next"] != undefined) {
-                window.location.href = qd["next"];
-            } else {
-                window.location.href = "/";
-            }
+            redirectToPage();
         }).catch(function (reason) {
             window.alert(reason);
         });
+    }
+    function redirectToPage() {
+        var qd = {};
+        if (location.search) location.search.substr(1).split("&").forEach(function(item) {
+            var s = item.split("="),
+                k = s[0],
+                v = s[1] && decodeURIComponent(s[1]); //  null-coalescing / short-circuit
+            (qd[k] = qd[k] || []).push(v) // null-coalescing / short-circuit
+        });
+        if (qd["next"] != undefined) {
+            window.location.assign(qd["next"]);
+        } else {
+            window.location.assign("/index");
+        }
     }
     function sendLoginRequest(requestJson) {
         return new Promise(function (resolve, reject) {
@@ -75,8 +78,8 @@
                     Remember me
                 </label>
             </div>
-            <button class="button is-block is-info is-large is-fullwidth" onclick="sendLogin()">Login</button>
         </form>
+        <button class="button is-block is-info is-large is-fullwidth" onclick="sendLogin()">Login</button>
     </div>
 </div>
 {% endblock %}
