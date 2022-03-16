@@ -15,19 +15,19 @@ Felix	Auger-Aliassime	9
 Maxime	Cressy
 Daniil	Medvedev	2
 
-Daniil	Medvedev	1
-Roberto	Bautista Agut	15
+Gael	Monfils	26
+Carlos	Alcaraz	19
 Cameron	Norrie	12
-Stefanos	Tsitsipas	5
+Jenson	Brooksby
 Rafael	Nadal	4
-Denis	Shapovalov	13
+Reilly	Opelka	17
 Jannik	Sinner	10
-Casper	Ruud	8
+Nick	Kyrgios
 Matteo	Berrettini	6
-Felix	Auger-Aliassime	9
-Pablo	Carreno Busta	16
-Alexander	Zverev	3
+Miomir	Kecmanovic
+Taylor	Fritz	20
+Alex	De Minaur	29
 Andrey	Rublev	7
 Hubert	Hurkacz	11
-Diego	Schwartzman	14
+John	Isner	23
 Grigor	Dimitrov	33

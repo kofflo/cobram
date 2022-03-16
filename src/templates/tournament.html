@@ -178,15 +178,21 @@
     }
     function updateInfo() {
         {% if is_privileged %}
-            button = document.getElementById("closeButton");
+            closeButton = document.getElementById("closeButton");
+            playersButton = document.getElementById("playersButton");
+            scoresButton = document.getElementById("scoresButton");
             if (!tournamentInfo["is_open"]) {
-                button.innerText = "Apri il torneo";
-                button.onclick = openTournament;
+                closeButton.innerText = "Apri il torneo";
+                closeButton.onclick = openTournament;
+                playersButton.disabled = true;
+                scoresButton.disabled = true;
             } else {
-                button.innerText = "Chiudi il torneo";
-                button.onclick = closeTournament;
+                closeButton.innerText = "Chiudi il torneo";
+                closeButton.onclick = closeTournament;
+                playersButton.disabled = false;
+                scoresButton.disabled = false;
             }
-        {%endif %}
+        {% endif %}
     }
     function updateMatches() {
         table = document.getElementById("matches");
@@ -312,14 +318,14 @@
         var forms = Object();
         var checkboxes = Object();
         function insertScores() {
-            button = document.getElementById("scoresButton");
-            button.innerText = "Manda i punteggi";
-            button.onclick = sendScores;
+            scoresButton = document.getElementById("scoresButton");
+            scoresButton.innerText = "Manda i punteggi";
+            scoresButton.onclick = sendScores;
             cancelButton = document.createElement("button");
             cancelButton.id = "cancelButton";
             cancelButton.innerText = "Annulla";
             cancelButton.onclick = restoreMatches;
-            button.parentNode.insertBefore(cancelButton, button.nextSibling);
+            scoresButton.parentNode.insertBefore(cancelButton, scoresButton.nextSibling);
             table = document.getElementById("matches");
             table.innerText = "";
             for (var key in matches) {
@@ -472,9 +478,9 @@
             });
         }
         function restoreMatches() {
-            button = document.getElementById("scoresButton");
-            button.innerText = "Cambia i punteggi";
-            button.onclick = insertScores;
+            scoresButton = document.getElementById("scoresButton");
+            scoresButton.innerText = "Cambia i punteggi";
+            scoresButton.onclick = insertScores;
             document.getElementById("cancelButton").remove();
             forms = Object();
             checkboxes = Object();
@@ -499,6 +505,10 @@
         }
         function closeTournament() {
             changeTournamentStatus(false);
+            for (key in matches) {
+                matches[key]["bets_closed"] = true;
+            }
+            updateMatches();
         }
         function openTournament() {
             changeTournamentStatus(true);

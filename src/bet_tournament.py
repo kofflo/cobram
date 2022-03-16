@@ -273,7 +273,10 @@ class BetTournament:
         final_id = self.draw.final_id
         actual_final = actual_matches[final_id]
         bet_final = bet_matches[final_id]
-        joker_gambler_seed = actual_final[3] == bet_final[3]
+        if actual_final[0] is None or bet_final[0] is None:
+            joker_gambler_seed = 0
+        else:
+            joker_gambler_seed = actual_final[3] == bet_final[3]
         return score, joker_gambler_seed, points
 
     def _joker_value(self, player_index):

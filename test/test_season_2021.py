@@ -353,6 +353,7 @@ def test_season_2021():
         ["Karen", "Khachanov", "RUS"],
         ["Dominik", "Koepfer", "DEU"],
         ["Sebastian", "Korda", "USA"],
+        ['Nick', 'Kyrgios', 'AUS'],
         ["Dusan", "Lajovic", "SRB"],
         ["Adrian", "Mannarino", "FRA"],
         ["Mackenzie", "McDonald", "USA"],
