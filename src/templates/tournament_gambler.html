@@ -318,8 +318,20 @@
             if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                 continue;
             }
-            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"];
-            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"];
+            seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
+            if (seed_player_1 != 0) {
+                seed_string = " [" + seed_player_1 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
+            seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seed_player_2 != 0) {
+                seed_string = " [" + seed_player_2 + "]";
+            } else {
+                seed_string = "";
+            }
+            player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
             if (matches[key]["bets_closed"]) {
                 score_cell.innerText = formatScore(bets[key]["score"]);
                 if (bets["joker"] == key) {

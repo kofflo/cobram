@@ -16,7 +16,6 @@ _NUMBER_MATCHES_FOR_ROUND = {
 
 session = requests.Session()
 
-session = requests.Session()
 t = session.post(url=URL + '/login', json={'nickname':'admin','password':'admin_password'})
 
 
