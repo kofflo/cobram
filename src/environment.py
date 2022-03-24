@@ -278,7 +278,6 @@ def add_player_to_tournament(*, league_index, tournament_index, place, player_in
     player = _get_player(player_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     league.add_player_to_tournament(tournament_id=tournament_id, place=place, player=player, seed=seed)
-    players = league.get_players_from_tournament(tournament_id=tournament_id)
     return {
         place: {
             'index': _get_player_index(player),
@@ -635,11 +634,12 @@ def _create_bet_dictionary(bet):
     }
 
 
-def get_user(nickname):
+def get_user(nickname=None, email=None):
     for gambler in _gambler_objects:
-        if gambler.nickname == nickname:
+        if gambler.nickname == nickname or gambler.email == email:
             return gambler
     return None
+
 
 def check_current_user(current_user, gambler_index):
     return current_user == _get_gambler(gambler_index)

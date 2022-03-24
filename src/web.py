@@ -1,9 +1,14 @@
 from flask import Flask
-from flask import request, render_template, redirect
-from flask_login import login_required, current_user, LoginManager
+from flask import render_template, redirect, url_for, request, flash, current_app
+from flask_login import current_user, LoginManager, login_user, logout_user, login_required, config
 from werkzeug.routing import BaseConverter
-import environment
+from werkzeug.security import generate_password_hash, check_password_hash
 from inspect import signature, Parameter
+from functools import wraps
+
+
+import environment
+
 
 from base_error import BaseError
 import gambler
@@ -19,8 +24,6 @@ app.config['REMEMBER_COOKIE_SECURE'] = True
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
-
-from functools import wraps
 
 
 def admin_required(func):
@@ -77,17 +80,6 @@ class RegexConverter(BaseConverter):
 app.url_map.converters['regex'] = RegexConverter
 
 
-#@app.route('/')
-#def index():
-#    return render_template('index.html')
-
-
-@app.route('/profile')
-@login_required
-def profile():
-    return render_template('profile.html', nickname=current_user.nickname)
-
-
 def _manage_entity(entity_name):
     if request.method == 'GET':
         getter = getattr(environment, "get_{entity_name}s".format(entity_name=entity_name))
@@ -118,7 +110,8 @@ def _get_all_tournaments_info(league_index):
 def _get_all_gamblers_info_from_league(league_index):
     gamblers_info = []
     for gambler_index in environment.get_gamblers_from_league(league_index=league_index):
-        gamblers_info.append(environment.get_gambler_info_from_league(league_index=league_index, gambler_index=gambler_index))
+        gamblers_info.append(environment.get_gambler_info_from_league(league_index=league_index,
+                                                                      gambler_index=gambler_index))
     return gamblers_info
 
 
@@ -341,7 +334,8 @@ def _manage_tournament_player(**kwargs):
     return _redirect_to_function(environment.get_player_info_from_tournament, '')
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players/<int:place>', methods=['PUT', 'DELETE'])
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players/<int:place>',
+           methods=['PUT', 'DELETE'])
 @admin_required_rest
 def _manage_tournament_player_admin(**kwargs):
     if request.method == 'PUT':
@@ -356,16 +350,19 @@ def _manage_tournament_matches(**kwargs):
     return _redirect_to_function(environment.get_tournament_matches, '')
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches/<regex("[A-Z][0-9]+"):match_id>', methods=['PUT'])
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches/<regex("[A-Z][0-9]+"):match_id>',
+           methods=['PUT'])
 @admin_required_rest
 def _manage_tournament_match(**kwargs):
     return _redirect_to_function(environment.update_tournament_match, 'JSON')
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches', methods=['GET'])
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches',
+           methods=['GET'])
 @login_required_rest
 def _manage_tournament_bets(**kwargs):
-    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user, request.view_args['gambler_index'])
+    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user,
+                                                                                    request.view_args['gambler_index'])
     tournament_bets = _redirect_to_function(environment.get_tournament_bets, '')
     return_bets = {}
     for key, value in tournament_bets.items():
@@ -379,17 +376,20 @@ def _manage_tournament_bets(**kwargs):
             return_bet["score"] = []
             return_bet["points"] = None
         return_bets[key] = return_bet
-    if tournament_bets['joker'] is not None and (tournament_bets[tournament_bets['joker']]['bets_closed'] or is_privileged):
+    if tournament_bets['joker'] is not None \
+            and (tournament_bets[tournament_bets['joker']]['bets_closed'] or is_privileged):
         return_bets['joker'] = tournament_bets['joker']
     else:
         return_bets['joker'] = None
     return return_bets
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches/<regex("[A-Z][0-9]+"):match_id>', methods=['PUT'])
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches/<regex("[A-Z][0-9]+"):match_id>',
+           methods=['PUT'])
 @login_required_rest
 def _manage_tournament_bet(**kwargs):
-    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user, request.view_args['gambler_index'])
+    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user,
+                                                                                    request.view_args['gambler_index'])
     if not is_privileged:
         return str("Unauthorized"), 401
     return _redirect_to_function(environment.update_tournament_bet, 'JSON')
@@ -463,16 +463,20 @@ def _manage_web_tournament(league_index, tournament_index):
     _check_args(request.json, [])
     _check_args(request.args, [])
     is_privileged = current_user == gambler.ADMIN
-    return render_template('tournament.html', league_index=league_index, tournament_index=tournament_index, is_privileged=is_privileged)
+    return render_template('tournament.html', league_index=league_index, tournament_index=tournament_index,
+                           is_privileged=is_privileged)
 
 
-@app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>', methods=['GET'])
+@app.route('/web/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>',
+           methods=['GET'])
 @login_required
 def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index):
     _check_args(request.json, [])
     _check_args(request.args, [])
     is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user, gambler_index)
-    return render_template('tournament_gambler.html', league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index, is_privileged=is_privileged)
+    return render_template('tournament_gambler.html',
+                           league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index,
+                           is_privileged=is_privileged)
 
 
 @app.route('/web/admin', methods=['GET'])
@@ -489,6 +493,7 @@ def _root():
     _check_args(request.args, [])
     return redirect('/web/leagues/0')
 
+
 @app.route('/index', methods=['GET'])
 def _index():
     _check_args(request.json, [])
@@ -496,53 +501,48 @@ def _index():
     return redirect('/web/leagues/0')
 
 
-
-from flask import render_template, redirect, url_for, request, flash, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import login_user, logout_user, login_required, config
-
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    return render_template('login.html')
+    if request.method == 'GET':
+        _check_args(request.json, [])
+        return render_template('login.html')
+    elif request.method == 'POST':
+        return _redirect_to_function(login_function, 'JSON')
 
-@app.route('/login', methods=['POST'])
-def login_post():
-    nickname = request.json.get('nickname')
-    password = request.json.get('password')
-    remember = True if request.json.get('remember') else False
 
-    gambler = environment.get_user(nickname=nickname)
+def login_function(nickname, password, remember=False):
+        login_gambler = environment.get_user(nickname=nickname)
 
-    # check if user actually exists
-    # take the user supplied password, hash it, and compare it to the hashed password in database
-    if not gambler or not check_password_hash(gambler.password, password):
-        return 'Please check your login details and try again.', 400
+        # check if user actually exists
+        # take the user supplied password, hash it, and compare it to the hashed password in database
+        if not login_gambler or not check_password_hash(login_gambler.password, password):
+            return 'Please check your login details and try again.', 400
 
-    # if the above check passes, then we know the user has the right credentials
-    login_user(gambler, remember=remember)
-    return "", 200
+        # if the above check passes, then we know the user has the right credentials
+        login_user(login_gambler, remember=remember)
+        return "", 200
 
-@app.route('/signup')
+
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    return render_template('signup.html')
+    if request.method == 'GET':
+        return render_template('signup.html')
+    elif request.method == 'POST':
+        return _redirect_to_function(signup_function, 'JSON')
 
-@app.route('/signup', methods=['POST'])
-def signup_post():
 
-    email = request.form.get('email')
-    nickname = request.form.get('nickname')
-    password = request.form.get('password')
+def signup_function(email, nickname, password):
+    signup_gambler = environment.get_user(nickname=nickname, email=email)
 
-    gambler = environment.get_user(nickname=nickname)
-
-    if gambler: # if a user is found, we want to redirect back to signup page so user can try again
-        flash('Email address already exists')
+    if signup_gambler: # if a user is found, we want to redirect back to signup page so user can try again
+        flash('Nickname or email already used')
         return redirect(url_for('signup'))
 
     # create new user with the form data. Hash the password so plaintext version isn't saved.
     environment.create_gambler(email=email, nickname=nickname, password=generate_password_hash(password, method='sha256'))
 
-    return redirect(url_for('login'))
+    return redirect(url_for('logout'))
+
 
 @app.route('/logout')
 @login_required

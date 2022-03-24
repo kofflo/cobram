@@ -269,7 +269,7 @@
                 formatted += score[set][0] + "-" + score[set][1] + " / ";
             }
         }
-        return formatted.slice(0, -2);
+        return formatted.slice(0, -3);
     }
     function formatScoreForm(score) {
         formatted = "";
@@ -461,11 +461,14 @@
         }
         all_promises = Array();
         for (key in all_bets) {
-            all_promises.push(sendBetRequest(key, all_bets[key]));
+            if (!equalScores(all_bets[key]['bet']["score"], bets[key]["score"]) || all_bets[key]['bet']['joker'] != (bets["joker"] == key)) {
+                all_promises.push(sendBetRequest(key, all_bets[key]));
+            }
         }
         Promise.allSettled(all_promises).then(function (results) {
             var restore = true;
-            console.warn(results);
+            successful = [];
+            failed = [];
             for (var index in results) {
                 if (results[index]["status"] == "fulfilled") {
                     match_id = results[index]["value"]["match_id"];
@@ -474,17 +477,52 @@
                     if (bet["joker"]) {
                         bets["joker"] = match_id;
                     }
+                    successful_string = "Match " + match_id + " aggiornato: [ " + formatScore(bet["score"]) + " ]";
+                    if (bet["joker"]) {
+                        successful_string += " con joker";
+                    } else {
+                        successful_string += " senza joker";
+                    }
+                    successful.push(successful_string);
                 } else {
                     match_id = results[index]["reason"]["match_id"];
                     message = results[index]["reason"]["response"];
-                    window.alert("Match " + match_id + ": " + message);
+                    failed.push("Attenzione! Match " + match_id + ": " + message);
                     restore = false;
                 }
+            }
+            if (successful.length > 0) {
+                window.alert(successful.join("\n"));
+            }
+            if (failed.length > 0) {
+                window.alert(failed.join("\n"));
             }
             if (restore) {
                 restoreMatches();
             }
         });
+    }
+    function equalScores(score1, score2) {
+        if (score2 == null) {
+            return score1.length == 0;
+        }
+        return equalArrays(score1, score2);
+    }
+    function equalArrays(a1, a2) {
+        var i = a1.length;
+        if (i != a2.length) {
+            return false;
+        }
+        while (i--) {
+            if (Array.isArray(a1[i]) && Array.isArray(a2[i])) {
+                if (!equalArrays(a1[i], a2[i])) {
+                    return false;
+                }
+            } else if (a1[i] != a2[i]) {
+                return false;
+            }
+        }
+        return true;
     }
     function restoreMatches() {
         button = document.getElementById("betsButton");

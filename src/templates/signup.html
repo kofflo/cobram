@@ -2,6 +2,53 @@
 
 {% extends "base.html" %}
 
+{% block script_content %}
+    <script>
+        function sendSignUp() {
+            requestJson = Object();
+            requestJson["email"] = document.getElementById("email").value;
+            requestJson["nickname"] = document.getElementById("nickname").value.trim();
+            requestJson["password"] = document.getElementById("password").value;
+            Promise.all([sendSignUpRequest(requestJson)]).then(function (values) {
+                redirectToPage();
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+        function redirectToPage() {
+            var qd = {};
+            if (location.search) location.search.substr(1).split("&").forEach(function(item) {
+                var s = item.split("="),
+                    k = s[0],
+                    v = s[1] && decodeURIComponent(s[1]); //  null-coalescing / short-circuit
+                (qd[k] = qd[k] || []).push(v) // null-coalescing / short-circuit
+            });
+            if (qd["next"] != undefined) {
+                window.location.assign(qd["next"]);
+            } else {
+                window.location.assign("/index");
+            }
+        }
+        function sendSignUpRequest(requestJson) {
+            return new Promise(function (resolve, reject) {
+                var loginRequest = new XMLHttpRequest();
+                loginRequest.onreadystatechange = function () {
+                    if (this.readyState == 4) {
+                        if (this.status == 200) {
+                            resolve(this.responseText);
+                        } else {
+                            reject(this.responseText);
+                        }
+                    }
+                };
+                loginRequest.open("POST", "/signup", true);
+                loginRequest.setRequestHeader("Content-Type", "application/json");
+                loginRequest.send(JSON.stringify(requestJson));
+            })
+        }
+    </script>
+{% endblock %}
+
 {% block content %}
 <div class="column is-4 is-offset-4">
     <h3 class="title">Sign Up</h3>
@@ -13,27 +60,26 @@
             </div>
         {% endif %}
         {% endwith %}
-        <form method="POST" action="/signup">
+        <form>
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="email" name="email" placeholder="Email" autofocus="">
+                    <input id="email" class="input is-large" placeholder="Email" autofocus="">
                 </div>
             </div>
 
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="text" name="nickname" placeholder="Nickname" autofocus="">
+                    <input id="nickname" class="input is-large" placeholder="Nickname">
                 </div>
             </div>
 
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="password" name="password" placeholder="Password">
+                    <input id="password" class="input is-large" placeholder="Password">
                 </div>
             </div>
-
-            <button class="button is-block is-info is-large is-fullwidth">Sign Up</button>
         </form>
+        <button class="button is-block is-info is-large is-fullwidth" onclick="sendSignUp()">Sign Up</button>
     </div>
 </div>
 {% endblock %}
