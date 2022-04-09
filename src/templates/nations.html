@@ -8,10 +8,12 @@
 <script>
     window.onload = updatePage;
     var nations;
+    var forms;
+    var editmode = false;
     function callNations() {
         return new Promise(function(resolve, reject) {
-            var nationsRequest = new XMLHttpRequest();
-            nationsRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -20,8 +22,8 @@
                     }
                 }
             };
-            nationsRequest.open("GET", "/nations", true);
-            nationsRequest.send();
+            getRequest.open("GET", "/nations", true);
+            getRequest.send();
         })
     }
     function updatePage() {
@@ -66,7 +68,13 @@
         }
     }
     function deleteNation(event) {
+        if (editmode) {
+            return;
+        }
         index = event.target.id;
+        if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") != true) {
+            return;
+        }
         Promise.all([sendDeleteRequest(index)]).then(function (values) {
             delete nations[index];
             updateTable();
@@ -75,10 +83,12 @@
         });
     }
     function editNation(event) {
+        editmode = true;
         index = event.target.id;
         nation = nations[index];
         table = document.getElementById("nationInsert");
         table.hidden = false;
+        table.innerText = "";
         row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Codice";
@@ -102,16 +112,14 @@
         button.innerText = "Invia";
         button.onclick = function() {
             sendNationUpdate(index);
-        }
-        cancelButton = document.createElement("button");
-        cancelButton.id = "cancelButton";
-        cancelButton.innerText = "Annulla";
-        cancelButton.onclick = restoreNations;
-        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        };
+        document.getElementById("cancelButton").hidden = false;
     }
     function newNation() {
+        editmode = true;
         table = document.getElementById("nationInsert");
         table.hidden = false;
+        table.innerText = "";
         row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Codice";
@@ -132,11 +140,7 @@
         button = document.getElementById("nationsButton");
         button.innerText = "Invia";
         button.onclick = sendNation;
-        cancelButton = document.createElement("button");
-        cancelButton.id = "cancelButton";
-        cancelButton.innerText = "Annulla";
-        cancelButton.onclick = restoreNations;
-        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("cancelButton").hidden = false;
     }
     function sendNation() {
         requestJson = Object();
@@ -154,8 +158,8 @@
     }
     function sendNationUpdate(index) {
         requestJson = Object();
-        requestJson["name"] = forms["name"].value;
-        requestJson["code"] = forms["code"].value;
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["code"] = forms["code"].value.trim();
         Promise.all([sendNationUpdateRequest(requestJson, index)]).then(function (values) {
             updated_nation = JSON.parse(values[0]);
             for (key in updated_nation) {
@@ -168,8 +172,8 @@
     }
     function sendNationRequest(requestJson) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var postRequest = new XMLHttpRequest();
+            postRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -178,15 +182,15 @@
                     }
                 }
             };
-            betPutRequest.open("POST", "/nations", true);
-            betPutRequest.setRequestHeader("Content-Type", "application/json");
-            betPutRequest.send(JSON.stringify(requestJson));
+            postRequest.open("POST", "/nations", true);
+            postRequest.setRequestHeader("Content-Type", "application/json");
+            postRequest.send(JSON.stringify(requestJson));
         })
     }
     function sendNationUpdateRequest(requestJson, index) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var putRequest = new XMLHttpRequest();
+            putRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -195,15 +199,15 @@
                     }
                 }
             };
-            betPutRequest.open("PUT", "/nations/" + index, true);
-            betPutRequest.setRequestHeader("Content-Type", "application/json");
-            betPutRequest.send(JSON.stringify(requestJson));
+            putRequest.open("PUT", "/nations/" + index, true);
+            putRequest.setRequestHeader("Content-Type", "application/json");
+            putRequest.send(JSON.stringify(requestJson));
         })
     }
     function sendDeleteRequest(index) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var deleteRequest = new XMLHttpRequest();
+            deleteRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -212,18 +216,19 @@
                     }
                 }
             };
-            betPutRequest.open("DELETE", "/nations/" + index, true);
-            betPutRequest.send();
+            deleteRequest.open("DELETE", "/nations/" + index, true);
+            deleteRequest.send();
         })
     }
     function restoreNations() {
         button = document.getElementById("nationsButton");
         button.innerText = "Crea una nazione";
         button.onclick = newNation;
-        document.getElementById("cancelButton").remove();
+        document.getElementById("cancelButton").hidden = true;
         document.getElementById("nationInsert").innerText = "";
         document.getElementById("nationInsert").hidden = true;
         forms = Object();
+        editmode = false;
         updateTable();
     }
 </script>
@@ -232,6 +237,7 @@
 {% block content %}
 <h1>Nazioni</h1>
 <button id="nationsButton" onclick="newNation()">Crea una nazione</button>
+<button id="cancelButton" hidden="true" onclick="restoreNations()">Annulla</button>
 <table id="nationInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>

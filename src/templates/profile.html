@@ -2,8 +2,186 @@
 
 {% extends "base.html" %}
 
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    var leagues;
+    var profile;
+    function callLeagues() {
+        return new Promise(function(resolve, reject) {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            getRequest.open("GET", "/leagues", true);
+            getRequest.send();
+        })
+    }
+    function callProfile() {
+        return new Promise(function(resolve, reject) {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            getRequest.open("GET", "/profile", true);
+            getRequest.send();
+        })
+    }
+    function updatePage() {
+        Promise.all([callLeagues(), callProfile()]).then(function (values) {
+            leagues= JSON.parse(values[0]);
+            profile = JSON.parse(values[1]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        table = document.getElementById("tableBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        const name_cell = row.insertCell();
+        name_cell.innerText = profile["nickname"];
+        const code_cell = row.insertCell();
+        code_cell.innerText = profile["email"];
+        const leagues_cell = row.insertCell();
+        const inner_table = document.createElement('table');
+        for (var league in profile["leagues"]) {
+            const inner_row = inner_table.insertRow();
+            const inner_cell = inner_row.insertCell();
+            inner_cell.innerText = leagues[league].name;
+        }
+        leagues_cell.appendChild(inner_table);
+    }
+    function editProfile() {
+        table = document.getElementById("profileInsert");
+        table.hidden = false;
+        table.innerText = "";
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Email";
+        row.insertCell().innerText = "";
+        row.insertCell().innerText = "Password";
+        row = table.insertRow();
+        forms = Object();
+        nickname_cell = row.insertCell();
+        let form_nickname = document.createElement("input");
+        form_nickname.setAttribute("type", "text");
+        form_nickname.setAttribute("size", 15);
+        form_nickname.value = profile["nickname"];
+        nickname_cell.appendChild(form_nickname);
+        forms["nickname"] = form_nickname;
+        email_cell = row.insertCell();
+        let form_email = document.createElement("input");
+        form_email.setAttribute("type", "email");
+        form_email.setAttribute("size", 20);
+        form_email.value = profile["email"];
+        email_cell.appendChild(form_email);
+        forms["email"] = form_email;
+        checkbox_cell = row.insertCell();
+        let form_password_checkbox = document.createElement("input");
+        form_password_checkbox.type = "checkbox";
+        form_password_checkbox.checked = false;
+        checkbox_cell.appendChild(form_password_checkbox);
+        forms["password_checkbox"] = form_password_checkbox;
+        password_cell = row.insertCell();
+        let form_password = document.createElement("input");
+        form_password.setAttribute("type", "text");
+        form_password.setAttribute("size", 15);
+        form_password.disabled = true;
+        password_cell.appendChild(form_password);
+        forms["password"] = form_password;
+        form_password_checkbox.onchange = function() {
+            if (form_password_checkbox.checked) {
+                form_password.disabled = false;
+            } else {
+                form_password.value = "";
+                form_password.disabled = true;
+            }
+        };
+        button = document.getElementById("profileButton");
+        button.innerText = "Invia";
+        button.onclick = sendProfileUpdate;
+        document.getElementById("cancelButton").hidden = false;
+    }
+    function sendProfileUpdate() {
+        if (forms["password_checkbox"].checked) {
+            new_password = forms["password"].value;
+        } else {
+            new_password = null;
+        }
+        if (new_password != null && new_password.length < 8) {
+            alert("La password deve avere almeno 8 caratteri");
+            return;
+        }
+        requestJson = Object();
+        requestJson["nickname"] = forms["nickname"].value.trim();
+        requestJson["email"] = forms["email"].value.trim();
+        requestJson["password"] = new_password;
+        Promise.all([sendProfileUpdateRequest(requestJson, {{ index }})]).then(function (values) {
+            profile = JSON.parse(values[0]);
+            restoreProfile();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendProfileUpdateRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var putRequest = new XMLHttpRequest();
+            putRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            putRequest.open("PUT", "/profile", true);
+            putRequest.setRequestHeader("Content-Type", "application/json");
+            putRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function restoreProfile() {
+        button = document.getElementById("profileButton");
+        button.innerText = "Cambia il profilo";
+        button.onclick = editProfile;
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("profileInsert").innerText = "";
+        document.getElementById("profileInsert").hidden = true;
+        updateTable();
+    }
+</script>
+{% endblock %}
+
 {% block content %}
-<h1 class="title">
-  Welcome, {{ nickname }}!
-</h1>
+    <h1 class="title">
+        {{ nickname }}
+    </h1>
+    <button id="profileButton" onclick="editProfile()">Cambia il profilo</button>
+    <button id="cancelButton" hidden="true" onclick="restoreProfile()">Annulla</button>
+    <table id="profileInsert" hidden="true"></table>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nome</td>
+            <td>E-mail</td>
+            <td>Leghe</td>
+        </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
 {% endblock %}

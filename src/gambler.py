@@ -60,6 +60,7 @@ class Gambler(Entity, UserMixin):
 
     @password.setter
     def password(self, input_password):
+        print("CAMBIO LA PASSWORD   ", input_password)
         if not isinstance(input_password, str) or len(input_password) == 0:
             raise GamblerError(Gambler.INVALID_PASSWORD_FOR_A_GAMBLER)
         self._password = input_password
@@ -67,7 +68,7 @@ class Gambler(Entity, UserMixin):
     @property
     def info(self):
         info = super().info
-        info.update({'nickname': self.nickname, 'email': self.email, 'password': self.password, 'leagues': [league for league in self._leagues]})
+        info.update({'nickname': self.nickname, 'email': self.email, 'leagues': [league for league in self._leagues]})
         return info
 
     def add_to_league(self, league, initial_score=0, initial_credit=0):

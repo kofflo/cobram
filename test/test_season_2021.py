@@ -15,9 +15,7 @@ _NUMBER_MATCHES_FOR_ROUND = {
 }
 
 session = requests.Session()
-
 t = session.post(url=URL + '/login', json={'nickname':'admin','password':'admin_password'})
-
 
 def _gamblers_index_to_nickname(gamblers_dict, index):
     return gamblers_dict[index]['nickname']
@@ -240,6 +238,7 @@ def set_round_results(league_index, tournament, round_index, scores):
 def test_season_2021():
 
     r = session.post(URL + '/leagues', json={'name': 'Coppa Cobram'})
+
     coppa_cobram_index = list(r.json().keys())[0]
     gamblers_list = [
         [["Ciccio", "fra.greco83@gmail.com", "pippo_34"], 5360, [600, 1000, 200, 200, 400, 400, 0, 150, 10, 300, 1000, 1000, 100]],
@@ -258,7 +257,7 @@ def test_season_2021():
     ]
 
     for gambler in gamblers_list:
-        r = session.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1], 'password': generate_password_hash(gambler[0][2], method='sha256')})
+        r = session.post(URL + '/gamblers', json={'nickname': gambler[0][0], 'email': gambler[0][1], 'password': gambler[0][2]})
     add_gamblers_to_league(coppa_cobram_index, *gamblers_list)
 
     r = session.get(URL + '/gamblers')

@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import re
 from functools import wraps
+from werkzeug.security import generate_password_hash
 
 import logging
 logging.basicConfig(filename='cobram.log', level=logging.INFO)
@@ -26,6 +27,7 @@ NEGATIVE_INDEXES_ARE_NOT_ALLOWED = "Negative indexes are not allowed"
 ERROR_DURING_ENVIRONMENT_LOADING = "Error during environment loading [{message}]"
 ERROR_DURING_ENVIRONMENT_SAVING = "Error during environment saving [{message}]"
 ENTITY_IS_REFERENCED = "Entity is referenced"
+CANNOT_DELETE_ADMIN = "Cannot delete admin"
 
 SAVE_FOLDER = "save"
 
@@ -89,8 +91,15 @@ def get_player_info(*, index):
 
 
 def update_player(*, index, name=None, surname=None, nation_index=None):
-    nation = _get_nation(nation_index) if nation_index is not None else None
-    return _update_entity('player', index, name=name, surname=surname, nation=nation)
+    if nation_index is not None:
+        nation_index = int(nation_index)
+        nation = _nation_objects[nation_index]
+    else:
+        nation = None
+    player_dict = _update_entity('player', index, name=name, surname=surname, nation=nation)
+    for value in player_dict.values():
+        value['nation'] = _get_nation_index(value['nation'])
+    return player_dict
 
 
 def delete_player(*, index):
@@ -100,7 +109,7 @@ def delete_player(*, index):
 
 
 def create_gambler(*, nickname, email, password):
-    return _create_entity('gambler', nickname=nickname, email=email, password=password)
+    return _create_entity('gambler', nickname=nickname, email=email, password=generate_password_hash(password, method='sha256'))
 
 
 def get_gamblers(*, nickname=None, email=None):
@@ -116,11 +125,18 @@ def get_gambler_info(*, index):
     return gambler_info
 
 
-def update_gambler(*, index, nickname=None, email=None):
-    return _update_entity('gambler', index, nickname=nickname, email=email)
+def update_gambler(*, index, nickname=None, email=None, password=None):
+    if password is not None:
+        password=generate_password_hash(password, method='sha256')
+    gambler_info = _update_entity('gambler', index, nickname=nickname, email=email, password=password)
+    for value in gambler_info.values():
+        value['leagues'] = [_get_league_index(league) for league in value['leagues']]
+    return gambler_info
 
 
 def delete_gambler(*, index):
+    if index == 0:
+        raise EntityError(CANNOT_DELETE_ADMIN)
     if _check_references('gambler', index, 'league'):
         raise EntityError(ENTITY_IS_REFERENCED)
     return _delete_entity('gambler', index)
@@ -187,6 +203,12 @@ def remove_gambler_from_league(*, league_index, gambler_index):
     return {}
 
 
+def get_leagues_from_gambler(*, gambler):
+    return {
+        _get_league_index(league): league.id for league in gambler.get_leagues()
+    }
+
+
 def get_league_ranking(*, league_index):
     league = _get_league(league_index)
     ranking_scores, yearly_scores, winners, last_tournament = league.get_ranking()
@@ -210,6 +232,7 @@ def get_league_ranking(*, league_index):
 def create_tournament(*, league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
                       previous_year_scores, ghost):
     league = _get_league(league_index)
+    nation_index = int(nation_index)
     nation = _get_nation(nation_index)
     if previous_year_scores is not None:
         previous_year_scores = {_get_gambler(int(gambler_index)): score for gambler_index, score
@@ -256,7 +279,8 @@ def get_tournament_info(*, league_index, tournament_index):
 def update_tournament(*, league_index, tournament_index, nation_index=None, is_open=None):
     league = _get_league(league_index)
     if nation_index is not None:
-        nation = _get_nation(nation_index)
+        nation_index = int(nation_index)
+        nation = _nation_objects[nation_index]
     else:
         nation = None
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)

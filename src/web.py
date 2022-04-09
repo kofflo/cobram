@@ -17,9 +17,9 @@ app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '9OeWZNd4oa3j4KjiuowO'
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
+#app.config['SESSION_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
-app.config['REMEMBER_COOKIE_SECURE'] = True
+#app.config['REMEMBER_COOKIE_SECURE'] = True
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -67,6 +67,7 @@ def login_required_rest(func):
 
 @login_manager.user_loader
 def load_user(nickname):
+    print("load user", nickname)
     # since the user_id is just the primary key of our user table, use it in the query for the user
     return environment.get_user(nickname=nickname)
 
@@ -511,16 +512,14 @@ def login():
 
 
 def login_function(nickname, password, remember=False):
-        login_gambler = environment.get_user(nickname=nickname)
-
-        # check if user actually exists
-        # take the user supplied password, hash it, and compare it to the hashed password in database
-        if not login_gambler or not check_password_hash(login_gambler.password, password):
-            return 'Please check your login details and try again.', 400
-
-        # if the above check passes, then we know the user has the right credentials
-        login_user(login_gambler, remember=remember)
-        return "", 200
+    login_gambler = environment.get_user(nickname=nickname)
+    # check if user actually exists
+    # take the user supplied password, hash it, and compare it to the hashed password in database
+    if not login_gambler or not check_password_hash(login_gambler.password, password):
+        return 'Nome o password non validi.', 400
+    # if the above check passes, then we know the user has the right credentials
+    login_user(login_gambler, remember=remember)
+    return "", 200
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -528,20 +527,7 @@ def signup():
     if request.method == 'GET':
         return render_template('signup.html')
     elif request.method == 'POST':
-        return _redirect_to_function(signup_function, 'JSON')
-
-
-def signup_function(email, nickname, password):
-    signup_gambler = environment.get_user(nickname=nickname, email=email)
-
-    if signup_gambler: # if a user is found, we want to redirect back to signup page so user can try again
-        flash('Nickname or email already used')
-        return redirect(url_for('signup'))
-
-    # create new user with the form data. Hash the password so plaintext version isn't saved.
-    environment.create_gambler(email=email, nickname=nickname, password=generate_password_hash(password, method='sha256'))
-
-    return redirect(url_for('logout'))
+        return _redirect_to_function(environment.create_gambler, 'JSON')
 
 
 @app.route('/logout')
@@ -549,6 +535,26 @@ def signup_function(email, nickname, password):
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
+@app.route('/web/profile', methods=['GET'])
+@login_required
+def web_profile():
+    return render_template('profile.html')
+
+
+@app.route('/profile', methods=['GET', 'PUT'])
+@login_required
+def profile():
+    current_user_index = environment._get_gambler_index(current_user)
+    if request.method == 'GET':
+        return _redirect_to_function(lambda: environment.get_gambler_info(index=current_user_index), '')
+    elif request.method == 'PUT':
+        return _redirect_to_function(
+            lambda nickname=None, email=None, password=None: environment.update_gambler(
+                index=current_user_index, nickname=nickname, email=email, password=password
+            )[current_user_index], 'JSON'
+        )
 
 
 environment.load(timestamp='autosave')

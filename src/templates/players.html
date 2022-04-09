@@ -10,10 +10,11 @@
     var players;
     var nations;
     var forms;
+    var editmode = false;
     function callPlayers() {
         return new Promise(function(resolve, reject) {
-            var playersRequest = new XMLHttpRequest();
-            playersRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -22,8 +23,8 @@
                     }
                 }
             };
-            playersRequest.open("GET", "/players", true);
-            playersRequest.send();
+            getRequest.open("GET", "/players", true);
+            getRequest.send();
         })
     }
     function callNations() {
@@ -71,16 +72,29 @@
             flag_img.setAttribute("class", "bordered");
             flag_cell.appendChild(flag_img);
             tools_cell = row.insertCell();
+            const edit_img = document.createElement('img');
+            edit_img.src = '/static/edit.png';
+            edit_img.id = key;
+            edit_img.onclick = editPlayer;
+            edit_img.style.cursor = "pointer";
+            tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
             delete_img.src = '/static/delete.png';
             delete_img.id = key;
             delete_img.onclick = deletePlayer;
             delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(document.createTextNode(' '));
             tools_cell.appendChild(delete_img);
         }
     }
     function deletePlayer(event) {
+        if (editmode) {
+            return;
+        }
         index = event.target.id;
+        if (confirm("Il tennista " + players[index]["name"] + " " + players[index]["surname"] + " verrà eliminato. Continuare ?") != true) {
+            return;
+        }
         Promise.all([sendDeleteRequest(index)]).then(function (values) {
             delete players[index];
             updateTable();
@@ -88,9 +102,59 @@
             window.alert(reason);
         });
     }
-    function newPlayer() {
+    function editPlayer(event) {
+        editmode = true;
+        index = event.target.id;
+        player = players[index];
         table = document.getElementById("playerInsert");
         table.hidden = false;
+        table.innerText = "";
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Cognome";
+        row.insertCell().innerText = "Nazione";
+        row = table.insertRow();
+        forms = Object();
+        name_cell = row.insertCell();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", 15);
+        form_name.value = player["name"];
+        name_cell.appendChild(form_name);
+        forms["name"] = form_name;
+        surname_cell = row.insertCell();
+        let form_surname = document.createElement("input");
+        form_surname.setAttribute("type", "text");
+        form_surname.setAttribute("size", 15);
+        form_surname.value = player["surname"];
+        surname_cell.appendChild(form_surname);
+        forms["surname"] = form_surname;
+        nation_cell = row.insertCell();
+        let form_nation = document.createElement("select");
+        for (key in nations) {
+            if (nations[key]["name"] == "BYE") {
+                continue;
+            }
+            option = document.createElement("option");
+            option.value = key;
+            option.innerText = nations[key]["name"];
+            form_nation.appendChild(option);
+        }
+        form_nation.value = player["nation"];
+        nation_cell.appendChild(form_nation);
+        forms["nation"] = form_nation;
+        button = document.getElementById("playersButton");
+        button.innerText = "Invia";
+        button.onclick = function() {
+            sendPlayerUpdate(index);
+        };
+        document.getElementById("cancelButton").hidden = false;
+    }
+    function newPlayer() {
+        editmode = true;
+        table = document.getElementById("playerInsert");
+        table.hidden = false;
+        table.innerText = "";
         row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Cognome";
@@ -125,11 +189,7 @@
         button = document.getElementById("playersButton");
         button.innerText = "Invia";
         button.onclick = sendPlayer;
-        cancelButton = document.createElement("button");
-        cancelButton.id = "cancelButton";
-        cancelButton.innerText = "Annulla";
-        cancelButton.onclick = restorePlayers;
-        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("cancelButton").hidden = false;
     }
     function sendPlayer() {
         requestJson = Object();
@@ -146,10 +206,25 @@
             window.alert(reason);
         });
     }
+    function sendPlayerUpdate(index) {
+        requestJson = Object();
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["surname"] = forms["surname"].value.trim();
+        requestJson["nation_index"] = forms["nation"].value;
+        Promise.all([sendPlayerUpdateRequest(requestJson, index)]).then(function (values) {
+            updated_player = JSON.parse(values[0]);
+            for (key in updated_player) {
+                players[key] = updated_player[key];
+            }
+            restorePlayers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
     function sendPlayerRequest(requestJson) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var postRequest = new XMLHttpRequest();
+            postRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -158,15 +233,32 @@
                     }
                 }
             };
-            betPutRequest.open("POST", "/players", true);
-            betPutRequest.setRequestHeader("Content-Type", "application/json");
-            betPutRequest.send(JSON.stringify(requestJson));
+            postRequest.open("POST", "/players", true);
+            postRequest.setRequestHeader("Content-Type", "application/json");
+            postRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendPlayerUpdateRequest(requestJson, index) {
+        return new Promise(function (resolve, reject) {
+            var putRequest = new XMLHttpRequest();
+            putRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            putRequest.open("PUT", "/players/" + index, true);
+            putRequest.setRequestHeader("Content-Type", "application/json");
+            putRequest.send(JSON.stringify(requestJson));
         })
     }
     function sendDeleteRequest(index) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var deleteRequest = new XMLHttpRequest();
+            deleteRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -175,18 +267,19 @@
                     }
                 }
             };
-            betPutRequest.open("DELETE", "/players/" + index, true);
-            betPutRequest.send();
+            deleteRequest.open("DELETE", "/players/" + index, true);
+            deleteRequest.send();
         })
     }
     function restorePlayers() {
         button = document.getElementById("playersButton");
         button.innerText = "Crea un tennista";
         button.onclick = newPlayer;
-        document.getElementById("cancelButton").remove();
+        document.getElementById("cancelButton").hidden = true;
         document.getElementById("playerInsert").innerText = "";
         document.getElementById("playerInsert").hidden = true;
         forms = Object();
+        editmode = false;
         updateTable();
     }
 </script>
@@ -195,6 +288,7 @@
 {% block content %}
 <h1>Tennisti</h1>
 <button id="playersButton" onclick="newPlayer()">Crea un tennista</button>
+<button id="cancelButton" hidden="true" onclick="restorePlayers()">Annulla</button>
 <table id="playerInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>

@@ -5,10 +5,15 @@
 {% block script_content %}
     <script>
         function sendSignUp() {
+            new_password = document.getElementById("password").value;
+            if (new_password.length < 8) {
+                alert("La password deve avere almeno 8 caratteri");
+                return;
+            }
             requestJson = Object();
-            requestJson["email"] = document.getElementById("email").value;
             requestJson["nickname"] = document.getElementById("nickname").value.trim();
-            requestJson["password"] = document.getElementById("password").value;
+            requestJson["email"] = document.getElementById("email").value.trim();
+            requestJson["password"] = new_password;
             Promise.all([sendSignUpRequest(requestJson)]).then(function (values) {
                 redirectToPage();
             }).catch(function (reason) {
@@ -51,7 +56,7 @@
 
 {% block content %}
 <div class="column is-4 is-offset-4">
-    <h3 class="title">Sign Up</h3>
+    <h3 class="title">Registrazione</h3>
     <div class="box">
         {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -69,7 +74,7 @@
 
             <div class="field">
                 <div class="control">
-                    <input id="nickname" class="input is-large" placeholder="Nickname">
+                    <input id="nickname" class="input is-large" placeholder="Nome">
                 </div>
             </div>
 

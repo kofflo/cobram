@@ -22,8 +22,8 @@
     var matches;
     function callLeagues() {
         return new Promise(function(resolve, reject) {
-            var leaguesRequest = new XMLHttpRequest();
-            leaguesRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -32,14 +32,14 @@
                     }
                 }
             };
-            leaguesRequest.open("GET", "/leagues", true);
-            leaguesRequest.send();
+            getRequest.open("GET", "/leagues", true);
+            getRequest.send();
         })
     }
     function callGamblers() {
         return new Promise(function(resolve, reject) {
-            var gamblersRequest = new XMLHttpRequest();
-            gamblersRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -48,14 +48,14 @@
                     }
                 }
             };
-            gamblersRequest.open("GET", "/gamblers", true);
-            gamblersRequest.send();
+            getRequest.open("GET", "/gamblers", true);
+            getRequest.send();
         })
     }
     function callPlayers() {
         return new Promise(function(resolve, reject) {
-            var playersRequest = new XMLHttpRequest();
-            playersRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -64,14 +64,14 @@
                     }
                 }
             };
-            playersRequest.open("GET", "/players", true);
-            playersRequest.send();
+            getRequest.open("GET", "/players", true);
+            getRequest.send();
         })
     }
     function callNations() {
         return new Promise(function(resolve, reject) {
-            var nationsRequest = new XMLHttpRequest();
-            nationsRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -80,14 +80,14 @@
                     }
                 }
             };
-            nationsRequest.open("GET", "/nations", true);
-            nationsRequest.send();
+            getRequest.open("GET", "/nations", true);
+            getRequest.send();
         })
     }
     function callRanking() {
         return new Promise(function(resolve, reject) {
-            var rankingRequest = new XMLHttpRequest();
-            rankingRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -96,14 +96,14 @@
                     }
                 }
             };
-            rankingRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking", true);
-            rankingRequest.send();
+            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking", true);
+            getRequest.send();
         })
     }
     function callTournamentInfo() {
         return new Promise(function(resolve, reject) {
-            var tournamentInfoRequest = new XMLHttpRequest();
-            tournamentInfoRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -112,14 +112,14 @@
                     }
                 }
             };
-            tournamentInfoRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
-            tournamentInfoRequest.send();
+            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
+            getRequest.send();
         })
     }
     function callTournamentPlayers() {
         return new Promise(function(resolve, reject) {
-            var tournamentPlayersRequest = new XMLHttpRequest();
-            tournamentPlayersRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -128,14 +128,14 @@
                     }
                 }
             };
-            tournamentPlayersRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
-            tournamentPlayersRequest.send();
+            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
+            getRequest.send();
         })
     }
     function callMatches() {
         return new Promise(function(resolve, reject) {
-            var matchesRequest = new XMLHttpRequest();
-            matchesRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -144,8 +144,8 @@
                     }
                 }
             };
-            matchesRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches", true);
-            matchesRequest.send();
+            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches", true);
+            getRequest.send();
         })
     }
     function updatePage() {
@@ -448,8 +448,8 @@
         }
         function sendPlayerRequest(player_object) {
             return new Promise(function (resolve, reject) {
-                var betPutRequest = new XMLHttpRequest();
-                betPutRequest.onreadystatechange = function () {
+                var putRequest = new XMLHttpRequest();
+                putRequest.onreadystatechange = function () {
                     if (this.readyState == 4) {
                         if (this.status == 200) {
                             resolve({"match_id": match_id, "response": this.responseText});
@@ -458,9 +458,9 @@
                         }
                     }
                 };
-                betPutRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
-                betPutRequest.setRequestHeader("Content-Type", "application/json");
-                betPutRequest.send(JSON.stringify(bet));
+                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
+                putRequest.setRequestHeader("Content-Type", "application/json");
+                putRequest.send(JSON.stringify(bet));
             })
         }
         function restorePlayers() {
@@ -735,8 +735,8 @@
         }
         function sendScoreRequest(match_id, bet) {
             return new Promise(function (resolve, reject) {
-                var betPutRequest = new XMLHttpRequest();
-                betPutRequest.onreadystatechange = function () {
+                var putRequest = new XMLHttpRequest();
+                putRequest.onreadystatechange = function () {
                     if (this.readyState == 4) {
                         if (this.status == 200) {
                             resolve({"match_id": match_id, "response": this.responseText});
@@ -745,9 +745,9 @@
                         }
                     }
                 };
-                betPutRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
-                betPutRequest.setRequestHeader("Content-Type", "application/json");
-                betPutRequest.send(JSON.stringify(bet));
+                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
+                putRequest.setRequestHeader("Content-Type", "application/json");
+                putRequest.send(JSON.stringify(bet));
             })
         }
         function closeTournament() {
@@ -787,8 +787,8 @@
         }
         function sendStatusRequest(is_open) {
             return new Promise(function (resolve, reject) {
-                var betPutRequest = new XMLHttpRequest();
-                betPutRequest.onreadystatechange = function () {
+                var putRequest = new XMLHttpRequest();
+                putRequest.onreadystatechange = function () {
                     if (this.readyState == 4) {
                         if (this.status == 200) {
                             resolve(this.responseText);
@@ -797,9 +797,9 @@
                         }
                     }
                 };
-                betPutRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
-                betPutRequest.setRequestHeader("Content-Type", "application/json");
-                betPutRequest.send(JSON.stringify(is_open));
+                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
+                putRequest.setRequestHeader("Content-Type", "application/json");
+                putRequest.send(JSON.stringify(is_open));
             })
         }
     {% endif %}

@@ -9,10 +9,12 @@
     window.onload = updatePage;
     var leagues;
     var gamblers;
+    var forms;
+    var editmode = false;
     function callLeagues() {
         return new Promise(function(resolve, reject) {
-            var leaguesRequest = new XMLHttpRequest();
-            leaguesRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -21,14 +23,14 @@
                     }
                 }
             };
-            leaguesRequest.open("GET", "/leagues", true);
-            leaguesRequest.send();
+            getRequest.open("GET", "/leagues", true);
+            getRequest.send();
         })
     }
     function callGamblers() {
         return new Promise(function(resolve, reject) {
-            var gamblersRequest = new XMLHttpRequest();
-            gamblersRequest.onreadystatechange = function() {
+            var getRequest = new XMLHttpRequest();
+            getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -37,8 +39,8 @@
                     }
                 }
             };
-            gamblersRequest.open("GET", "/gamblers", true);
-            gamblersRequest.send();
+            getRequest.open("GET", "/gamblers", true);
+            getRequest.send();
         })
     }
     function updatePage() {
@@ -68,16 +70,29 @@
             }
             leagues_cell.appendChild(inner_table);
             tools_cell = row.insertCell();
+            const edit_img = document.createElement('img');
+            edit_img.src = '/static/edit.png';
+            edit_img.id = key;
+            edit_img.onclick = editGambler;
+            edit_img.style.cursor = "pointer";
+            tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
             delete_img.src = '/static/delete.png';
             delete_img.id = key;
             delete_img.onclick = deleteGambler;
             delete_img.style.cursor = "pointer";
+            tools_cell.appendChild(document.createTextNode(' '));
             tools_cell.appendChild(delete_img);
         }
     }
     function deleteGambler(event) {
+        if (editmode) {
+            return;
+        }
         index = event.target.id;
+        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") != true) {
+            return;
+        }
         Promise.all([sendDeleteRequest(index)]).then(function (values) {
             delete gamblers[index];
             updateTable();
@@ -85,9 +100,67 @@
             window.alert(reason);
         });
     }
-    function newGambler() {
+    function editGambler(event) {
+        editmode = true;
+        index = event.target.id;
+        gambler = gamblers[index];
         table = document.getElementById("gamblerInsert");
         table.hidden = false;
+        table.innerText = "";
+        row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Email";
+        row.insertCell().innerText = "";
+        row.insertCell().innerText = "Password";
+        row = table.insertRow();
+        forms = Object();
+        nickname_cell = row.insertCell();
+        let form_nickname = document.createElement("input");
+        form_nickname.setAttribute("type", "text");
+        form_nickname.setAttribute("size", 15);
+        form_nickname.value = gambler["nickname"];
+        nickname_cell.appendChild(form_nickname);
+        forms["nickname"] = form_nickname;
+        email_cell = row.insertCell();
+        let form_email = document.createElement("input");
+        form_email.setAttribute("type", "email");
+        form_email.setAttribute("size", 20);
+        form_email.value = gambler["email"];
+        email_cell.appendChild(form_email);
+        forms["email"] = form_email;
+        checkbox_cell = row.insertCell();
+        let form_password_checkbox = document.createElement("input");
+        form_password_checkbox.type = "checkbox";
+        form_password_checkbox.checked = false;
+        checkbox_cell.appendChild(form_password_checkbox);
+        forms["password_checkbox"] = form_password_checkbox;
+        password_cell = row.insertCell();
+        let form_password = document.createElement("input");
+        form_password.setAttribute("type", "text");
+        form_password.setAttribute("size", 15);
+        form_password.disabled = true;
+        password_cell.appendChild(form_password);
+        forms["password"] = form_password;
+        form_password_checkbox.onchange = function() {
+            if (form_password_checkbox.checked) {
+                form_password.disabled = false;
+            } else {
+                form_password.value = "";
+                form_password.disabled = true;
+            }
+        };
+        button = document.getElementById("gamblersButton");
+        button.innerText = "Invia";
+        button.onclick = function() {
+            sendGamblerUpdate(index);
+        };
+        document.getElementById("cancelButton").hidden = false;
+    }
+    function newGambler() {
+        editmode = true;
+        table = document.getElementById("gamblerInsert");
+        table.hidden = false;
+        table.innerText = "";
         row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Email";
@@ -108,25 +181,50 @@
         forms["email"] = form_email;
         password_cell = row.insertCell();
         let form_password = document.createElement("input");
-        form_password.setAttribute("type", "password");
+        form_password.setAttribute("type", "text");
         form_password.setAttribute("size", 15);
         password_cell.appendChild(form_password);
         forms["password"] = form_password;
         button = document.getElementById("gamblersButton");
         button.innerText = "Invia";
         button.onclick = sendGambler;
-        cancelButton = document.createElement("button");
-        cancelButton.id = "cancelButton";
-        cancelButton.innerText = "Annulla";
-        cancelButton.onclick = restoreGamblers;
-        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("cancelButton").hidden = false;
     }
     function sendGambler() {
+        new_password = forms["password"].value;
+        if (new_password.length < 8) {
+            alert("La password deve avere almeno 8 caratteri");
+            return;
+        }
         requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
-        requestJson["password"] = forms["password"].value;
+        requestJson["password"] = new_password;
         Promise.all([sendGamblerRequest(requestJson)]).then(function (values) {
+            new_gambler = JSON.parse(values[0]);
+            for (key in new_gambler) {
+                gamblers[key] = new_gambler[key];
+            }
+            restoreGamblers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendGamblerUpdate(index) {
+        if (forms["password_checkbox"].checked) {
+            new_password = forms["password"].value;
+        } else {
+            new_password = null;
+        }
+        if (new_password != null && new_password.length < 8) {
+            alert("La password deve avere almeno 8 caratteri");
+            return;
+        }
+        requestJson = Object();
+        requestJson["nickname"] = forms["nickname"].value.trim();
+        requestJson["email"] = forms["email"].value.trim();
+        requestJson["password"] = new_password;
+        Promise.all([sendGamblerUpdateRequest(requestJson, index)]).then(function (values) {
             new_gambler = JSON.parse(values[0]);
             for (key in new_gambler) {
                 gamblers[key] = new_gambler[key];
@@ -138,8 +236,8 @@
     }
     function sendGamblerRequest(requestJson) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var postRequest = new XMLHttpRequest();
+            postRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -148,15 +246,32 @@
                     }
                 }
             };
-            betPutRequest.open("POST", "/gamblers", true);
-            betPutRequest.setRequestHeader("Content-Type", "application/json");
-            betPutRequest.send(JSON.stringify(requestJson));
+            postRequest.open("POST", "/gamblers", true);
+            postRequest.setRequestHeader("Content-Type", "application/json");
+            postRequest.send(JSON.stringify(requestJson));
+        })
+    }
+    function sendGamblerUpdateRequest(requestJson) {
+        return new Promise(function (resolve, reject) {
+            var putRequest = new XMLHttpRequest();
+            putRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            putRequest.open("PUT", "/gamblers/" + index, true);
+            putRequest.setRequestHeader("Content-Type", "application/json");
+            putRequest.send(JSON.stringify(requestJson));
         })
     }
     function sendDeleteRequest(index) {
         return new Promise(function (resolve, reject) {
-            var betPutRequest = new XMLHttpRequest();
-            betPutRequest.onreadystatechange = function () {
+            var deleteRequest = new XMLHttpRequest();
+            deleteRequest.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -165,18 +280,19 @@
                     }
                 }
             };
-            betPutRequest.open("DELETE", "/gamblers/" + index, true);
-            betPutRequest.send();
+            deleteRequest.open("DELETE", "/gamblers/" + index, true);
+            deleteRequest.send();
         })
     }
     function restoreGamblers() {
         button = document.getElementById("gamblersButton");
         button.innerText = "Crea uno scommettitore";
         button.onclick = newGambler;
-        document.getElementById("cancelButton").remove();
+        document.getElementById("cancelButton").hidden = true;
         document.getElementById("gamblerInsert").innerText = "";
         document.getElementById("gamblerInsert").hidden = true;
         forms = Object();
+        editmode = false;
         updateTable();
     }
 </script>
@@ -185,6 +301,7 @@
 {% block content %}
 <h1>Scommettitori</h1>
 <button id="gamblersButton" onclick="newGambler()">Crea uno scommettitore</button>
+<button id="cancelButton" hidden="true" onclick="restoreGamblers()">Annulla</button>
 <table id="gamblerInsert" hidden="true"></table>
 <table class="styled-table">
     <thead>
