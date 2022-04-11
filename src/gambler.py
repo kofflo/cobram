@@ -1,4 +1,5 @@
 import re
+import uuid
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash
 
@@ -21,6 +22,7 @@ class Gambler(Entity, UserMixin):
     INVALID_BET_TOURNAMENT_FOR_A_GAMBLER = "Invalid bet tournament for a gambler"
     GAMBLER_ALREADY_IN_BET_TOURNAMENT = "Gambler already in bet tournament"
     GAMBLER_NOT_IN_BET_TOURNAMENT = "Gambler not in bet tournament"
+    CANNOT_RENAME_ADMIN = "Cannopt rename admin"
     EMAIL_RE = r"[^@]+@[^@]+\.[^@]+"
 
     def __init__(self, *, nickname, email, password):
@@ -33,6 +35,7 @@ class Gambler(Entity, UserMixin):
         self.password = password
         self._leagues = set()
         self._bet_tournaments = set()
+        self._unique_id = None
 
     @property
     def nickname(self):
@@ -42,6 +45,8 @@ class Gambler(Entity, UserMixin):
     def nickname(self, input_nickname):
         if not isinstance(input_nickname, str) or len(input_nickname) == 0:
             raise GamblerError(Gambler.INVALID_NICKNAME_FOR_A_GAMBLER)
+        if self._nickname == ADMIN_NICKNAME:
+            raise GamblerError(Gambler.CANNOT_RENAME_ADMIN)
         self._nickname = input_nickname
 
     @property
@@ -60,7 +65,6 @@ class Gambler(Entity, UserMixin):
 
     @password.setter
     def password(self, input_password):
-        print("CAMBIO LA PASSWORD   ", input_password)
         if not isinstance(input_password, str) or len(input_password) == 0:
             raise GamblerError(Gambler.INVALID_PASSWORD_FOR_A_GAMBLER)
         self._password = input_password
@@ -119,8 +123,14 @@ class Gambler(Entity, UserMixin):
     def restore(self, old_gambler):
         self.nickname = old_gambler.nickname
 
+    @property
+    def unique_id(self):
+        if not hasattr(self, '_unique_id') or self._unique_id is None:
+            self._unique_id = uuid.uuid4()
+        return self._unique_id
+
     def get_id(self):
-        return self.nickname
+        return self.unique_id
 
 
 class GamblerError(EntityError):

@@ -658,9 +658,9 @@ def _create_bet_dictionary(bet):
     }
 
 
-def get_user(nickname=None, email=None):
+def get_user(nickname=None, email=None, unique_id=None):
     for gambler in _gambler_objects:
-        if gambler.nickname == nickname or gambler.email == email:
+        if gambler.nickname == nickname or gambler.email == email or unique_id == gambler.unique_id:
             return gambler
     return None
 

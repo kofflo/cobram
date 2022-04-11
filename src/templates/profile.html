@@ -61,7 +61,10 @@
         for (var league in profile["leagues"]) {
             const inner_row = inner_table.insertRow();
             const inner_cell = inner_row.insertCell();
-            inner_cell.innerText = leagues[league].name;
+            const league_link = document.createElement("a");
+            league_link.innerText = leagues[league].name;
+            league_link.setAttribute("href", "/web/leagues/" + league);
+            inner_cell.appendChild(league_link);
         }
         leagues_cell.appendChild(inner_table);
     }

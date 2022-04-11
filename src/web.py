@@ -33,7 +33,7 @@ def admin_required(func):
             return func(*args, **kwargs)
         elif current_app.config.get('LOGIN_DISABLED'):
             return func(*args, **kwargs)
-        elif current_user != gambler.ADMIN:
+        elif current_user.nickname != gambler.ADMIN_NICKNAME:
             return current_app.login_manager.unauthorized()
         return func(*args, **kwargs)
     return decorated_view
@@ -46,7 +46,7 @@ def admin_required_rest(func):
             return func(*args, **kwargs)
         elif current_app.config.get('LOGIN_DISABLED'):
             return func(*args, **kwargs)
-        elif current_user != gambler.ADMIN:
+        elif current_user.nickname != gambler.ADMIN_NICKNAME:
             return str("Unauthorized"), 401
         return func(*args, **kwargs)
     return decorated_view
@@ -66,10 +66,10 @@ def login_required_rest(func):
 
 
 @login_manager.user_loader
-def load_user(nickname):
-    print("load user", nickname)
+def load_user(unique_id):
+    print("load user", unique_id)
     # since the user_id is just the primary key of our user table, use it in the query for the user
-    return environment.get_user(nickname=nickname)
+    return environment.get_user(unique_id=unique_id)
 
 
 class RegexConverter(BaseConverter):
@@ -362,7 +362,7 @@ def _manage_tournament_match(**kwargs):
            methods=['GET'])
 @login_required_rest
 def _manage_tournament_bets(**kwargs):
-    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user,
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME or environment.check_current_user(current_user,
                                                                                     request.view_args['gambler_index'])
     tournament_bets = _redirect_to_function(environment.get_tournament_bets, '')
     return_bets = {}
@@ -389,7 +389,7 @@ def _manage_tournament_bets(**kwargs):
            methods=['PUT'])
 @login_required_rest
 def _manage_tournament_bet(**kwargs):
-    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user,
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME or environment.check_current_user(current_user,
                                                                                     request.view_args['gambler_index'])
     if not is_privileged:
         return str("Unauthorized"), 401
@@ -454,7 +454,7 @@ def _manage_web_gamblers():
 def _manage_web_league(index):
     _check_args(request.json, [])
     _check_args(request.args, [])
-    is_privileged = current_user == gambler.ADMIN
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME
     return render_template('league.html', league_index=index, is_privileged=is_privileged)
 
 
@@ -463,7 +463,7 @@ def _manage_web_league(index):
 def _manage_web_tournament(league_index, tournament_index):
     _check_args(request.json, [])
     _check_args(request.args, [])
-    is_privileged = current_user == gambler.ADMIN
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME
     return render_template('tournament.html', league_index=league_index, tournament_index=tournament_index,
                            is_privileged=is_privileged)
 
@@ -474,7 +474,7 @@ def _manage_web_tournament(league_index, tournament_index):
 def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index):
     _check_args(request.json, [])
     _check_args(request.args, [])
-    is_privileged = current_user == gambler.ADMIN or environment.check_current_user(current_user, gambler_index)
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME or environment.check_current_user(current_user, gambler_index)
     return render_template('tournament_gambler.html',
                            league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index,
                            is_privileged=is_privileged)
