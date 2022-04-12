@@ -1,5 +1,5 @@
 from flask import Flask
-from flask import render_template, redirect, url_for, request, flash, current_app
+from flask import render_template, redirect, url_for, request, current_app, send_file
 from flask_login import current_user, LoginManager, login_user, logout_user, login_required, config
 from werkzeug.routing import BaseConverter
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -67,8 +67,6 @@ def login_required_rest(func):
 
 @login_manager.user_loader
 def load_user(unique_id):
-    print("load user", unique_id)
-    # since the user_id is just the primary key of our user table, use it in the query for the user
     return environment.get_user(unique_id=unique_id)
 
 
@@ -415,6 +413,13 @@ def _load(**kwargs):
         return _redirect_to_function(environment.get_saved, '')
     elif request.method == 'POST':
         return _redirect_to_function(environment.load, 'JSON')
+
+
+@app.route('/download', methods=['POST'])
+@admin_required_rest
+def _download(**kwargs):
+    print("download!")
+    return send_file(_redirect_to_function(environment.download, 'JSON'), mimetype='application/octet-stream')
 
 
 @app.route('/web/leagues', methods=['GET'])

@@ -505,6 +505,13 @@ def load(*, timestamp):
     return {}
 
 
+def download(*, timestamp):
+    save_folder = Path(SAVE_FOLDER)
+    filename = "save_{timestamp}.dat".format(timestamp=timestamp)
+    full_path = save_folder / filename
+    return full_path
+
+
 def _get_entity(entity_name, index):
     all_entities = globals()[f'_{entity_name}_objects']
     try:
