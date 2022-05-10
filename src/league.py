@@ -525,6 +525,10 @@ class League(Entity):
         return self._get_tournament(tournament_id).get_seed(player)
 
     def _compute_record(self):
+        if not hasattr(self, '_initial_record_tournament'):
+            self._initial_record_tournament = {}
+        if not hasattr(self, '_initial_record_category'):
+            self._initial_record_category = {}
         record_tournament = {gambler: dict(tournament_dict) for gambler, tournament_dict in self._initial_record_tournament.items()}
         record_category = {gambler: dict(category_dict) for gambler, category_dict in self._initial_record_category.items()}
         for tournament_id, tournament in self._bet_tournaments.items():
