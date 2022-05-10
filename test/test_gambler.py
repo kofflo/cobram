@@ -29,7 +29,7 @@ class TestGambler(unittest.TestCase):
             Gambler(nickname="Gufone", email="gufone@", password="passw")
         with self.assertRaises(GamblerError):
             Gambler(nickname="Gufone", email="gufone@yahoo.com", password="")
-        self.assertEqual(gufone.info, {'id': {'nickname': 'Gufone'}, 'nickname': 'Gufone', 'email': "gufone@yahoo.com", 'password': "passw", 'leagues': []})
+        self.assertEqual(gufone.info, {'id': {'nickname': 'Gufone'}, 'nickname': 'Gufone', 'email': "gufone@yahoo.com", 'leagues': []})
 
     def test_change_gambler(self):
         a_gambler = create_gambler(initial_credit=34)

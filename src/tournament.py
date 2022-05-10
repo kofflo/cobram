@@ -77,7 +77,7 @@ class Tournament:
         self.draw_type = draw_type
         self._create_draw()
         self._players = [None] * self._draw.number_players
-        self._seed = {}
+        self._seed = [0] * self._draw.number_players
 
     @property
     def name(self):
@@ -255,7 +255,7 @@ class Tournament:
             raise TournamentError(Tournament.INVALID_SEED_VALUE)
         if int_seed != 0 and (player is None or player is Tournament.BYE):
             raise TournamentError(Tournament.PLAYER_CANNOT_BE_SEEDED)
-        if int_seed != 0 and int_seed in self._seed.values():
+        if int_seed != 0 and int_seed in self._seed:
             raise TournamentError(Tournament.SEED_POSITION_ALREADY_OCCUPIED)
         if self._players[place] is None or self._players[place] == player:
             self._players[place] = player
@@ -264,9 +264,8 @@ class Tournament:
             self.draw.reset_player(place)
         else:
             raise TournamentError(Tournament.CANNOT_UPDATE_A_PLAYER_WITHOUT_FORCE_FLAG)
-        self._seed[player] = int_seed
-        if None not in self._players and Tournament.BYE in self._players:
-            self.draw.advance_byes(self._byes_places())
+        self._seed[place] = int_seed
+        self.draw.advance_byes(self._byes_places())
 
     def get_player(self, place):
         if not 0 <= place < self._draw.number_players:
@@ -283,7 +282,9 @@ class Tournament:
         return copy.copy(self._players)
 
     def get_seed(self, player):
-        return self._seed[player]
+        if player is None:
+            return 0
+        return self._seed[self.get_player_place(player)]
 
     @property
     def number_players(self):

@@ -170,7 +170,11 @@
         });
     }
     function updateTitles() {
-        document.getElementById("mainHeader").innerText = tournamentInfo["name"] + "  " + tournamentInfo["year"];
+        mainHeader = document.getElementById("mainHeader");
+        mainHeader.innerText = tournamentInfo["name"] + "  " + tournamentInfo["year"];
+        if (tournamentInfo["is_ghost"]) {
+            mainHeader.innerText += " [ GHOST ]";
+        }
         subHeaderLink = document.createElement("a");
         subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
         subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
@@ -198,9 +202,15 @@
         {% endif %}
     }
     function updateMatches() {
-        table = document.getElementById("matches");
+        if (tournamentInfo["is_ghost"]) {
+            table = document.getElementById("matches");
+            table.innerText = "";
+            scoresButton = document.getElementById("scoresButton");
+            scoresButton.hidden = true;
+            return;
+        }
+        table = document.getElementById("tableMatchesBody");
         table.innerText = "";
-        console.warn(matches);
         for (var key in matches) {
             const row = table.insertRow();
             const id_cell = row.insertCell();
@@ -292,6 +302,11 @@
         return formatted;
     }
     function updateTableRanking() {
+        if (tournamentInfo["is_ghost"]) {
+            table = document.getElementById("ranking");
+            table.innerText = "";
+            return;
+        }
         table = document.getElementById("tableRankingBody");
         table.innerText = "";
         scores = ranking["tournament_scores"];
@@ -301,20 +316,30 @@
             return first_pair[1] - second_pair[1];
         });
         scores_array.reverse();
+        var last_position = undefined;
+        var last_points = undefined;
         for (index = 0; index < scores_array.length; index++) {
             const pair = scores_array[index];
+            const gambler_index = pair[0];
+            const gambler_points = pair[1];
             const row = table.insertRow();
             const position_cell = row.insertCell();
-            position_cell.innerText = index + 1;
+            if (gambler_points == last_points) {
+                position_cell.innerText = last_position;
+            } else {
+                position_cell.innerText = index + 1;
+                last_position = index + 1;
+            }
             const gambler_cell = row.insertCell();
             const gambler_link = document.createElement("a");
-            gambler_link.innerText = gamblers[pair[0]]["nickname"];
+            gambler_link.innerText = gamblers[gambler_index]["nickname"];
             gambler_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/" + pair[0]);
             gambler_cell.appendChild(gambler_link);
             const points_cell = row.insertCell();
-            points_cell.innerText = pair[1];
+            points_cell.innerText = gambler_points;
             const ranking_points_cell = row.insertCell();
-            ranking_points_cell.innerText = ranking_scores[pair[0]];
+            ranking_points_cell.innerText = ranking_scores[gambler_index];
+            last_points = gambler_points;
         }
     }
     {% if is_privileged %}
@@ -326,6 +351,8 @@
             playersButton.onclick = sendPlayers;
             scoresButton = document.getElementById("scoresButton");
             scoresButton.disabled = true;
+            closeButton = document.getElementById("closeButton");
+            closeButton.disabled = true;
             cancelButton = document.createElement("button");
             cancelButton.id = "cancelButton";
             cancelButton.innerText = "Annulla";
@@ -340,15 +367,13 @@
             }
             for (index = 0; index < playersNumber; index++) {
                 playerObject = tournamentPlayers[index];
-                if (playerObject != undefined) {
-                    player_index = playerObject["index"];
-                    player_surname = players[player_index]["surname"];
-                    seed = playerObject["seed"];
-                } else {
-                    player_index = -1;
+                player_index = playerObject["index"];
+                if (player_index == -1) {
                     player_surname = "/";
-                    seed = 0;
+                } else {
+                    player_surname = players[player_index]["surname"];
                 }
+                seed = playerObject["seed"];
                 const row = table.insertRow();
                 const position_cell = row.insertCell();
                 position_cell.innerText = index + 1;
@@ -377,28 +402,43 @@
                 } else {
                     seedForm.value = "";
                 }
+                if (player_index == 0 || player_index == -1) {
+                    seedForm.disabled = true;
+                }
                 seed_cell.appendChild(seedForm);
                 seedForms[index] = seedForm;
             }
         }
         function playerChange(event) {
-            changedForm =event.target;
-            newPlayer = changedForm.value;
+            changedForm = event.target;
+            let newPlayer = changedForm.value;
             if (newPlayer == 0 || newPlayer == -1) {
+                for (let index in playerForms) {
+                    playerForm = playerForms[index];
+                    if (changedForm == playerForm) {
+                        seedForms[index].value = "";
+                        seedForms[index].disabled = true;
+                        break;
+                    }
+                }
                 return;
             }
             for (let index in playerForms) {
                 playerForm = playerForms[index];
                 if (changedForm == playerForm) {
+                    seedForms[index].disabled = false;
                     continue;
                 }
                 if (playerForm.value == newPlayer) {
                     playerForm.value = -1;
+                    seedForms[index].value = "";
+                    seedForms[index].disabled = true;
                 }
             }
         }
         function sendPlayers() {
-            all_players = Array();
+            all_players = Object();
+            all_seeds = Array();
             for (var index in playerForms) {
                 player_index = playerForms[index].value;
                 const re_seed = /^([0-9]*)$/;
@@ -407,7 +447,14 @@
                     seed = seed_value.match(re_seed).slice(1, 3);
                     if (seed == "") {
                         seed = 0;
+                    } else {
+                        seed = parseInt(seed);
                     }
+                    if (seed != 0 && all_seeds.includes(seed)) {
+                        alert("Seed duplicato nel posto " + index + ": " + seed_value);
+                        return;
+                    }
+                    all_seeds.push(seed);
                 } else {
                     alert("Seed non valido nel posto " + index + ": " + seed_value);
                     return;
@@ -415,28 +462,43 @@
                 if (player_index == tournamentPlayers[index]["index"] && seed == tournamentPlayers[index]["seed"]) {
                     continue;
                 }
-                player_object = Object();
-                player_object["place"] = index;
-                if (player_index == -1) {
-                    player_object["player_index"] = null;
-                } else {
-                    player_object["player_index"] = player_index;
-                }
-                player_object["seed"] = seed;
-                all_players.push(player_object);
+                player_seed = Object();
+                player_seed["player_seed"] = Object();
+                player_seed["player_seed"]["player_index"] = player_index;
+                player_seed["player_seed"]["seed"] = seed;
+                all_players[index] = player_seed;
             }
+            all_reset_promises = Array();
+            reset_player_seed = Object();
+            reset_player_seed["player_seed"] = Object();
+            reset_player_seed["player_seed"]["player_index"] = -1;
+            reset_player_seed["player_seed"]["seed"] = 0;
+            for (let place in all_players) {
+                all_reset_promises.push(sendPlayerRequest(place, reset_player_seed));
+            }
+            Promise.allSettled(all_reset_promises).then(function (results) {
+                for (var index in results) {
+                    if (results[index]["status"] != "fulfilled") {
+                        message = results[index]["reason"]["response"];
+                        window.alert("Attenzione: " + message);
+                        return;
+                    }
+                }
+            });
             all_promises = Array();
-            for (index in all_players) {
-                all_promises.push(sendPlayerRequest(all_players[index]));
+            for (let place in all_players) {
+                all_promises.push(sendPlayerRequest(place, all_players[place]));
             }
             Promise.allSettled(all_promises).then(function (results) {
                 var restore = true;
-                console.warn(results);
                 for (var index in results) {
                     if (results[index]["status"] == "fulfilled") {
-                        // updatePlayers
+                        place = results[index]["value"]["place"]
+                        response = JSON.parse(results[index]["value"]["response"]);
+                        tournamentPlayers[place] = response;
                     } else {
-                        window.alert(message);
+                        message = results[index]["reason"]["response"];
+                        window.alert("Attenzione: " + message);
                         restore = false;
                     }
                 }
@@ -444,23 +506,22 @@
                     restorePlayers();
                 }
             });
-            restorePlayers();
         }
-        function sendPlayerRequest(player_object) {
+        function sendPlayerRequest(place, player_object) {
             return new Promise(function (resolve, reject) {
                 var putRequest = new XMLHttpRequest();
                 putRequest.onreadystatechange = function () {
                     if (this.readyState == 4) {
                         if (this.status == 200) {
-                            resolve({"match_id": match_id, "response": this.responseText});
+                            resolve({"place": place, "response": this.responseText});
                         } else {
-                            reject({"match_id": match_id, "response": this.responseText});
+                            reject({"place": place, "response": this.responseText});
                         }
                     }
                 };
-                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
+                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, true);
                 putRequest.setRequestHeader("Content-Type", "application/json");
-                putRequest.send(JSON.stringify(bet));
+                putRequest.send(JSON.stringify(player_object));
             })
         }
         function restorePlayers() {
@@ -469,12 +530,21 @@
             playersButton.onclick = insertPlayers;
             scoresButton = document.getElementById("scoresButton");
             scoresButton.disabled = false;
+            closeButton = document.getElementById("closeButton");
+            closeButton.disabled = false;
             document.getElementById("cancelButton").remove();
             playersForms = Array();
             seedForms = Array();
             updateTablePlayers();
         }
         function updateTablePlayers() {
+            if (tournamentInfo["is_ghost"]) {
+                table = document.getElementById("players");
+                table.innerText = "";
+                playersButton = document.getElementById("playersButton");
+                playersButton.hidden = true;
+                return;
+            }
             table = document.getElementById("tablePlayersBody");
             table.innerText = "";
             if (tournamentInfo["draw_type"] == "Draw16") {
@@ -484,13 +554,13 @@
             }
             for (index = 0; index < playersNumber; index++) {
                 playerObject = tournamentPlayers[index];
-                if (playerObject != undefined) {
-                    player_surname = players[tournamentPlayers[index]["index"]]["surname"];
-                    seed = tournamentPlayers[index]["seed"];
-                } else {
+                player_index = playerObject["index"];
+                if (player_index == -1) {
                     player_surname = "/";
-                    seed = 0;
+                } else {
+                    player_surname = players[tournamentPlayers[index]["index"]]["surname"];
                 }
+                seed = tournamentPlayers[index]["seed"];
                 const row = table.insertRow();
                 const position_cell = row.insertCell();
                 position_cell.innerText = index + 1;
@@ -506,18 +576,21 @@
         }
         var forms = Object();
         var checkboxes = Object();
+/*        var datetimes = Object();*/
         function insertScores() {
             scoresButton = document.getElementById("scoresButton");
             scoresButton.innerText = "Manda i punteggi";
             scoresButton.onclick = sendScores;
             playersButton = document.getElementById("playersButton");
             playersButton.disabled = true;
+            closeButton = document.getElementById("closeButton");
+            closeButton.disabled = true;
             cancelButton = document.createElement("button");
             cancelButton.id = "cancelButton";
             cancelButton.innerText = "Annulla";
             cancelButton.onclick = restoreMatches;
             scoresButton.parentNode.insertBefore(cancelButton, scoresButton.nextSibling);
-            table = document.getElementById("matches");
+            table = document.getElementById("tableMatchesBody");
             table.innerText = "";
             for (var key in matches) {
                 const row = table.insertRow();
@@ -533,6 +606,7 @@
                 const player_2_cell = row.insertCell();
                 const score_cell = row.insertCell();
                 const bets_closed_cell = row.insertCell();
+/*                const bets_closed_time_cell = row.insertCell();*/
                 if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                     continue;
                 }
@@ -550,6 +624,9 @@
                     seed_string = "";
                 }
                 player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
+                if (matches[key]["players"]["player_1"] == 0 || matches[key]["players"]["player_2"] == 0) {
+                    continue;
+                }
                 inner_table = document.createElement("table");
                 inner_table.setAttribute("class", "forms-table");
                 inner_row = inner_table.insertRow();
@@ -593,18 +670,36 @@
                     let checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkboxes[key] = checkbox;
-                    checkbox.setAttribute("id", key)
                     bets_closed_cell.appendChild(checkbox);
                     if (matches[key]["bets_closed"]) {
                         checkbox.checked = true;
                     }
                 }
+/*                if (score == null && !matches[key]["bets_closed"]) {
+                    let datetime = document.createElement("input");
+                    datetime.type = "datetime-local";
+                    datetimes[key] = datetime;
+                    bets_closed_time_cell.appendChild(datetime);
+                    // set the correct time here
+                }*/
             }
         }
+/*        function getTimeStamp(value_string) {
+            if (value_string == "") {
+                return null;
+            }
+            const year = value_string.slice(0, 4);
+            const month = parseInt(value_string.slice(5, 7)) - 1;
+            const day = value_string.slice(8, 10);
+            const hour = value_string.slice(11, 13);
+            const minute = value_string.slice(14, 16);
+            return new Date(Date.UTC(year, month, day, hour, minute, '00')).getTime()/1000;
+        }*/
         function sendScores() {
             const re_score_minus = /^([0-9]*)-([0-9]*)$/;
             const re_score_simple = /^([0-9])([0-9])$/;
             all_scores = Object();
+            /*all_tasks = Object();*/
             for (var key in forms) {
                 if (!window.mobileCheck()) {
                     // desktop
@@ -656,12 +751,20 @@
                 } else {
                     all_scores[key]["bets_closed"] = true;
                 }
+/*                if (!all_scores[key]["bets_closed"] && all_scores[key]["score"].length == 0) {
+                    all_tasks[key] = getTimeStamp(datetimes[key].value);
+                } else {
+                    all_tasks[key] = null;
+                }*/
             }
             all_promises = Array();
             for (key in all_scores) {
                 if (!equalScores(all_scores[key]["score"], matches[key]["score"]) || all_scores[key]["bets_closed"] != matches[key]["bets_closed"]) {
                     all_promises.push(sendScoreRequest(key, all_scores[key]));
                 }
+/*                if (all_tasks[key] != tasks[key]) {
+                    all_promises.push(sendTaskRequest(key, all_tasks[key]));
+                }*/
             }
             if (all_promises.length == 0) {
                 restoreMatches();
@@ -728,6 +831,8 @@
             scoresButton.onclick = insertScores;
             playersButton = document.getElementById("playersButton");
             playersButton.disabled = false;
+            closeButton = document.getElementById("closeButton");
+            closeButton.disabled = false;
             document.getElementById("cancelButton").remove();
             forms = Object();
             checkboxes = Object();
@@ -748,6 +853,23 @@
                 putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
                 putRequest.setRequestHeader("Content-Type", "application/json");
                 putRequest.send(JSON.stringify(bet));
+            })
+        }
+        function sendScheduledCloseRequest(match_id, time) {
+            return new Promise(function (resolve, reject) {
+                var postRequest = new XMLHttpRequest();
+                postRequest.onreadystatechange = function () {
+                    if (this.readyState == 4) {
+                        if (this.status == 200) {
+                            resolve({"match_id": match_id, "response": this.responseText});
+                        } else {
+                            reject({"match_id": match_id, "response": this.responseText});
+                        }
+                    }
+                };
+                postRequest.open("POST", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id + '/close', true);
+                postRequest.setRequestHeader("Content-Type", "application/json");
+                postRequest.send(JSON.stringify(time));
             })
         }
         function closeTournament() {
@@ -814,7 +936,7 @@
     <button id="closeButton" onclick="closeTournament()">Chiudi il torneo</button>
 {% endif %}
 <div class="floatRankings">
-    <table class="styled-table">
+    <table id="matches" class="styled-table">
         <thead>
         <tr>
             <td>Match</td>
@@ -824,7 +946,7 @@
             <td></td>
         </tr>
         </thead>
-        <tbody id="matches">
+        <tbody id="tableMatchesBody">
         </tbody>
     </table>
 </div>
@@ -844,7 +966,7 @@
 </div>
     {% if is_privileged %}
         <div class="floatRankings">
-            <button id="playersButton" onclick="insertPlayers()">Aggiungi tennisti</button>
+            <button id="playersButton" onclick="insertPlayers()">Cambia i tennisti</button>
             <table id="players" class="styled-table">
                 <thead>
                 <tr>

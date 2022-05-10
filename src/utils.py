@@ -1,3 +1,9 @@
+import distutils.util
+
+INVALID_BOOLEAN_VALUE = "Invalid boolean value [{value}]"
+INVALID_INTEGER_VALUE = "Invalid integer value [{value}]"
+
+
 def order_dict_by_values(input_dictionary, reverse=False):
     return {
         k: input_dictionary[k] for k in sorted(input_dictionary.keys(),
@@ -24,3 +30,17 @@ def get_positions_from_scores(scores):
         last_index = positions[key]
         last_value = value
     return positions
+
+
+def to_boolean(value):
+    try:
+        return bool(distutils.util.strtobool(str(value)))
+    except ValueError:
+        raise ValueError(INVALID_BOOLEAN_VALUE)
+
+
+def to_int(value):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        raise ValueError(INVALID_INTEGER_VALUE)

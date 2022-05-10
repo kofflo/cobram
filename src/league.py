@@ -1,8 +1,9 @@
 from entity import Entity, EntityError
 import class_id_strings
 from bet_tournament import BetTournament
+from tournament import Tournament
 from tournament import TournamentError, TieBreaker5th, TournamentCategory
-from utils import order_dict_by_values
+from utils import order_dict_by_values, to_int
 from draw import Draw16, DrawRoundRobin
 
 
@@ -19,11 +20,14 @@ class League(Entity):
     NEGATIVE_INDEXES_ARE_NOT_ALLOWED = "Negative indexes are not allowed"
     INVALID_TOURNAMENT_INDEX = "Invalid tournament index"
     INVALID_INITIAL_SCORE_FOR_GAMBLER = "Invalid initial score for gambler"
+    INVALID_INITIAL_RECORD_FOR_GAMBLER = "Invalid initial record for gambler"
     CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT = "Cannot open bets on match in closed tournament"
     INVALID_CREDIT_VALUE = "Invalid credit value"
     INVALID_TOURNAMENT_CATEGORY = "Invalid tournament category [{category}]"
     INVALID_TOURNAMENT_DRAW_TYPE = "Invalid tournament draw type [{draw_type}]"
     INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET = "Invalid tournament tie breaker at 5th set [{tie_breaker_5th}]"
+    A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS = "A closed tournament cannot follow open tournaments"
+    A_GHOST_TOURNAMENT_MUST_HAVE_A_CORRESPONDENT_TOURNAMENT_IN_THE_PREVIOUS_YEAR = "A ghost tournament must have a correspondent tournament in the previous year"
 
     def __init__(self, *, name):
         super().__init__('name')
@@ -32,12 +36,17 @@ class League(Entity):
         self._gamblers = []
         self._inactive_gamblers = []
         self._initial_scores = {}
+        self._initial_record_tournament = {}
+        self._initial_record_category = {}
         self._credits = {}
         self._previous_year_scores = {}
         self._ranking_scores = {}
         self._yearly_scores = {}
         self._winners = {}
         self._last_tournament = None
+        self._ranking_history = {}
+        self._record_tournament = {}
+        self._record_category = {}
         self.name = name
 
     def __contains__(self, gambler):
@@ -70,9 +79,22 @@ class League(Entity):
         tie_breaker_5th, category, draw_type = self._convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
                                                                                              category=category,
                                                                                              draw_type=draw_type)
-        bet_tournament = BetTournament(name=name, nation=nation, year=year, n_sets=n_sets,
-                                       tie_breaker_5th=tie_breaker_5th, category=category, draw_type=draw_type,
-                                       ghost=ghost)
+        if ghost:
+            try:
+                int_year = int(year)
+            except ValueError:
+                raise TournamentError(Tournament.INVALID_YEAR_FOR_A_TOURNAMENT)
+            try:
+                previous_year_tournament = self._bet_tournaments[name, int_year - 1]
+            except KeyError:
+                raise LeagueError(League.A_GHOST_TOURNAMENT_MUST_HAVE_A_CORRESPONDENT_TOURNAMENT_IN_THE_PREVIOUS_YEAR)
+            bet_tournament = BetTournament(name=name, nation=previous_year_tournament.nation, year=year, n_sets=previous_year_tournament.n_sets,
+                                           tie_breaker_5th=previous_year_tournament.tie_breaker_5th, category=previous_year_tournament.category, draw_type=previous_year_tournament.draw_type,
+                                           ghost=True)
+        else:
+            bet_tournament = BetTournament(name=name, nation=nation, year=year, n_sets=n_sets,
+                                           tie_breaker_5th=tie_breaker_5th, category=category, draw_type=draw_type,
+                                           ghost=False)
         id_ = bet_tournament.name, bet_tournament.year
         name, year = id_
         if id_ in self._bet_tournaments:
@@ -84,9 +106,10 @@ class League(Entity):
             if gambler in self._inactive_gamblers:
                 continue
             bet_tournament.add_gambler(gambler)
-            if previous_year_scores is None or gambler not in previous_year_scores:
+            if previous_year_scores is None or gambler not in previous_year_scores or (name, year - 1) in self._bet_tournaments:
                 self._previous_year_scores[year - 1][name][gambler] = 0
             else:
+                # Use the provided previous_year_scores only if the tournament was not present in the previous year
                 self._previous_year_scores[year - 1][name][gambler] = previous_year_scores[gambler]
         self._bet_tournaments[id_] = bet_tournament
 
@@ -99,11 +122,12 @@ class League(Entity):
             raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
 
     def get_tournament_id(self, *, tournament_index):
+        tournament_index = to_int(tournament_index)
         try:
             if tournament_index < 0:
                 raise LeagueError(League.NEGATIVE_INDEXES_ARE_NOT_ALLOWED)
             return list(self._bet_tournaments)[tournament_index]
-        except (TypeError, IndexError):
+        except IndexError:
             raise LeagueError(League.INVALID_TOURNAMENT_INDEX)
 
     def remove_tournament(self, *, tournament_id):
@@ -113,22 +137,38 @@ class League(Entity):
         except KeyError:
             raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
 
-    def add_gambler(self, gambler, initial_score=0, initial_credit=0):
+    def add_gambler(self, gambler, initial_score=0, initial_credit=0, initial_record_tournament=None, initial_record_category=None):
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
             raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
         if gambler in self and gambler.is_in_league(self):
             raise LeagueError(League.GAMBLER_ALREADY_IN_LEAGUE)
         try:
-            initial_score = int(initial_score)
-        except (ValueError, TypeError):
+            initial_score = to_int(initial_score)
+        except ValueError:
             raise LeagueError(League.INVALID_INITIAL_SCORE_FOR_GAMBLER)
-        self._initial_scores[gambler] = initial_score
+        if initial_record_tournament is not None:
+            try:
+                initial_record_tournament = {tournament_name: to_int(number) for tournament_name, number in initial_record_tournament.items()}
+            except (ValueError, AttributeError):
+                raise LeagueError(League.INVALID_INITIAL_RECORD_FOR_GAMBLER)
+        else:
+            initial_record_tournament = {}
+        if initial_record_category is not None:
+            try:
+                initial_record_category = {League._convert_category_to_object(category): to_int(number) for category, number in initial_record_category.items()}
+            except (ValueError, AttributeError, KeyError):
+                raise LeagueError(League.INVALID_INITIAL_RECORD_FOR_GAMBLER)
+        else:
+            initial_record_category = {}
         try:
             initial_credit = float(initial_credit)
         except (ValueError, TypeError):
             raise LeagueError(League.INVALID_CREDIT_VALUE)
-        self._credits[gambler] = initial_credit
         self._gamblers.append(gambler)
+        self._initial_scores[gambler] = initial_score
+        self._credits[gambler] = initial_credit
+        self._initial_record_tournament[gambler] = initial_record_tournament
+        self._initial_record_category[gambler] = initial_record_category
         if not gambler.is_in_league(self):
             gambler.add_to_league(self)
         for _, bet_tournament in self._bet_tournaments.items():
@@ -156,7 +196,7 @@ class League(Entity):
                 bet_tournament.close()
         self._compute_league_ranking()
 
-    def update_gambler(self, gambler, is_active=None, credit_change=None):
+    def update_gambler(self, gambler, is_active=None, credit_change=None, initial_score=None, initial_record_tournament=None, initial_record_category=None):
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
             raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
         if gambler not in self and not gambler.is_in_league(self):
@@ -173,6 +213,24 @@ class League(Entity):
                 self._credits[gambler] += credit_change
             except (ValueError, TypeError):
                 raise LeagueError(League.INVALID_CREDIT_VALUE)
+        if initial_score is not None:
+            try:
+                self._initial_scores[gambler] = to_int(initial_score)
+                self._compute_league_ranking()
+            except ValueError:
+                raise LeagueError(League.INVALID_INITIAL_SCORE_FOR_GAMBLER)
+        if initial_record_tournament is not None:
+            try:
+                self._initial_record_tournament[gambler] = {tournament_name: to_int(number) for tournament_name, number in initial_record_tournament.items()}
+                self._compute_league_ranking()
+            except (ValueError, AttributeError):
+                raise LeagueError(League.INVALID_INITIAL_RECORD_FOR_GAMBLER)
+        if initial_record_category is not None:
+            try:
+                self._initial_record_category[gambler] = {League._convert_category_to_object(category): to_int(number) for category, number in initial_record_category.items()}
+                self._compute_league_ranking()
+            except (ValueError, AttributeError, KeyError):
+                raise LeagueError(League.INVALID_INITIAL_RECORD_FOR_GAMBLER)
         return self.get_gambler_info(gambler)
 
     def get_gamblers(self, is_active=None):
@@ -229,12 +287,35 @@ class League(Entity):
     def is_open(self, *, tournament_id):
         return self._get_tournament(tournament_id).is_open
 
+    def _is_last_closed(self, tournament_id):
+        found = False
+        for key, bet_tournament in self._bet_tournaments.items():
+            if found:
+                if not bet_tournament.is_open:
+                    return False
+            elif key == tournament_id:
+                if not bet_tournament.is_open:
+                    found = True
+                else:
+                    return False
+        return True
+
+    def _is_first_open(self, tournament_id):
+        for key, bet_tournament in self._bet_tournaments.items():
+            if key == tournament_id:
+                if bet_tournament.is_open:
+                    return True
+                else:
+                    return False
+            if bet_tournament.is_open:
+                return False
+
     def get_tournament_info(self, *, tournament_id):
         tournament_info = self._get_tournament(tournament_id).info
         tournament_info['tie_breaker_5th'], tournament_info['category'], tournament_info['draw_type'] \
-        = self._convert_tournament_parameters_to_string(tie_breaker_5th=tournament_info['tie_breaker_5th'],
-                                                        category=tournament_info['category'],
-                                                        draw_type=tournament_info['draw_type'])
+        = League._convert_tournament_parameters_to_string(tie_breaker_5th=tournament_info['tie_breaker_5th'],
+                                                          category=tournament_info['category'],
+                                                          draw_type=tournament_info['draw_type'])
         return tournament_info
 
     def get_matches(self, *, tournament_id, gambler=None):
@@ -245,9 +326,9 @@ class League(Entity):
 
     def get_all_tournaments(self, name=None, nation=None, year=None, n_sets=None, tie_breaker_5th=None,
                             category=None, draw_type=None, is_ghost=None, is_open=None):
-        tie_breaker_5th, category, draw_type = self._convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
-                                                                                             category=category,
-                                                                                             draw_type=draw_type)
+        tie_breaker_5th, category, draw_type = League._convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
+                                                                                               category=category,
+                                                                                               draw_type=draw_type)
         filters = dict(name=name, nation=nation, year=year,
                        n_sets=n_sets, tie_breaker_5th=tie_breaker_5th, category=category,
                        draw_type=draw_type, is_ghost=is_ghost, is_open=is_open)
@@ -264,12 +345,18 @@ class League(Entity):
                 tournament.nation = old_nation
                 raise
         if is_open is True:
-            tournament.open()
-            self._compute_league_ranking()
+            if self._is_last_closed(tournament_id):
+                tournament.open()
+                self._compute_league_ranking()
+            else:
+                raise LeagueError(League.A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS)
         elif is_open is False:
-            tournament.close_all_matches()
-            tournament.close()
-            self._compute_league_ranking()
+            if self._is_first_open(tournament_id):
+                tournament.close_all_matches()
+                tournament.close()
+                self._compute_league_ranking()
+            else:
+                raise LeagueError(League.A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS)
 
     def set_bets_closed_on_match(self, *, tournament_id, match_id, bets_closed):
         if bets_closed is True:
@@ -281,11 +368,12 @@ class League(Entity):
                 raise LeagueError(League.CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT)
 
     def get_ranking(self):
-        return self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament
+        return self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament, self._record_tournament, self._record_category, self._ranking_history
 
     def _compute_league_ranking(self):
-        self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament, _, _, _ \
+        self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament, self._ranking_history, _, _, _ \
             = self._compute_ranking()
+        self._record_tournament, self._record_category = self._compute_record()
 
     def _compute_ranking(self, up_to=None):
         ranking_scores = dict(self._initial_scores)
@@ -295,8 +383,8 @@ class League(Entity):
         tournament_scores = {}
         tournament_ranking_scores = {}
         joker_gambler_seed_points = {}
+        ranking_history = {}
         for (tournament_id, bet_tournament) in self._bet_tournaments.items():
-
             name, year = tournament_id
             if bet_tournament.is_open:
                 break
@@ -325,11 +413,13 @@ class League(Entity):
             if tournament_ranking_scores.keys() and not bet_tournament.is_ghost:
                 winners[tournament_id] = list(tournament_ranking_scores.keys())[0]
 
+            ranking_scores = order_dict_by_values(ranking_scores, reverse=True)
+
+            ranking_history[tournament_id] = [gambler for gambler in ranking_scores if gambler in bet_tournament.get_gamblers()]
+
         for year, scores in yearly_scores.items():
             yearly_scores[year] = order_dict_by_values(yearly_scores[year], reverse=True)
         yearly_scores = {k: yearly_scores[k] for k in sorted(yearly_scores.keys())}
-
-        ranking_scores = order_dict_by_values(ranking_scores, reverse=True)
 
         for inactive_gambler in self._inactive_gamblers:
             try:
@@ -337,15 +427,15 @@ class League(Entity):
             except KeyError:
                 pass
 
-        return ranking_scores, yearly_scores, winners, last_tournament, tournament_scores, \
-            tournament_ranking_scores, joker_gambler_seed_points
+        return ranking_scores, yearly_scores, winners, last_tournament, ranking_history, \
+               tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
 
     def get_tournament_ranking(self, *, tournament_id):
         tournament = self._get_tournament(tournament_id)
         if tournament.is_open:
             return tournament.get_scores()
         else:
-            _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = \
+            _, _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = \
                 self._compute_ranking(up_to=tournament)
             return tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
 
@@ -363,13 +453,12 @@ class League(Entity):
         self._get_tournament(tournament_id).set_player(place=place, player=player, seed=seed, force=force)
 
     def get_players_from_tournament(self, *, tournament_id):
-        return self._get_tournament(tournament_id).get_players()
+        players = self._get_tournament(tournament_id).get_players()
+        return [{'player': player, 'seed': self._get_seed(tournament_id, player)} for player in players]
 
     def get_player_from_tournament(self, *, tournament_id, place):
-        return self._get_tournament(tournament_id).get_player(place)
-
-    def get_seed(self, *, tournament_id, player):
-        return self._get_tournament(tournament_id).get_seed(player)
+        player = self._get_tournament(tournament_id).get_player(place)
+        return {'player': player, 'seed': self._get_seed(tournament_id, player)}
 
     def add_players_to_match(self, *, tournament_id, match_id, player_1, player_2, force=False):
         tournament = self._get_tournament(tournament_id)
@@ -396,6 +485,14 @@ class League(Entity):
         return True
 
     @staticmethod
+    def _convert_category_to_object(category):
+        try:
+            category = TournamentCategory[category] if category is not None else None
+        except KeyError:
+            raise KeyError(League.INVALID_TOURNAMENT_CATEGORY.format(category=category))
+        return category
+
+    @staticmethod
     def _convert_tournament_parameters_to_string(*, tie_breaker_5th, category, draw_type):
         tie_breaker_5th = tie_breaker_5th.name if tie_breaker_5th is not None else None
         category = category.name
@@ -408,10 +505,7 @@ class League(Entity):
             tie_breaker_5th = TieBreaker5th[tie_breaker_5th] if tie_breaker_5th is not None else None
         except KeyError:
             raise KeyError(League.INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET.format(tie_breaker_5th=tie_breaker_5th))
-        try:
-            category = TournamentCategory[category] if category is not None else None
-        except KeyError:
-            raise KeyError(League.INVALID_TOURNAMENT_CATEGORY.format(category=category))
+        category = League._convert_category_to_object(category)
         if draw_type is not None:
             if draw_type == 'Draw16':
                 draw_type = Draw16
@@ -420,6 +514,31 @@ class League(Entity):
             else:
                 raise KeyError(League.INVALID_TOURNAMENT_DRAW_TYPE.format(draw_type=draw_type))
         return tie_breaker_5th, category, draw_type
+
+    def _get_seed(self, tournament_id, player):
+        return self._get_tournament(tournament_id).get_seed(player)
+
+    def _compute_record(self):
+        record_tournament = {gambler: dict(tournament_dict) for gambler, tournament_dict in self._initial_record_tournament.items()}
+        record_category = {gambler: dict(category_dict) for gambler, category_dict in self._initial_record_category.items()}
+        for tournament_id, tournament in self._bet_tournaments.items():
+            name = tournament.name
+            category = tournament.category
+            if tournament_id not in self._winners:
+                continue
+            winner = self._winners[tournament_id]
+            if winner not in record_tournament:
+                record_tournament[winner] = {}
+                record_category[winner] = {}
+            if name in record_tournament[winner]:
+                record_tournament[winner][name] += 1
+            else:
+                record_tournament[winner][name] = 1
+            if category in record_category[winner]:
+                record_category[winner][category] += 1
+            else:
+                record_category[winner][category] = 1
+        return record_tournament, record_category
 
 
 class LeagueError(EntityError):

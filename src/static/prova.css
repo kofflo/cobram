@@ -58,3 +58,7 @@ button {
 .bold {
     font-weight: bold;
 }
+
+.currentSeason {
+    color: #FF0000;
+}

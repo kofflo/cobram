@@ -13,6 +13,40 @@
     var nations;
     var ranking;
     var tournaments;
+    function category2text(category) {
+        if (category == "GRAND_SLAM") {
+            return "GRAND SLAM";
+        } else if (category == "MASTER_1000") {
+            return "MASTER 1000";
+        } else if (category == "ATP_FINALS") {
+            return "ATP FINALS";
+        } else if (category == "OLYMPICS") {
+            return "OLIMPIADI";
+        } else if (category == "ATP_500") {
+            return "ATP 500";
+        } else if (category == "ATP_250") {
+            return "ATP 250";
+        } else {
+            return "/";
+        }
+    }
+    function text2category(text) {
+        if (text == "GRAND SLAM") {
+            return "GRAND_SLAM";
+        } else if (text == "MASTER 1000") {
+            return "MASTER_1000";
+        } else if (text == "ATP FINALS") {
+            return "ATP_FINALS";
+        } else if (text == "OLIMPIADI") {
+            return "OLYMPICS";
+        } else if (text == "ATP 500") {
+            return "ATP_500";
+        } else if (text == "ATP 250") {
+            return "ATP_250";
+        } else {
+            throw "Unknown category description: " + text;
+        }
+    }
     function callLeagues() {
         return new Promise(function(resolve, reject) {
             var leaguesRequest = new XMLHttpRequest();
@@ -120,9 +154,101 @@
             updateTitles();
             updateTableTournaments();
             updateTablesRanking();
+            updateTableWinnersRecord();
+            plotRankingChart();
         }).catch(function (reason) {
             window.alert(reason);
         });
+    }
+    function updateTableWinnersRecord() {
+        table = document.getElementById("tableWinnersRecord");
+        var header = table.createTHead();
+        var headerRow = header.insertRow(0);
+        cell = headerRow.insertCell();
+        var tournamentNames = Array();
+        for (key in ranking["record_tournament"]) {
+            tournament_object = ranking["record_tournament"][key]
+            for (tournamentName in tournament_object) {
+                if (!tournamentNames.includes(tournamentName)) {
+                    tournamentNames.push(tournamentName);
+                }
+            }
+        }
+        var categoryNames = Array();
+        for (key in ranking["record_category"]) {
+            category_object = ranking["record_category"][key]
+            for (categoryName in category_object) {
+                if (!categoryNames.includes(categoryName)) {
+                    categoryNames.push(categoryName);
+                }
+            }
+        }
+        for (index in tournamentNames) {
+            cell = headerRow.insertCell();
+            cell.innerText = tournamentNames[index];
+        }
+        for (index in categoryNames) {
+            cell = headerRow.insertCell();
+            cell.innerText = category2text(categoryNames[index]);
+        }
+        cell = headerRow.insertCell();
+        cell.innerText = "Totale";
+        var body = table.createTBody();
+        current_season_year = tournaments[ranking["last_tournament"]]["year"];
+        for (key in ranking["record_tournament"]) {
+            const row = body.insertRow();
+            const name_cell = row.insertCell();
+            name_cell.innerText = gamblers[key]["nickname"];
+            total = 0;
+            total_current_season = false;
+            for (var index in tournamentNames) {
+                cell = row.insertCell();
+                if (tournamentNames[index] in ranking["record_tournament"][key]) {
+                    cell.innerText = ranking["record_tournament"][key][tournamentNames[index]];
+                    if (check_name_current_season(key, tournamentNames[index], current_season_year)) {
+                        total_current_season = true;
+                        cell.className = 'currentSeason';
+                    }
+                    total += ranking["record_tournament"][key][tournamentNames[index]];
+                } else {
+                    cell.innerText = "0";
+                }
+            }
+            for (var index in categoryNames) {
+                cell = row.insertCell();
+                if (categoryNames[index] in ranking["record_category"][key]) {
+                    cell.innerText = ranking["record_category"][key][categoryNames[index]];
+                    if (check_category_current_season(key, categoryNames[index], current_season_year)) {
+                        cell.className = 'currentSeason';
+                    }
+                } else {
+                    cell.innerText = "0";
+                }
+            }
+            cell = row.insertCell();
+            cell.innerText = total;
+            if (total_current_season) {
+                cell.className = 'currentSeason';
+            }
+        }
+    }
+    function check_name_current_season(gambler, name, year) {
+        for (var index in tournaments) {
+            var tournament = tournaments[index];
+            if (tournament["name"] == name && tournament["year"] == year && ranking["winners"][index] == gambler) {
+                return true;
+            }
+        }
+        return false;
+    }
+    function check_category_current_season(gambler, category, year) {
+        for (var index in tournaments) {
+            var tournament = tournaments[index];
+            if (tournament["category"] == category && tournament["year"] == year && ranking["winners"][index] == gambler) {
+                return true;
+            }
+        }
+        return false;
     }
     function updateTitles() {
         document.getElementById("mainHeader").innerText = leagues["{{ league_index }}"]["name"];
@@ -144,6 +270,12 @@
             name_link.innerText = tournaments[key]["name"];
             name_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/" + index);
             name_cell.appendChild(name_link);
+            if (!tournaments[key]["is_open"]) {
+                lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                name_link.innerText += "   ";
+                name_link.appendChild(lock);
+            }
             const year_cell = row.insertCell();
             year_cell.innerText = tournaments[key]["year"];
             const nation_code_cell = row.insertCell();
@@ -166,19 +298,7 @@
             }
             const category_cell = row.insertCell();
             category = tournaments[key]["category"];
-            if (category == "GRAND_SLAM") {
-                category_cell.innerText = "GRAND SLAM";
-            } else if (category == "MASTER_1000") {
-                category_cell.innerText = "MASTER 1000";
-            } else if (category == "ATP_FINALS") {
-                category_cell.innerText = "ATP FINALS";
-            } else if (category == "OLYMPICS") {
-                category_cell.innerText = "OLIMPIADI";
-            } else if (category == "ATP_500") {
-                category_cell.innerText = "ATP 500";
-            } else if (category == "ATP_250") {
-                category_cell.innerText = "ATP 250";
-            }
+            category_cell.innerText = category2text(category);
             const draw_cell = row.insertCell();
             draw = tournaments[key]["draw_type"];
             if (draw == "Draw16") {
@@ -217,15 +337,25 @@
             return first_pair[1] - second_pair[1];
         });
         ranking_scores_array.reverse();
+        var last_position = undefined;
+        var last_points = undefined;
         for (index = 0; index < ranking_scores_array.length; index++) {
             const pair = ranking_scores_array[index];
+            const gambler_index = pair[0];
+            const gambler_points = pair[1];
             const row = table.insertRow();
             const position_cell = row.insertCell();
-            position_cell.innerText = index + 1;
+            if (gambler_points == last_points) {
+                position_cell.innerText = last_position;
+            } else {
+                position_cell.innerText = index + 1;
+                last_position = index + 1;
+            }
             const gambler_cell = row.insertCell();
-            gambler_cell.innerText = gamblers[pair[0]]["nickname"];
+            gambler_cell.innerText = gamblers[gambler_index]["nickname"];
             const points_cell = row.insertCell();
-            points_cell.innerText = pair[1];
+            points_cell.innerText = gambler_points;
+            last_points = gambler_points;
         }
         table = document.getElementById("tableRaceBody");
         yearly_scores = ranking["yearly_scores"];
@@ -241,15 +371,25 @@
             return first_pair[1] - second_pair[1];
         });
         yearly_scores_array.reverse();
+        last_position = undefined;
+        last_points = undefined;
         for (index = 0; index < yearly_scores_array.length; index++) {
             const pair = yearly_scores_array[index];
+            const gambler_index = pair[0];
+            const gambler_points = pair[1];
             const row = table.insertRow();
             const position_cell = row.insertCell();
-            position_cell.innerText = index + 1;
+            if (gambler_points == last_points) {
+                position_cell.innerText = last_position;
+            } else {
+                position_cell.innerText = index + 1;
+                last_position = index + 1;
+            }
             const gambler_cell = row.insertCell();
-            gambler_cell.innerText = gamblers[pair[0]]["nickname"];
+            gambler_cell.innerText = gamblers[gambler_index]["nickname"];
             const points_cell = row.insertCell();
-            points_cell.innerText = pair[1];
+            points_cell.innerText = gambler_points;
+            last_points = gambler_points;
         }
     }
     {% if is_privileged %}
@@ -358,18 +498,24 @@
         requestJson["name"] = forms["name"].value.trim();
         requestJson["year"] = forms["year"].value.trim();
         requestJson["nation_index"] = forms["nation"].value;
-        requestJson["n_sets"] = 3;//forms["n_sets"].value;
-        requestJson["tie_breaker_5th"] = null;//forms["tie_breaker_5th"].value;
-        requestJson["category"] = "MASTER_1000";//forms["category"].value;
-        requestJson["draw_type"] = "Draw16";//forms["draw_type"].value;
+        requestJson["n_sets"] = forms["n_sets"].value;
+        if (forms["n_sets"].value == 3) {
+            requestJson["tie_breaker_5th"] = null;
+        } else if (forms["tie_breaker_5th"].value == "Tie-break sul 6-6") {
+            requestJson["tie_breaker_5th"] = "TIE_BREAKER_AT_7";
+        } else if (forms["tie_breaker_5th"].value == "Tie-break sul 12-12") {
+            requestJson["tie_breaker_5th"] = "TIE_BREAKER_AT_13";
+        } else if (forms["tie_breaker_5th"].value == "Senza tie-break") {
+            requestJson["tie_breaker_5th"] = "NO_TIE_BREAKER";
+        }
+        requestJson["category"] = text2category(forms["category"].value);
+        if (forms["draw_type"].value == "Eliminazione-16") {
+            requestJson["draw_type"] = "Draw16"
+        } else if (forms["draw_type"].value == "Round Robin") {
+            requestJson["draw_type"] = "DrawRoundRobin";
+        }
         requestJson["previous_year_scores"] = null;
         requestJson["ghost"] = forms["ghost"].checked;
-
-//        row.insertCell().innerText = "Set";
-//        row.insertCell().innerText = "Tie-break al 5° set";
-//        row.insertCell().innerText = "Categoria";
-//        row.insertCell().innerText = "Tabellone";
-//        row.insertCell().innerText = "Ghost";
 
         Promise.all([sendTournamentRequest(requestJson)]).then(function (values) {
             new_tournament = JSON.parse(values[0]);
@@ -495,5 +641,75 @@
             </tbody>
         </table>
     </div>
+    <div class="floatRankings">
+        <h2 id="Palmarès"></h2>
+        <table id="tableWinnersRecord" class="styled-table">
+        </table>
+    </div>
 </div>
+    <div>
+        <canvas id="rankingChart"></canvas>
+    </div>
+    <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+    <script>
+    function randomColorGenerator() {
+        return '#' + (Math.random().toString(16) + '0000000').slice(2, 8);
+    };
+    function plotRankingChart() {
+        labels = Array();
+        for (key in ranking["ranking_history"]) {
+            labels.push(tournaments[key]["name"] + " " + tournaments[key]["year"]);
+        }
+        data = {
+            labels: labels
+        };
+        datasets = Array();
+        for (gambler_key in gamblers) {
+            gambler_color = randomColorGenerator();
+            dataset = {
+                label: gamblers[gambler_key]["nickname"],
+                backgroundColor: gambler_color,
+                borderColor: gambler_color
+            };
+            gambler_data = Array();
+            add_gambler = false;
+            for (tournament_key in ranking["ranking_history"]) {
+                var current_ranking = ranking["ranking_history"][tournament_key];
+                gambler_index = current_ranking.indexOf(parseInt(gambler_key));
+                if (gambler_index != -1) {
+                    add_gambler = true;
+                    gambler_data.push(gambler_index + 1);
+                } else {
+                    gambler_data.push(undefined);
+                }
+            }
+            if (add_gambler) {
+                dataset["data"] = gambler_data;
+                datasets.push(dataset);
+            }
+        }
+        data['datasets'] = datasets;
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                scales: {
+                    y: {
+                        min: 1,
+                        max: datasets.length,
+                        reverse: true,
+                        ticks: {
+                            autoSkip: false,
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        };
+        const myChart = new Chart(
+            document.getElementById('rankingChart'),
+            config
+        );
+    }
+    </script>
 {% endblock %}

@@ -321,26 +321,11 @@ def _manage_tournament_players(**kwargs):
     return _redirect_to_function(environment.get_players_from_tournament, '')
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players', methods=['POST'])
-@admin_required_rest
-def _manage_tournament_players_admin(**kwargs):
-    return _redirect_to_function(environment.add_player_to_tournament, 'JSON')
-
-
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players/<int:place>', methods=['GET'])
-@login_required_rest
-def _manage_tournament_player(**kwargs):
-    return _redirect_to_function(environment.get_player_info_from_tournament, '')
-
-
 @app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/players/<int:place>',
-           methods=['PUT', 'DELETE'])
+           methods=['PUT'])
 @admin_required_rest
 def _manage_tournament_player_admin(**kwargs):
-    if request.method == 'PUT':
-        return _redirect_to_function(environment.update_player_in_tournament, 'JSON')
-    elif request.method == 'DELETE':
-        return _redirect_to_function(environment.remove_player_from_tournament, '')
+    return _redirect_to_function(environment.update_player_in_tournament, 'JSON')
 
 
 @app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches', methods=['GET'])
@@ -354,6 +339,13 @@ def _manage_tournament_matches(**kwargs):
 @admin_required_rest
 def _manage_tournament_match(**kwargs):
     return _redirect_to_function(environment.update_tournament_match, 'JSON')
+
+
+@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches/<regex("[A-Z][0-9]+"):match_id>/close',
+           methods=['POST'])
+@admin_required_rest
+def _manage_tournament_match_close(**kwargs):
+    return _redirect_to_function(environment.schedule_closed_match, 'JSON')
 
 
 @app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches',
@@ -418,7 +410,6 @@ def _load(**kwargs):
 @app.route('/download', methods=['POST'])
 @admin_required_rest
 def _download(**kwargs):
-    print("download!")
     return send_file(_redirect_to_function(environment.download, 'JSON'), mimetype='application/octet-stream')
 
 
@@ -485,14 +476,6 @@ def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index
                            is_privileged=is_privileged)
 
 
-@app.route('/web/admin', methods=['GET'])
-@admin_required
-def _manage_web_admin():
-    _check_args(request.json, [])
-    _check_args(request.args, [])
-    return render_template('admin.html')
-
-
 @app.route('/', methods=['GET'])
 def _root():
     _check_args(request.json, [])
@@ -545,7 +528,8 @@ def logout():
 @app.route('/web/profile', methods=['GET'])
 @login_required
 def web_profile():
-    return render_template('profile.html')
+    is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME
+    return render_template('profile.html', is_privileged=is_privileged)
 
 
 @app.route('/profile', methods=['GET', 'PUT'])
@@ -562,7 +546,34 @@ def profile():
         )
 
 
+@app.before_request
+def before_request_func():
+    environment.run_tasks()
+
+
+@app.route('/web/tasks', methods=['GET'])
+@admin_required
+def get_tasks():
+    return render_template('tasks.html')
+
+
+@app.route('/tasks', methods=['GET'])
+@admin_required_rest
+def manage_tasks():
+    return _redirect_to_function(environment.get_tasks, '')
+
+
+@app.route('/tasks/<int:index>', methods=['GET', 'DELETE'])
+@admin_required_rest
+def manage_task(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_task, '')
+    elif request.method == 'DELETE':
+        return _redirect_to_function(environment.remove_task, '')
+
+
 environment.load(timestamp='autosave')
+environment.load_tasks()
 
 #from waitress import serve
 #serve(app, listen='*:8080')

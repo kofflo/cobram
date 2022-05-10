@@ -238,7 +238,7 @@
                 joker_image.src = '/static/star.png';
                 joker_cell.appendChild(joker_image);
             }
-            if (matches[key]["bets_closed"]) {
+            if (matches[key]["score"] != null) {
                 points_cell.innerText = bets[key]["points"];
             }
         }

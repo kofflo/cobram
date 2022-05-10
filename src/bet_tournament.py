@@ -26,8 +26,6 @@ class BetTournament:
     JOKER_SEED_2 = 3
     JOKER_SEED_3 = 4
     JOKER_UNSEEDED = 4
-    SEED_1_LIMIT = 5
-    SEED_2_LIMIT = 10
     RANKING_POINTS = {
         TournamentCategory.GRAND_SLAM: [2000, 1200, 800, 600, 400, 300, 200, 125, 100, 75, 50, 25],
         TournamentCategory.ATP_FINALS: [1500, 900, 600, 450, 300, 225, 150, 100, 75, 50, 25, 15],
@@ -206,7 +204,7 @@ class BetTournament:
 
     def get_scores(self, ranking_scores=None):
         if self.is_ghost:
-            return {gambler: 0 for gambler in self._bets}, {gambler: 0 for gambler in self._bets}
+            return {gambler: 0 for gambler in self._bets}, {gambler: 0 for gambler in self._bets}, {gambler: 0 for gambler in self._bets}
         if self._need_recompute_scores:
             self._recompute_scores()
         scores = {}
@@ -282,11 +280,13 @@ class BetTournament:
     def _joker_value(self, player_index):
         player = self.get_player(player_index)
         seed = self.get_seed(player)
+        seed_1_limit = self.draw.number_players // 3
+        seed_2_limit = seed_1_limit * 2
         if seed == 0:
             return BetTournament.JOKER_UNSEEDED
-        elif seed <= BetTournament.SEED_1_LIMIT:
+        elif seed <= seed_1_limit:
             return BetTournament.JOKER_SEED_1
-        elif seed <= BetTournament.SEED_2_LIMIT:
+        elif seed <= seed_2_limit:
             return BetTournament.JOKER_SEED_2
         else:
             return BetTournament.JOKER_SEED_3

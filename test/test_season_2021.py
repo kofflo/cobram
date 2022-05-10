@@ -96,11 +96,12 @@ def add_players_to_tournament(league_index, name, year, *players):
         player_index = player_name_surname_to_index(player_name, player_surname)
         if player_index is not None:
             tournament_index = tournament_id_to_index(league_index, (name, year))
-            r = session.post(URL + '/leagues/{league_index}/tournaments/{tournament_index}/players'.format(league_index=league_index, tournament_index=tournament_index),
+            r = session.put(URL + '/leagues/{league_index}/tournaments/{tournament_index}/players/{place}'.format(league_index=league_index, tournament_index=tournament_index, place=place),
                               json={
-                                  'place': place,
-                                  'player_index': player_index,
-                                  'seed': seed
+                                  'player_seed': {
+                                    'player_index': player_index,
+                                    'seed': seed
+                                  }
                               })
 
 
@@ -565,6 +566,11 @@ def test_season_2021():
 
     add_tournaments_to_league(coppa_cobram_index, gamblers_list, *tournaments_2022)
 
+
+    r = session.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    league_ranking = r.json()
+    print(list((_gamblers_index_to_nickname(all_gamblers_json, index=index), score) for index, score in league_ranking['ranking_scores'].items()))
+
     all_bets = {}
     for ((nickname, _, _), *_) in gamblers_list:
         all_bets[nickname] = rearrange_results(tournaments_2022, read_results_file(nickname + '_2022'))
@@ -621,49 +627,51 @@ def test_season_2021():
         print(league_ranking['winners'])
         print(league_ranking['last_tournament'])
 
-
-    r = session.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
-    league_ranking = r.json()
-    print(list((_gamblers_index_to_nickname(all_gamblers_json, index=index), score) for index, score in league_ranking['ranking_scores'].items()))
-    print(league_ranking['yearly_scores'])
-    print(league_ranking['winners'])
-    print(league_ranking['last_tournament'])
-
-    tournament_index = tournament_id_to_index(coppa_cobram_index, ("Australian Open", 2022))
-    r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
-    tournament_ranking = r.json()
-    print(tournament_ranking['tournament_scores'])
-    print(tournament_ranking['tournament_ranking_scores'])
-
-
-    print("*****************************************************")
-
-    r = session.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
-    league_ranking = r.json()
-    print(league_ranking['ranking_scores'])
-    print(league_ranking['yearly_scores'])
-    print(league_ranking['winners'])
-    print(league_ranking['last_tournament'])
-
-    r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/matches'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
-    tm = r.json()
-    for ttm in tm:
-        print(ttm)
-        print(tm[ttm])
-    r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/gamblers/{gambler_index}/matches'.format(league_index=coppa_cobram_index, tournament_index=tournament_index, gambler_index=1))
-    tm = r.json()
-    for ttm in tm:
-        print(ttm)
-        print(tm[ttm])
-
-    tournament_index = tournament_id_to_index(coppa_cobram_index, ('Wimbledon Championships', 2021))
-    r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
-    tournament_ranking = r.json()
-    print(tournament_ranking)
-
-
+    #
+    # r = session.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    # league_ranking = r.json()
+    # print(list((_gamblers_index_to_nickname(all_gamblers_json, index=index), score) for index, score in league_ranking['ranking_scores'].items()))
+    # print(league_ranking['yearly_scores'])
+    # print(league_ranking['winners'])
+    # print(league_ranking['last_tournament'])
+    #
+    # tournament_index = tournament_id_to_index(coppa_cobram_index, ("Australian Open", 2022))
+    # r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    # tournament_ranking = r.json()
+    # print(tournament_ranking['tournament_scores'])
+    # print(tournament_ranking['tournament_ranking_scores'])
+    #
+    #
+    # print("*****************************************************")
+    #
+    # r = session.get(URL + '/leagues/{league_index}/ranking'.format(league_index=coppa_cobram_index))
+    # league_ranking = r.json()
+    # print(league_ranking['ranking_scores'])
+    # print(league_ranking['yearly_scores'])
+    # print(league_ranking['winners'])
+    # print(league_ranking['last_tournament'])
+    #
+    # r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/matches'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    # tm = r.json()
+    # for ttm in tm:
+    #     print(ttm)
+    #     print(tm[ttm])
+    # r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/gamblers/{gambler_index}/matches'.format(league_index=coppa_cobram_index, tournament_index=tournament_index, gambler_index=1))
+    # tm = r.json()
+    # for ttm in tm:
+    #     print(ttm)
+    #     print(tm[ttm])
+    #
+    # tournament_index = tournament_id_to_index(coppa_cobram_index, ('Wimbledon Championships', 2021))
+    # r = session.get(URL + '/leagues/{league_index}/tournaments/{tournament_index}/ranking'.format(league_index=coppa_cobram_index, tournament_index=tournament_index))
+    # tournament_ranking = r.json()
+    # print(tournament_ranking)
 
 
+
+
+#r = session.put(URL + '/leagues/{league_index}/gamblers/{gambler_index}'.format(league_index=0, gambler_index=1),
+#                json={'initial_record_category': {'MASTER_1000': 34, 'GRAND_SLAM': 72, 'ATP_250': 42}})
 
 test_season_2021()
 
