@@ -77,6 +77,7 @@ class Tournament:
         self.draw_type = draw_type
         self._create_draw()
         self._players = [None] * self._draw.number_players
+        self._new_seed = True
         self._seed = [0] * self._draw.number_players
 
     @property
@@ -282,6 +283,12 @@ class Tournament:
         return copy.copy(self._players)
 
     def get_seed(self, player):
+        if not hasattr(self, '_new_seed'):
+            self._new_seed = [0] * self._draw.number_players
+            for player in self._players:
+                self._new_seed[self.get_player_place(player)] = self._seed[player]
+            self._seed = self._new_seed
+            self._new_seed = True
         if player is None:
             return 0
         return self._seed[self.get_player_place(player)]
