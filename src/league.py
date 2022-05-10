@@ -368,6 +368,12 @@ class League(Entity):
                 raise LeagueError(League.CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT)
 
     def get_ranking(self):
+        if not hasattr(self, '_record_tournament'):
+            self._record_tournament = {}
+        if not hasattr(self, '_record_category'):
+            self._record_category = {}
+        if not hasattr(self, '_ranking_history'):
+            self._ranking_history = {}
         return self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament, self._record_tournament, self._record_category, self._ranking_history
 
     def _compute_league_ranking(self):
