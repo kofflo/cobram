@@ -45,6 +45,10 @@ class Task:
         self._expired = False
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def expired(self):
         return self._expired
 
@@ -66,7 +70,7 @@ class Task:
             'type': self._task_type.name,
             'next_run': self._next_run,
             'time': self._task_time,
-            'command': self._command,
+            'command': self._command.__name__,
             'arguments': self._arguments
         }
 

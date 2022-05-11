@@ -341,13 +341,6 @@ def _manage_tournament_match(**kwargs):
     return _redirect_to_function(environment.update_tournament_match, 'JSON')
 
 
-@app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/matches/<regex("[A-Z][0-9]+"):match_id>/close',
-           methods=['POST'])
-@admin_required_rest
-def _manage_tournament_match_close(**kwargs):
-    return _redirect_to_function(environment.schedule_closed_match, 'JSON')
-
-
 @app.route('/leagues/<int:league_index>/tournaments/<int:tournament_index>/gamblers/<int:gambler_index>/matches',
            methods=['GET'])
 @login_required_rest

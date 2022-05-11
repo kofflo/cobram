@@ -402,12 +402,13 @@ def get_tournament_matches(*, league_index, tournament_index):
     matches = league.get_matches(tournament_id=tournament_id)
     return_structure = {}
     for match_id, match in matches.items():
-        return_structure[match_id] = _create_match_dictionary(match)
+        timestamp = _get_timestamp_schedule_closed_match(league_index, tournament_index, match_id)
+        return_structure[match_id] = _create_match_dictionary(match, timestamp)
     return return_structure
 
 
 @_autosave
-def update_tournament_match(*, league_index, tournament_index, match_id, players=None, score=None, bets_closed=None):
+def update_tournament_match(*, league_index, tournament_index, match_id, players=None, score=None, bets_closed=None, timestamp=None):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     if players is not None:
@@ -426,9 +427,13 @@ def update_tournament_match(*, league_index, tournament_index, match_id, players
     if score is not None:
         league.set_match_score(tournament_id=tournament_id, match_id=match_id, score=score, force=True)
     if bets_closed is not None:
+        _remove_schedule_closed_match(league_index, tournament_index, match_id)
         bets_closed = to_boolean(bets_closed)
         league.set_bets_closed_on_match(tournament_id=tournament_id, match_id=match_id, bets_closed=bets_closed)
-    return _create_match_dictionary(league.get_match(tournament_id=tournament_id, match_id=match_id))
+    if timestamp is not None:
+        _schedule_closed_match(league_index, tournament_index, match_id, timestamp)
+    timestamp = _get_timestamp_schedule_closed_match(league_index, tournament_index, match_id)
+    return _create_match_dictionary(league.get_match(tournament_id=tournament_id, match_id=match_id), timestamp)
 
 
 def get_tournament_bets(*, league_index, tournament_index, gambler_index):
@@ -683,7 +688,9 @@ def _create_entity(entity_name, **attributes):
     class_name = entity_name.capitalize()
     new_entity = globals()[class_name](**attributes)
     all_entities.append(new_entity)
-    return {len(all_entities) - 1: new_entity.info}
+    return {
+        len(all_entities) - 1: new_entity.info
+    }
 
 
 def _create_player_dictionary(player):
@@ -693,7 +700,7 @@ def _create_player_dictionary(player):
     }
 
 
-def _create_match_dictionary(match):
+def _create_match_dictionary(match, timestamp):
     player_1_index = _get_player_index(match['player_1']) if match['player_1'] is not None else None
     player_2_index = _get_player_index(match['player_2']) if match['player_2'] is not None else None
     winner_index = _get_player_index(match['winner']) if match['winner'] is not None else None
@@ -704,7 +711,8 @@ def _create_match_dictionary(match):
         },
         'score': match['score'],
         'winner': winner_index,
-        'bets_closed': match['bets_closed']
+        'bets_closed': match['bets_closed'],
+        'timestamp': timestamp
     }
 
 
@@ -723,9 +731,11 @@ def run_tasks():
     save_tasks()
 
 
-def schedule_closed_match(league_index, tournament_index, match_id, time):
-    task_type = 'ONCE'
+def _schedule_closed_match(league_index, tournament_index, match_id, timestamp):
+    # Removes an already existing task for the match
+    _remove_schedule_closed_match(league_index, tournament_index, match_id)
     name = 'CLOSE_MATCH_{}_{}_{}'.format(league_index, tournament_index, match_id)
+    task_type = 'ONCE'
     command = update_tournament_match
     arguments = {
         'league_index': league_index,
@@ -733,8 +743,32 @@ def schedule_closed_match(league_index, tournament_index, match_id, time):
         'match_id': match_id,
         'bets_closed': True
     }
-    task_time = datetime.fromtimestamp(time)
+    task_time = datetime.fromtimestamp(timestamp).astimezone()
     add_task(name, task_type, task_time, command, arguments)
+
+
+def _remove_schedule_closed_match(league_index, tournament_index, match_id):
+    task_index = _find_schedule_closed_match(league_index, tournament_index, match_id)
+    if task_index != -1:
+        remove_task(task_index)
+
+
+def _get_timestamp_schedule_closed_match(league_index, tournament_index, match_id):
+    task_index = _find_schedule_closed_match(league_index, tournament_index, match_id)
+    if task_index != -1:
+        return _scheduled_tasks[task_index]._next_run.timestamp()
+    else:
+        return None
+
+
+def _find_schedule_closed_match(league_index, tournament_index, match_id):
+    name = 'CLOSE_MATCH_{}_{}_{}'.format(league_index, tournament_index, match_id)
+    for task_index, task_name in get_tasks().items():
+        if task_name == name:
+            break
+    else:
+        task_index = -1
+    return task_index
 
 
 def add_task(name, task_type, task_time, command, arguments):
