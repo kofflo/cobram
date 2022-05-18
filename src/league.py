@@ -172,7 +172,7 @@ class League(Entity):
         if not gambler.is_in_league(self):
             gambler.add_to_league(self)
         for _, bet_tournament in self._bet_tournaments.items():
-            if bet_tournament.is_open:
+            if bet_tournament.is_open and gambler not in bet_tournament.get_gamblers():
                 bet_tournament.add_gambler(gambler)
                 self._previous_year_scores[bet_tournament.year - 1][bet_tournament.name][gambler] = 0
         self._compute_league_ranking()
@@ -188,12 +188,13 @@ class League(Entity):
         if gambler.is_in_league(self):
             gambler.remove_from_league(self)
         for _, bet_tournament in self._bet_tournaments.items():
-            if bet_tournament.is_open:
-                bet_tournament.remove_gambler(gambler)
-            else:
-                bet_tournament.open()
-                bet_tournament.remove_gambler(gambler)
-                bet_tournament.close()
+            if gambler in bet_tournament.get_gamblers():
+                if bet_tournament.is_open:
+                    bet_tournament.remove_gambler(gambler)
+                else:
+                    bet_tournament.open()
+                    bet_tournament.remove_gambler(gambler)
+                    bet_tournament.close()
         self._compute_league_ranking()
 
     def update_gambler(self, gambler, is_active=None, credit_change=None, initial_score=None, initial_record_tournament=None, initial_record_category=None):
@@ -202,11 +203,13 @@ class League(Entity):
         if gambler not in self and not gambler.is_in_league(self):
             raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
         if is_active is True:
-            self._inactive_gamblers.remove(gambler)
-            self._compute_league_ranking()
+            if gambler in self._inactive_gamblers:
+                self._inactive_gamblers.remove(gambler)
+                self._compute_league_ranking()
         elif is_active is False:
-            self._inactive_gamblers.append(gambler)
-            self._compute_league_ranking()
+            if gambler not in self._inactive_gamblers:
+                self._inactive_gamblers.append(gambler)
+                self._compute_league_ranking()
         if credit_change is not None:
             try:
                 credit_change = float(credit_change)
@@ -352,7 +355,6 @@ class League(Entity):
                 raise LeagueError(League.A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS)
         elif is_open is False:
             if self._is_first_open(tournament_id):
-                tournament.close_all_matches()
                 tournament.close()
                 self._compute_league_ranking()
             else:

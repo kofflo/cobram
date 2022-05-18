@@ -13,6 +13,8 @@
     var nations;
     var ranking;
     var tournaments;
+    var leagueGamblers;
+    var leagueGamblerDetails;
     function category2text(category) {
         if (category == "GRAND_SLAM") {
             return "GRAND SLAM";
@@ -143,19 +145,53 @@
             tournamentsRequest.send();
         })
     }
+    function callLeagueGamblerDetails(key) {
+        var promise = new Promise(function(resolve, reject) {
+            var leagueGamblerDetailsRequest = new XMLHttpRequest();
+            leagueGamblerDetailsRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve({"key": key, "response": this.responseText});
+                    } else {
+                        reject({"key": key, "response": this.responseText});
+                    }
+                }
+            };
+            leagueGamblerDetailsRequest.open("GET", "/leagues/{{ league_index }}/gamblers/" + key, true);
+            leagueGamblerDetailsRequest.send();
+        });
+        return promise;
+    }
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments()]).then(function (values) {
+        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callLeagueGamblers()]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
             nations = JSON.parse(values[3]);
             ranking = JSON.parse(values[4]);
             tournaments = JSON.parse(values[5]);
+            leagueGamblers = JSON.parse(values[6]);
             updateTitles();
             updateTableTournaments();
             updateTablesRanking();
             updateTableWinnersRecord();
             plotRankingChart();
+            leagueGamblerDetails = Object();
+            all_details_promises = Array();
+            for (key in leagueGamblers) {
+                all_details_promises.push(callLeagueGamblerDetails(key));
+            }
+            Promise.all(all_details_promises).then(function (values) {
+                for (var index in values) {
+                    var responseObject = values[index];
+                    leagueGamblerDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
+                }
+                {% if is_privileged %}
+                updateButtons();
+                {% endif %}
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
         }).catch(function (reason) {
             window.alert(reason);
         });
@@ -392,6 +428,22 @@
             last_points = gambler_points;
         }
     }
+    function callLeagueGamblers() {
+        return new Promise(function(resolve, reject) {
+            var leagueGamblersRequest = new XMLHttpRequest();
+            leagueGamblersRequest.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            leagueGamblersRequest.open("GET", "/leagues/{{ league_index }}/gamblers", true);
+            leagueGamblersRequest.send();
+        })
+    }
     {% if is_privileged %}
     var forms;
     function newTournament() {
@@ -427,7 +479,7 @@
             if (nations[key]["name"] == "BYE") {
                 continue;
             }
-            option = document.createElement("option");
+            var option = document.createElement("option");
             option.value = key;
             option.innerText = nations[key]["name"];
             form_nation.appendChild(option);
@@ -492,6 +544,10 @@
         cancelButton.innerText = "Annulla";
         cancelButton.onclick = restoreTournaments;
         button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
     }
     function sendTournament() {
         requestJson = Object();
@@ -561,13 +617,34 @@
         })
     }
     function restoreTournaments() {
-        button = document.getElementById("tournamentButton");
+        var button = document.getElementById("tournamentButton");
+        button.hidden = false;
         button.innerText = "Crea un torneo";
         button.onclick = newTournament;
         document.getElementById("cancelButton").remove();
         document.getElementById("tournamentInsert").innerText = "";
         document.getElementById("tournamentInsert").hidden = true;
+        button = document.getElementById("addGamblerButton");
+        button.hidden = false;
+        button.innerText = "Aggiungi uno scommettitore";
+        button.onclick = addGambler;
+        button = document.getElementById("removeGamblerButton");
+        button.hidden = false;
+        button.innerText = "Elimina uno scommettitore";
+        button.onclick = removeGambler;
+        button = document.getElementById("inactiveGamblerButton");
+        button.hidden = false;
+        button.innerText = "Disattiva uno scommettitore";
+        button.onclick = inactiveGambler;
+        button = document.getElementById("activeGamblerButton");
+        button.hidden = false;
+        button.innerText = "Attiva uno scommettitore";
+        button.onclick = activeGambler;
+        var select = document.getElementById("gamblerSelect");
+        select.innerHTML = "";
+        select.hidden = true;
         forms = Object();
+        updateButtons();
         updateTableTournaments();
     }
     function addOptions(form, array) {
@@ -578,6 +655,171 @@
             form.appendChild(option);
         }
     }
+    function updateButtons() {
+        document.getElementById("addGamblerButton").disabled = getNonMemberGamblers().length == 0;
+        document.getElementById("removeGamblerButton").disabled = getMemberGamblers().length == 0;
+        document.getElementById("inactiveGamblerButton").disabled = getActiveGamblers().length == 0;
+        document.getElementById("activeGamblerButton").disabled = getInactiveGamblers().length == 0;
+    }
+    function getMemberGamblers() {
+        return Object.keys(leagueGamblers);
+    }
+    function getNonMemberGamblers() {
+        var nonMemberGamblers = Array();
+        for (var key in gamblers) {
+            if (!(key in leagueGamblers)) {
+                nonMemberGamblers.push(key);
+            }
+        }
+        return nonMemberGamblers;
+    }
+    function getActiveGamblers() {
+        var activeGamblers = Array();
+        for (var key in leagueGamblerDetails) {
+            if (leagueGamblerDetails[key]["is_active"]) {
+                activeGamblers.push(key);
+            }
+        }
+        return activeGamblers;
+    }
+    function getInactiveGamblers() {
+        var inactiveGamblers = Array();
+        for (var key in leagueGamblerDetails) {
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                inactiveGamblers.push(key);
+            }
+        }
+        return inactiveGamblers;
+    }
+    function addGambler() {
+        var button = document.getElementById("addGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendAddGambler;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        addGamblerOptions(getNonMemberGamblers());
+    }
+    function removeGambler() {
+        var button = document.getElementById("removeGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendRemoveGambler;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        addGamblerOptions(getMemberGamblers());
+    }
+    function inactiveGambler() {
+        var button = document.getElementById("inactiveGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendInactiveGambler;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        addGamblerOptions(getActiveGamblers());
+    }
+    function activeGambler() {
+        var button = document.getElementById("activeGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendActiveGambler;
+        cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        addGamblerOptions(getInactiveGamblers());
+    }
+    function addGamblerOptions(list) {
+        var select = document.getElementById("gamblerSelect");
+        for (var index in list) {
+            var key = list[index];
+            var option = document.createElement("option");
+            option.value = key;
+            option.innerText = gamblers[key]["nickname"];
+            select.appendChild(option);
+        }
+        select.hidden = false;
+    }
+    function sendAddGambler() {
+        var selected = document.getElementById("gamblerSelect").value;
+        Promise.all([sendGamblerRequest(selected, "POST", {"initial_score": 0, "initial_credit": 0})]).then(function (values) {
+            leagueGamblers[selected] = gamblers[selected]["id"];
+            leagueGamblerDetails[selected] = JSON.parse(values[0]);
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendRemoveGambler() {
+        var selected = document.getElementById("gamblerSelect").value;
+        if (confirm("Lo scommettitore nazione " + gamblers[selected]["nickname"] + " verrà eliminato dalla lega. Continuare ?") != true) {
+            return;
+        }
+        Promise.all([sendGamblerRequest(selected, "DELETE", null)]).then(function (values) {
+            delete leagueGamblers[selected];
+            delete leagueGamblerDetails[selected];
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendInactiveGambler() {
+        var selected = document.getElementById("gamblerSelect").value;
+        Promise.all([sendGamblerRequest(selected, "PUT", {"is_active": false})]).then(function (values) {
+            leagueGamblerDetails[selected] = JSON.parse(values[0]);
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendActiveGambler() {
+        var selected = document.getElementById("gamblerSelect").value;
+        Promise.all([sendGamblerRequest(selected, "PUT", {"is_active": true})]).then(function (values) {
+            leagueGamblerDetails[selected] = JSON.parse(values[0]);
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendGamblerRequest(index, method, requestJson) {
+        return new Promise(function (resolve, reject) {
+            var gamblerRequest = new XMLHttpRequest();
+            gamblerRequest.onreadystatechange = function () {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        resolve(this.responseText);
+                    } else {
+                        reject(this.responseText);
+                    }
+                }
+            };
+            gamblerRequest.open(method, "/leagues/{{ league_index }}/gamblers/" + index, true);
+            gamblerRequest.setRequestHeader("Content-Type", "application/json");
+            gamblerRequest.send(JSON.stringify(requestJson));
+        })
+    }
     {% endif %}
 </script>
 {% endblock %}
@@ -586,6 +828,11 @@
 <h1 id="mainHeader"></h1>
 {% if is_privileged %}
 <button id="tournamentButton" onclick="newTournament()">Crea un torneo</button>
+<button id="addGamblerButton" onclick="addGambler()">Aggiungi uno scommettitore</button>
+<button id="removeGamblerButton" onclick="removeGambler()">Elimina uno scommettitore</button>
+<button id="inactiveGamblerButton" onclick="inactiveGambler()">Disattiva uno scommettitore</button>
+<button id="activeGamblerButton" onclick="activeGambler()">Attiva uno scommettitore</button>
+<select id="gamblerSelect" hidden="true"></select>
 <table id="tournamentInsert" hidden="true"></table>
 {% endif %}
 <div id="tournamentDiv">

@@ -222,9 +222,7 @@ def add_gambler_to_league(*, league_index, gambler_index, initial_score, initial
     league = _get_league(league_index)
     gambler = _get_gambler(gambler_index)
     league.add_gambler(gambler, initial_score=initial_score, initial_credit=initial_credit)
-    return {
-        gambler_index: gambler.id
-    }
+    return league.get_gambler_info(gambler)
 
 
 def get_gamblers_from_league(*, league_index, is_active=None):

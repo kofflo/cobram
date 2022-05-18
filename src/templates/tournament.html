@@ -232,7 +232,7 @@
             const player_1_cell = row.insertCell();
             const player_2_cell = row.insertCell();
             const score_cell = row.insertCell();
-            const dummy_cell = row.insertCell();
+            const time_cell = row.insertCell();
             if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                 continue;
             }
@@ -264,7 +264,11 @@
             }
             player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
             score_cell.innerText = formatScore(matches[key]["score"]);
-            dummy_cell.innerText = "";
+            if (matches[key]["timestamp"] != null) {
+                time_cell.innerText = timestamp2localtime(matches[key]["timestamp"]);
+            } else {
+                time_cell.innerText = "";
+            }
         }
     }
     function getSeed(player) {
@@ -583,6 +587,7 @@
         var forms = Object();
         var checkboxes = Object();
         var datetimes = Object();
+        var clear_buttons = Object();
         function insertScores() {
             scoresButton = document.getElementById("scoresButton");
             scoresButton.innerText = "Manda i punteggi";
@@ -608,11 +613,16 @@
                     id_cell.innerText += "   ";
                     id_cell.appendChild(lock);
                 }
+                if (matches[key]["timestamp"] != null) {
+                    let clock = document.createElement("img");
+                    clock.src = "/static/clock.png";
+                    id_cell.innerText += "   ";
+                    id_cell.appendChild(clock);
+                }
                 const player_1_cell = row.insertCell();
                 const player_2_cell = row.insertCell();
                 const score_cell = row.insertCell();
                 const bets_closed_cell = row.insertCell();
-                const bets_closed_time_cell = row.insertCell();
                 if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                     continue;
                 }
@@ -673,30 +683,38 @@
                     score_cell.appendChild(form);
                 }
                 if (score == null) {
+
                     let checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.onclick = showDatetime;
                     checkboxes[key] = checkbox;
                     bets_closed_cell.appendChild(checkbox);
-                    if (matches[key]["bets_closed"]) {
-                        checkbox.checked = true;
-                    }
-                }
-                if (score == null && !matches[key]["bets_closed"]) {
                     let datetime = document.createElement("input");
-                    datetime.type = "datetime-local";
-                    bets_closed_time_cell.appendChild(datetime);
-                    datetime.hidden = true;
+                    datetime.required = true;
+                    datetime.type = "time";
+                    bets_closed_cell.appendChild(datetime);
                     if (matches[key]["timestamp"] != null) {
                         datetime.value = timestamp2localtime(matches[key]["timestamp"]);
                     }
                     datetimes[key] = datetime;
+                    let clear_button = document.createElement("button");
+                    clear_button.innerText = "X";
+                    clear_button.onclick = function(event) {
+                        datetime.value = "";
+                    };
+                    clear_buttons[key] = clear_button;
+                    bets_closed_cell.appendChild(clear_button);
+                    if (matches[key]["bets_closed"]) {
+                        checkbox.checked = true;
+                        datetime.hidden = true;
+                        clear_button.hidden = true;
+                    }
                 }
             }
         }
         function timestamp2localtime(timestamp) {
             var tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
-            return (new Date(timestamp * 1000 - tzoffset)).toISOString().slice(0, -1);
+            return (new Date(timestamp * 1000 - tzoffset)).toISOString().slice(11, 16);
         }
         function getKeyByValue(obj, value) {
             for(var prop in obj) {
@@ -709,21 +727,32 @@
         function showDatetime(event) {
             key = getKeyByValue(checkboxes, event.target);
             if (event.target.checked) {
-                datetimes[key].hidden = false;
-            } else {
                 datetimes[key].hidden = true;
+                clear_buttons[key].hidden = true;
+            } else {
+                datetimes[key].hidden = false;
+                clear_buttons[key].hidden = false;
             }
         }
         function getTimeStamp(value_string) {
             if (value_string == "") {
                 return null;
             }
-            const year = value_string.slice(0, 4);
-            const month = parseInt(value_string.slice(5, 7)) - 1;
-            const day = value_string.slice(8, 10);
-            const hour = value_string.slice(11, 13);
-            const minute = value_string.slice(14, 16);
-            return new Date(year, month, day, hour, minute, '00').getTime()/1000;
+            var currentdate = new Date();
+            const year = currentdate.getFullYear();
+            const month = currentdate.getMonth();
+            const day = currentdate.getDate();
+            const current_hour = currentdate.getHours();
+            const current_minute = currentdate.getMinutes();
+            const hour = value_string.slice(0, 2);
+            const minute = value_string.slice(3, 5);
+            var delta;
+            if ((hour < current_hour) || (hour == current_hour && minute < current_minute)) {
+                delta = 24*60*60;
+            } else {
+                delta = 0;
+            }
+            return new Date(year, month, day, hour, minute, '00').getTime()/1000 + delta;
         }
         function sendScores() {
             const re_score_minus = /^([0-9]*)-([0-9]*)$/;
@@ -819,7 +848,7 @@
                             successful_string += " con scommesse aperte";
                         }
                         if (match['timestamp'] != null) {
-                            successful_string += " con chiusura programmata per " + timestamp2localtime(match["timestamp"]).slice(0, -4);
+                            successful_string += " con chiusura programmata per " + timestamp2localtime(match["timestamp"]);
                         }
                         successful.push(successful_string);
                     } else {
@@ -910,7 +939,9 @@
             })
         }
         function closeTournament() {
-            changeTournamentStatus(false);
+            if (!changeTournamentStatus(false)) {
+                return;
+            }
             for (key in matches) {
                 matches[key]["bets_closed"] = true;
             }
@@ -927,22 +958,25 @@
                 text = "Il torneo verrà chiuso. Continuare?";
             }
             if (confirm(text) != true) {
-                return;
+                return false;
             }
             requestContent = Object();
             requestContent["is_open"] = is_open;
+            let returnValue = false;
             Promise.all([sendStatusRequest(requestContent)]).then(function (values) {
                 tournamentInfo = JSON.parse(values[0]);
                 updateInfo();
                 Promise.all([callRanking()]).then(function (values) {
                     ranking = JSON.parse(values[0]);
                     updateTableRanking();
+                    returnValue = true;
                 }).catch(function (reason) {
                     window.alert(reason);
                 });
             }).catch(function (reason) {
                 window.alert(reason);
             });
+            return returnValue;
         }
         function sendStatusRequest(is_open) {
             return new Promise(function (resolve, reject) {
@@ -980,7 +1014,6 @@
             <td>Giocatore 1</td>
             <td>Giocatore 2</td>
             <td>Risultato</td>
-            <td></td>
             <td></td>
         </tr>
         </thead>

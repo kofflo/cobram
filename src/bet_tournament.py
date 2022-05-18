@@ -18,6 +18,7 @@ class BetTournament:
     CANNOT_ADD_GAMBLER_TO_A_CLOSED_BET_TOURNAMENT = "Cannot add gambler to a closed bet tournament"
     CANNOT_REMOVE_GAMBLER_FROM_A_CLOSED_BET_TOURNAMENT = "Cannot remove gambler from a closed bet tournament"
     CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT = "Cannot set match score in a closed bet tournament"
+    CANNOT_CLOSE_A_NOT_FINISHED_TOURNAMENT = "Cannot close a not finished tournament"
     INVALID_MATCH_ID = "Invalid match ID"
     POINTS_WINNER = 3
     POINTS_SET_SCORE = 2
@@ -188,7 +189,7 @@ class BetTournament:
         else:
             raise BetTournamentError(BetTournament.INVALID_MATCH_ID)
 
-    def close_all_matches(self):
+    def _close_all_matches(self):
         for match_id in self._bets_closed:
             self._bets_closed[match_id] = True
 
@@ -295,6 +296,9 @@ class BetTournament:
         self._is_open = True
 
     def close(self):
+        if self._draw.winner is None:
+            raise BetTournamentError(BetTournament.CANNOT_CLOSE_A_NOT_FINISHED_TOURNAMENT)
+        self._close_all_matches()
         self._is_open = False
 
     @property
