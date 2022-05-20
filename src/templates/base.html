@@ -10,6 +10,30 @@
 </head>
 
 <body>
+    <script>
+        function sendRequest(method, url, requestJson=null, responseType=null) {
+            return new Promise(function (resolve, reject) {
+                const request = new XMLHttpRequest();
+                request.onreadystatechange = function () {
+                    if (this.readyState == 4) {
+                        if (this.status == 200) {
+                            resolve(this.responseText);
+                        } else {
+                            reject(this.responseText);
+                        }
+                    }
+                };
+                request.open(method, url, true);
+                if (requestJson != null) {
+                    request.setRequestHeader("Content-Type", "application/json");
+                }
+                if (responseType != null) {
+                    request.responseType = responseType;
+                }
+                request.send(JSON.stringify(requestJson));
+            })
+        }
+    </script>
     {% block script_content %}
     {% endblock %}
     <div>

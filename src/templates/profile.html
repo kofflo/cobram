@@ -7,47 +7,17 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    var leagues;
-    var profile;
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues", true);
-            getRequest.send();
-        })
-    }
-    function callProfile() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/profile", true);
-            getRequest.send();
-        })
-    }
+    let leagues;
+    let profile;
     function updatePage() {
-        all_promises = [callLeagues(), callProfile()];
+        const all_promises = [
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/profile")];
         {% if is_privileged %}
-        all_promises.push(callGetTimestamps());
+        all_promises.push(sendRequest("GET", "/load"));
         {% endif %}
         Promise.all(all_promises).then(function (values) {
-            leagues= JSON.parse(values[0]);
+            leagues = JSON.parse(values[0]);
             profile = JSON.parse(values[1]);
             updateTable();
             {% if is_privileged %}
@@ -59,7 +29,7 @@
         });
     }
     function updateTable() {
-        table = document.getElementById("tableBody");
+        const table = document.getElementById("tableBody");
         table.innerText = "";
         const row = table.insertRow();
         const name_cell = row.insertCell();
@@ -68,48 +38,48 @@
         code_cell.innerText = profile["email"];
         const leagues_cell = row.insertCell();
         const inner_table = document.createElement('table');
-        for (var league in profile["leagues"]) {
+        for (const league_key of profile["leagues"]) {
             const inner_row = inner_table.insertRow();
             const inner_cell = inner_row.insertCell();
             const league_link = document.createElement("a");
-            league_link.innerText = leagues[league].name;
-            league_link.setAttribute("href", "/web/leagues/" + league);
+            league_link.innerText = leagues[league_key].name;
+            league_link.setAttribute("href", "/web/leagues/" + league_key);
             inner_cell.appendChild(league_link);
         }
         leagues_cell.appendChild(inner_table);
     }
     function editProfile() {
-        table = document.getElementById("profileInsert");
+        const table = document.getElementById("profileInsert");
         table.hidden = false;
         table.innerText = "";
-        row = table.insertRow();
+        let row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Email";
         row.insertCell().innerText = "";
         row.insertCell().innerText = "Password";
         row = table.insertRow();
         forms = Object();
-        nickname_cell = row.insertCell();
+        const nickname_cell = row.insertCell();
         let form_nickname = document.createElement("input");
         form_nickname.setAttribute("type", "text");
         form_nickname.setAttribute("size", 15);
         form_nickname.value = profile["nickname"];
         nickname_cell.appendChild(form_nickname);
         forms["nickname"] = form_nickname;
-        email_cell = row.insertCell();
+        const email_cell = row.insertCell();
         let form_email = document.createElement("input");
         form_email.setAttribute("type", "email");
         form_email.setAttribute("size", 20);
         form_email.value = profile["email"];
         email_cell.appendChild(form_email);
         forms["email"] = form_email;
-        checkbox_cell = row.insertCell();
+        const checkbox_cell = row.insertCell();
         let form_password_checkbox = document.createElement("input");
         form_password_checkbox.type = "checkbox";
         form_password_checkbox.checked = false;
         checkbox_cell.appendChild(form_password_checkbox);
         forms["password_checkbox"] = form_password_checkbox;
-        password_cell = row.insertCell();
+        const password_cell = row.insertCell();
         let form_password = document.createElement("input");
         form_password.setAttribute("type", "text");
         form_password.setAttribute("size", 15);
@@ -124,12 +94,13 @@
                 form_password.disabled = true;
             }
         };
-        button = document.getElementById("profileButton");
+        const button = document.getElementById("profileButton");
         button.innerText = "Invia";
         button.onclick = sendProfileUpdate;
         document.getElementById("cancelButton").hidden = false;
     }
     function sendProfileUpdate() {
+        let new_password;
         if (forms["password_checkbox"].checked) {
             new_password = forms["password"].value;
         } else {
@@ -139,36 +110,21 @@
             alert("La password deve avere almeno 8 caratteri");
             return;
         }
-        requestJson = Object();
+        const requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
         requestJson["password"] = new_password;
-        Promise.all([sendProfileUpdateRequest(requestJson, {{ index }})]).then(function (values) {
+        Promise.all([
+            sendRequest("PUT", "/profile", requestJson)
+        ]).then(function (values) {
             profile = JSON.parse(values[0]);
             restoreProfile();
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
-    function sendProfileUpdateRequest(requestJson) {
-        return new Promise(function (resolve, reject) {
-            var putRequest = new XMLHttpRequest();
-            putRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            putRequest.open("PUT", "/profile", true);
-            putRequest.setRequestHeader("Content-Type", "application/json");
-            putRequest.send(JSON.stringify(requestJson));
-        })
-    }
     function restoreProfile() {
-        button = document.getElementById("profileButton");
+        const button = document.getElementById("profileButton");
         button.innerText = "Cambia il profilo";
         button.onclick = editProfile;
         document.getElementById("cancelButton").hidden = true;
@@ -177,91 +133,22 @@
         updateTable();
     }
     {% if is_privileged %}
-        var timestamps;
-        function callSave() {
-            return new Promise(function(resolve, reject) {
-                var saveRequest = new XMLHttpRequest();
-                saveRequest.onreadystatechange = function() {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.responseText);
-                        } else {
-                            reject(this.responseText);
-                        }
-                    }
-                };
-                saveRequest.open("POST", "/save", true);
-                saveRequest.send();
-            })
-        }
-        function callLoad(timestamp) {
-            return new Promise(function(resolve, reject) {
-                var loadRequest = new XMLHttpRequest();
-                loadRequest.onreadystatechange = function() {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.responseText);
-                        } else {
-                            reject(this.responseText);
-                        }
-                    }
-                };
-                loadRequest.open("POST", "/load", true);
-                loadRequest.setRequestHeader("Content-Type", "application/json");
-                json_content = Object();
-                json_content['timestamp'] = timestamp;
-                loadRequest.send(JSON.stringify(json_content));
-            })
-        }
-        function callDownload(timestamp) {
-            return new Promise(function(resolve, reject) {
-                var downloadRequest = new XMLHttpRequest();
-                downloadRequest.responseType = "blob";
-                downloadRequest.onreadystatechange = function() {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.response);
-                        } else {
-                            reject(this.response);
-                        }
-                    }
-                };
-                downloadRequest.open("POST", "/download", true);
-                downloadRequest.setRequestHeader("Content-Type", "application/json");
-                json_content = Object();
-                json_content['timestamp'] = timestamp;
-                downloadRequest.send(JSON.stringify(json_content));
-            })
-        }
-        function callGetTimestamps() {
-            return new Promise(function(resolve, reject) {
-                var timestampsRequest = new XMLHttpRequest();
-                timestampsRequest.onreadystatechange = function() {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.responseText);
-                        } else {
-                            reject(this.responseText);
-                        }
-                    }
-                };
-                timestampsRequest.open("GET", "/load", true);
-                timestampsRequest.send();
-            })
-        }
+        let timestamps;
         function updateChoice() {
-            choice = document.getElementById("saved");
+            const choice = document.getElementById("saved");
             choice.options.length = 0;
-            for (key in timestamps) {
-                option = document.createElement("option");
+            for (const key in timestamps) {
+                const option = document.createElement("option");
                 option.value = key;
                 option.innerText = timestamps[key];
                 choice.appendChild(option);
             }
         }
         function pickleSave() {
-            Promise.all([callSave()]).then(function (values) {
-                timestamp = JSON.parse(values[0]);
+            Promise.all([
+                sendRequest("POST", "/save")
+            ]).then(function (values) {
+                const timestamp = JSON.parse(values[0]);
                 timestamps = {...timestamps, ...timestamp};
                 updateChoice();
             }).catch(function (reason) {
@@ -269,21 +156,27 @@
             });
         }
         function pickleLoad() {
-            choice = document.getElementById("saved");
-            index = choice.value;
-            Promise.all([callLoad(timestamps[index])]).then(function (values) {
+            const index = document.getElementById("saved").value;
+            const requestJson = Object();
+            requestJson['timestamp'] = timestamps[index];
+            Promise.all([
+                sendRequest("POST", "/load", requestJson)
+            ]).then(function (values) {
                 window.alert("Loading successful");
             }).catch(function (reason) {
                 window.alert(reason);
             });
         }
         function pickleDownload() {
-            choice = document.getElementById("saved");
-            index = choice.value;
-            Promise.all([callDownload(timestamps[index])]).then(function (values) {
-                var blob = new Blob([values[0]], {type: "application/octet-stream"});
-                var url = window.URL.createObjectURL(blob);
-                var link = document.createElement('a');
+            const index = document.getElementById("saved").value;
+            const requestJson = Object();
+            requestJson['timestamp'] = timestamps[index];
+            Promise.all([
+                sendRequest("POST", "/download", requestJson, "blob")
+            ]).then(function (values) {
+                const blob = new Blob([values[0]], {type: "application/octet-stream"});
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
                 document.body.appendChild(link);
                 link.style = "display:none";
                 link.href = url;

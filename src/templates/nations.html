@@ -10,24 +10,10 @@
     let nations;
     let forms;
     let editmode = false;
-    function callNations() {
-        return new Promise(function(resolve, reject) {
-            const getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/nations", true);
-            getRequest.send();
-        })
-    }
     function updatePage() {
-        Promise.all([callNations()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/nations")
+        ]).then(function (values) {
             nations = JSON.parse(values[0]);
             updateTable();
         }).catch(function (reason) {
@@ -37,21 +23,21 @@
     function updateTable() {
         const table = document.getElementById("tableBody");
         table.innerText = "";
-        for (let key in nations) {
-            if (nations[key]["name"] == "BYE") {
+        for (const [key, nation] of Object.entries(nations)) {
+            if (nation["name"] == "BYE") {
                 continue;
             }
             const row = table.insertRow();
             const name = row.insertCell();
-            name.innerText = nations[key]["name"];
+            name.innerText = nation["name"];
             const code = row.insertCell();
-            code.innerText = nations[key]["code"];
+            code.innerText = nation["code"];
             const flag = row.insertCell();
             const img = document.createElement('img');
-            img.src = '/static/flags/' + nations[key]["code"] + '.png';
+            img.src = '/static/flags/' + nation["code"] + '.png';
             img.setAttribute("class", "bordered");
             flag.appendChild(img);
-            tools_cell = row.insertCell();
+            const tools_cell = row.insertCell();
             const edit_img = document.createElement('img');
             edit_img.src = '/static/edit.png';
             edit_img.id = key;
@@ -117,7 +103,7 @@
         if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") != true) {
             return;
         }
-        Promise.all([sendRequest("DELETE", "/nations/" + index, null)]).then(function (values) {
+        Promise.all([sendRequest("DELETE", "/nations/" + index)]).then(function (values) {
             delete nations[index];
             updateTable();
         }).catch(function (reason) {
@@ -130,30 +116,13 @@
         requestJson["code"] = forms["code"].value.trim();
         Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
             const updated_nation = JSON.parse(values[0]);
-            for (let key in updated_nation) {
+            for (const key in updated_nation) {
                 nations[key] = updated_nation[key];
             }
             restoreNations();
         }).catch(function (reason) {
             window.alert(reason);
         });
-    }
-    function sendRequest(method, url, requestJson) {
-        return new Promise(function (resolve, reject) {
-            const request = new XMLHttpRequest();
-            request.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            request.open(method, url, true);
-            request.setRequestHeader("Content-Type", "application/json");
-            request.send(JSON.stringify(requestJson));
-        })
     }
     function restoreNations() {
         const button = document.getElementById("nationsButton");

@@ -505,7 +505,7 @@ def get_saved():
     save_folder = Path(SAVE_FOLDER)
     all_saved_list = []
     for path in save_folder.glob("*.dat"):
-        if 'autosave' not in path.name:
+        if 'autosave' not in path.name and 'tasks' not in path.name:
             all_saved_list.append(re.match("save_(.+).dat", path.name)[1])
     all_saved_list.sort()
     all_saved = {}

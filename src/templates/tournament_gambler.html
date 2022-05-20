@@ -21,152 +21,18 @@
     var tournamentPlayers;
     var matches;
     var bets;
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var leaguesRequest = new XMLHttpRequest();
-            leaguesRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            leaguesRequest.open("GET", "/leagues", true);
-            leaguesRequest.send();
-        })
-    }
-    function callGamblers() {
-        return new Promise(function(resolve, reject) {
-            var gamblersRequest = new XMLHttpRequest();
-            gamblersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            gamblersRequest.open("GET", "/gamblers", true);
-            gamblersRequest.send();
-        })
-    }
-    function callPlayers() {
-        return new Promise(function(resolve, reject) {
-            var playersRequest = new XMLHttpRequest();
-            playersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            playersRequest.open("GET", "/players", true);
-            playersRequest.send();
-        })
-    }
-    function callNations() {
-        return new Promise(function(resolve, reject) {
-            var nationsRequest = new XMLHttpRequest();
-            nationsRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            nationsRequest.open("GET", "/nations", true);
-            nationsRequest.send();
-        })
-    }
-    function callRanking() {
-        return new Promise(function(resolve, reject) {
-            var rankingRequest = new XMLHttpRequest();
-            rankingRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            rankingRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking", true);
-            rankingRequest.send();
-        })
-    }
-    function callTournaments() {
-        return new Promise(function(resolve, reject) {
-            var tournamentsRequest = new XMLHttpRequest();
-            tournamentsRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            tournamentsRequest.open("GET", "/leagues/{{ league_index }}/tournaments", true);
-            tournamentsRequest.send();
-        })
-    }
-    function callTournamentPlayers() {
-        return new Promise(function(resolve, reject) {
-            var tournamentPlayersRequest = new XMLHttpRequest();
-            tournamentPlayersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            tournamentPlayersRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
-            tournamentPlayersRequest.send();
-        })
-    }
-    function callMatches() {
-        return new Promise(function(resolve, reject) {
-            var matchesRequest = new XMLHttpRequest();
-            matchesRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            matchesRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches", true);
-            matchesRequest.send();
-        })
-    }
-    function callBets() {
-        return new Promise(function(resolve, reject) {
-            var betsRequest = new XMLHttpRequest();
-            betsRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            betsRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches", true);
-            betsRequest.send();
-        })
-    }
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callTournamentPlayers(), callMatches(), callBets()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers"),
+            sendRequest("GET", "/players"),
+            sendRequest("GET", "/nations"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches")
+        ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
@@ -195,9 +61,9 @@
         document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
     }
     function updateMatches() {
-        table = document.getElementById("matches");
+        const table = document.getElementById("matches");
         table.innerText = "";
-        any_open_match = false;
+        let any_open_match = false;
         for (var key in matches) {
             const row = table.insertRow();
             const id_cell = row.insertCell();
@@ -242,10 +108,12 @@
                 points_cell.innerText = bets[key]["points"];
             }
         }
+        {% if is_privileged %}
         if (!any_open_match) {
-            button = document.getElementById("betsButton");
+            const button = document.getElementById("betsButton");
             button.hidden = true;
         }
+        {% endif %}
     }
     function getSeed(player) {
         for (key in tournamentPlayers) {

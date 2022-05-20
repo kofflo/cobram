@@ -7,44 +7,15 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    var leagues;
-    var gamblers;
-    var forms;
-    var editmode = false;
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues", true);
-            getRequest.send();
-        })
-    }
-    function callGamblers() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/gamblers", true);
-            getRequest.send();
-        })
-    }
+    let leagues;
+    let gamblers;
+    let forms;
+    let editmode = false;
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/leagues", null),
+            sendRequest("GET", "/gamblers", null)
+        ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             updateTable();
@@ -53,30 +24,30 @@
         });
     }
     function updateTable() {
-        table = document.getElementById("tableBody");
+        const table = document.getElementById("tableBody");
         table.innerText = "";
-        for (var key in gamblers) {
+        for (const [key, gambler] of Object.entries(gamblers)) {
             const row = table.insertRow();
             const name_cell = row.insertCell();
-            name_cell.innerText = gamblers[key]["nickname"];
+            name_cell.innerText = gambler["nickname"];
             const code_cell = row.insertCell();
-            code_cell.innerText = gamblers[key]["email"];
+            code_cell.innerText = gambler["email"];
             const leagues_cell = row.insertCell();
             const inner_table = document.createElement('table');
-            for (var league in gamblers[key]["leagues"]) {
+            for (const league_key of gambler["leagues"]) {
                 const inner_row = inner_table.insertRow();
                 const inner_cell = inner_row.insertCell();
                 const league_link = document.createElement("a");
-                league_link.innerText = leagues[league].name;
-                league_link.setAttribute("href", "/web/leagues/" + league);
+                league_link.innerText = leagues[league_key].name;
+                league_link.setAttribute("href", "/web/leagues/" + league_key);
                 inner_cell.appendChild(league_link);
             }
             leagues_cell.appendChild(inner_table);
-            tools_cell = row.insertCell();
+            const tools_cell = row.insertCell();
             const edit_img = document.createElement('img');
             edit_img.src = '/static/edit.png';
             edit_img.id = key;
-            edit_img.onclick = editGambler;
+            edit_img.onclick = gamblerUpdate;
             edit_img.style.cursor = "pointer";
             tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
@@ -88,101 +59,40 @@
             tools_cell.appendChild(delete_img);
         }
     }
-    function deleteGambler(event) {
+    function gamblerUpdate(event) {
         if (editmode) {
             return;
         }
-        index = event.target.id;
-        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") != true) {
-            return;
-        }
-        Promise.all([sendDeleteRequest(index)]).then(function (values) {
-            delete gamblers[index];
-            updateTable();
-        }).catch(function (reason) {
-            window.alert(reason);
-        });
-    }
-    function editGambler(event) {
         editmode = true;
-        index = event.target.id;
-        gambler = gamblers[index];
-        table = document.getElementById("gamblerInsert");
+        const table = document.getElementById("gamblerInsert");
         table.hidden = false;
         table.innerText = "";
-        row = table.insertRow();
+        let row = table.insertRow();
         row.insertCell().innerText = "Nome";
         row.insertCell().innerText = "Email";
         row.insertCell().innerText = "";
         row.insertCell().innerText = "Password";
         row = table.insertRow();
         forms = Object();
-        nickname_cell = row.insertCell();
+        const nickname_cell = row.insertCell();
         let form_nickname = document.createElement("input");
         form_nickname.setAttribute("type", "text");
         form_nickname.setAttribute("size", 15);
-        form_nickname.value = gambler["nickname"];
         nickname_cell.appendChild(form_nickname);
         forms["nickname"] = form_nickname;
-        email_cell = row.insertCell();
+        const email_cell = row.insertCell();
         let form_email = document.createElement("input");
         form_email.setAttribute("type", "email");
         form_email.setAttribute("size", 20);
-        form_email.value = gambler["email"];
         email_cell.appendChild(form_email);
         forms["email"] = form_email;
-        checkbox_cell = row.insertCell();
+        const checkbox_cell = row.insertCell();
         let form_password_checkbox = document.createElement("input");
         form_password_checkbox.type = "checkbox";
         form_password_checkbox.checked = false;
         checkbox_cell.appendChild(form_password_checkbox);
         forms["password_checkbox"] = form_password_checkbox;
-        password_cell = row.insertCell();
-        let form_password = document.createElement("input");
-        form_password.setAttribute("type", "text");
-        form_password.setAttribute("size", 15);
-        form_password.disabled = true;
-        password_cell.appendChild(form_password);
-        forms["password"] = form_password;
-        form_password_checkbox.onchange = function() {
-            if (form_password_checkbox.checked) {
-                form_password.disabled = false;
-            } else {
-                form_password.value = "";
-                form_password.disabled = true;
-            }
-        };
-        button = document.getElementById("gamblersButton");
-        button.innerText = "Invia";
-        button.onclick = function() {
-            sendGamblerUpdate(index);
-        };
-        document.getElementById("cancelButton").hidden = false;
-    }
-    function newGambler() {
-        editmode = true;
-        table = document.getElementById("gamblerInsert");
-        table.hidden = false;
-        table.innerText = "";
-        row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Email";
-        row.insertCell().innerText = "Password";
-        row = table.insertRow();
-        nickname_cell = row.insertCell();
-        forms = Object();
-        let form_nickname = document.createElement("input");
-        form_nickname.setAttribute("type", "text");
-        form_nickname.setAttribute("size", 15);
-        nickname_cell.appendChild(form_nickname);
-        forms["nickname"] = form_nickname;
-        email_cell = row.insertCell();
-        let form_email = document.createElement("input");
-        form_email.setAttribute("type", "email");
-        form_email.setAttribute("size", 20);
-        email_cell.appendChild(form_email);
-        forms["email"] = form_email;
-        password_cell = row.insertCell();
+        const password_cell = row.insertCell();
         let form_password = document.createElement("input");
         form_password.setAttribute("type", "text");
         form_password.setAttribute("size", 15);
@@ -190,30 +100,49 @@
         forms["password"] = form_password;
         button = document.getElementById("gamblersButton");
         button.innerText = "Invia";
-        button.onclick = sendGambler;
         document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const gambler = gamblers[index];
+            form_nickname.value = gambler["nickname"];
+            form_email.value = gambler["email"];
+            form_password_checkbox.onchange = function() {
+                if (form_password_checkbox.checked) {
+                    form_password.disabled = false;
+                } else {
+                    form_password.value = "";
+                    form_password.disabled = true;
+                }
+            };
+            form_password.disabled = true;
+            button.onclick = function() {
+                sendGamblerUpdate("PUT", "/gamblers/" + index);
+            };
+        } else {
+            button.onclick = function() {
+                sendGamblerUpdate("POST", "/gamblers");
+            };
+            form_password_checkbox.checked = true;
+            form_password_checkbox.disabled = true;
+        }
     }
-    function sendGambler() {
-        new_password = forms["password"].value;
-        if (new_password.length < 8) {
-            alert("La password deve avere almeno 8 caratteri");
+    function deleteGambler(event) {
+        if (editmode) {
             return;
         }
-        requestJson = Object();
-        requestJson["nickname"] = forms["nickname"].value.trim();
-        requestJson["email"] = forms["email"].value.trim();
-        requestJson["password"] = new_password;
-        Promise.all([sendGamblerRequest(requestJson)]).then(function (values) {
-            new_gambler = JSON.parse(values[0]);
-            for (key in new_gambler) {
-                gamblers[key] = new_gambler[key];
-            }
-            restoreGamblers();
+        const index = event.target.id;
+        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") != true) {
+            return;
+        }
+        Promise.all([sendRequest("DELETE", "/gamblers/" + index, null)]).then(function (values) {
+            delete gamblers[index];
+            updateTable();
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
-    function sendGamblerUpdate(index) {
+    function sendGamblerUpdate(method, url) {
+        let new_password;
         if (forms["password_checkbox"].checked) {
             new_password = forms["password"].value;
         } else {
@@ -223,74 +152,26 @@
             alert("La password deve avere almeno 8 caratteri");
             return;
         }
-        requestJson = Object();
+        const requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
         requestJson["password"] = new_password;
-        Promise.all([sendGamblerUpdateRequest(requestJson, index)]).then(function (values) {
-            new_gambler = JSON.parse(values[0]);
-            for (key in new_gambler) {
-                gamblers[key] = new_gambler[key];
+        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
+            const updated_gambler = JSON.parse(values[0]);
+            for (const key in updated_gambler) {
+                gamblers[key] = updated_gambler[key];
             }
             restoreGamblers();
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
-    function sendGamblerRequest(requestJson) {
-        return new Promise(function (resolve, reject) {
-            var postRequest = new XMLHttpRequest();
-            postRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            postRequest.open("POST", "/gamblers", true);
-            postRequest.setRequestHeader("Content-Type", "application/json");
-            postRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendGamblerUpdateRequest(requestJson) {
-        return new Promise(function (resolve, reject) {
-            var putRequest = new XMLHttpRequest();
-            putRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            putRequest.open("PUT", "/gamblers/" + index, true);
-            putRequest.setRequestHeader("Content-Type", "application/json");
-            putRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendDeleteRequest(index) {
-        return new Promise(function (resolve, reject) {
-            var deleteRequest = new XMLHttpRequest();
-            deleteRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            deleteRequest.open("DELETE", "/gamblers/" + index, true);
-            deleteRequest.send();
-        })
-    }
     function restoreGamblers() {
-        button = document.getElementById("gamblersButton");
+        const button = document.getElementById("gamblersButton");
         button.innerText = "Crea uno scommettitore";
-        button.onclick = newGambler;
+        button.onclick = function() {
+            gamblerUpdate(null);
+        };
         document.getElementById("cancelButton").hidden = true;
         document.getElementById("gamblerInsert").innerText = "";
         document.getElementById("gamblerInsert").hidden = true;
@@ -303,9 +184,9 @@
 
 {% block content %}
 <h1>Scommettitori</h1>
-<button id="gamblersButton" onclick="newGambler()">Crea uno scommettitore</button>
-<button id="cancelButton" hidden="true" onclick="restoreGamblers()">Annulla</button>
-<table id="gamblerInsert" hidden="true"></table>
+<button id="gamblersButton" onclick="gamblerUpdate(null)">Crea uno scommettitore</button>
+<button id="cancelButton" hidden onclick="restoreGamblers()">Annulla</button>
+<table id="gamblerInsert" hidden></table>
 <table class="styled-table">
     <thead>
         <tr>

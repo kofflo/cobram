@@ -7,14 +7,14 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    var leagues;
-    var gamblers;
-    var players;
-    var nations;
-    var ranking;
-    var tournaments;
-    var leagueGamblers;
-    var leagueGamblerDetails;
+    let leagues;
+    let gamblers;
+    let players;
+    let nations;
+    let ranking;
+    let tournaments;
+    let leagueGamblers;
+    let leagueGamblerDetails;
     function category2text(category) {
         if (category == "GRAND_SLAM") {
             return "GRAND SLAM";
@@ -49,102 +49,6 @@
             throw "Unknown category description: " + text;
         }
     }
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var leaguesRequest = new XMLHttpRequest();
-            leaguesRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            leaguesRequest.open("GET", "/leagues", true);
-            leaguesRequest.send();
-        })
-    }
-    function callGamblers() {
-        return new Promise(function(resolve, reject) {
-            var gamblersRequest = new XMLHttpRequest();
-            gamblersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            gamblersRequest.open("GET", "/gamblers", true);
-            gamblersRequest.send();
-        })
-    }
-    function callPlayers() {
-        return new Promise(function(resolve, reject) {
-            var playersRequest = new XMLHttpRequest();
-            playersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            playersRequest.open("GET", "/players", true);
-            playersRequest.send();
-        })
-    }
-    function callNations() {
-        return new Promise(function(resolve, reject) {
-            var nationsRequest = new XMLHttpRequest();
-            nationsRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            nationsRequest.open("GET", "/nations", true);
-            nationsRequest.send();
-        })
-    }
-    function callRanking() {
-        return new Promise(function(resolve, reject) {
-            var rankingRequest = new XMLHttpRequest();
-            rankingRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            rankingRequest.open("GET", "/leagues/{{ league_index }}/ranking", true);
-            rankingRequest.send();
-        })
-    }
-    function callTournaments() {
-        return new Promise(function(resolve, reject) {
-            var tournamentsRequest = new XMLHttpRequest();
-            tournamentsRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            tournamentsRequest.open("GET", "/leagues/{{ league_index }}/tournaments", true);
-            tournamentsRequest.send();
-        })
-    }
     function callLeagueGamblerDetails(key) {
         var promise = new Promise(function(resolve, reject) {
             var leagueGamblerDetailsRequest = new XMLHttpRequest();
@@ -163,7 +67,15 @@
         return promise;
     }
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournaments(), callLeagueGamblers()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/leagues", null),
+            sendRequest("GET", "/gamblers", null),
+            sendRequest("GET", "/players", null),
+            sendRequest("GET", "/nations", null),
+            sendRequest("GET", "/leagues/{{ league_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments"),
+            sendRequest("GET", "/leagues/{{ league_index }}/gamblers")
+        ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
@@ -177,12 +89,12 @@
             updateTableWinnersRecord();
             plotRankingChart();
             leagueGamblerDetails = Object();
-            all_details_promises = Array();
-            for (key in leagueGamblers) {
+            const all_details_promises = Array();
+            for (let key in leagueGamblers) {
                 all_details_promises.push(callLeagueGamblerDetails(key));
             }
             Promise.all(all_details_promises).then(function (values) {
-                for (var index in values) {
+                for (let index in values) {
                     var responseObject = values[index];
                     leagueGamblerDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
                 }
@@ -457,22 +369,6 @@
             points_cell.innerText = gambler_points;
             last_points = gambler_points;
         }
-    }
-    function callLeagueGamblers() {
-        return new Promise(function(resolve, reject) {
-            var leagueGamblersRequest = new XMLHttpRequest();
-            leagueGamblersRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            leagueGamblersRequest.open("GET", "/leagues/{{ league_index }}/gamblers", true);
-            leagueGamblersRequest.send();
-        })
     }
     {% if is_privileged %}
     var forms;

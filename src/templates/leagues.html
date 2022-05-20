@@ -7,27 +7,13 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    var leagues;
-    var forms;
-    var editmode = false;
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues", true);
-            getRequest.send();
-        })
-    }
+    let leagues;
+    let forms;
+    let editmode = false;
     function updatePage() {
-        Promise.all([callLeagues()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/leagues", null)
+        ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             updateTable();
         }).catch(function (reason) {
@@ -35,20 +21,20 @@
         });
     }
     function updateTable() {
-        table = document.getElementById("tableBody");
+        const table = document.getElementById("tableBody");
         table.innerText = "";
-        for (var key in leagues) {
+        for (const [key, league] of Object.entries(leagues)) {
             const row = table.insertRow();
             const name_cell = row.insertCell();
-            leagueLink = document.createElement("a");
-            leagueLink.innerText = leagues[key]["name"];
+            const leagueLink = document.createElement("a");
+            leagueLink.innerText = league["name"];
             leagueLink.setAttribute("href", "/web/leagues/" + key);
             name_cell.appendChild(leagueLink);
-            tools_cell = row.insertCell();
+            const tools_cell = row.insertCell();
             const edit_img = document.createElement('img');
             edit_img.src = '/static/edit.png';
             edit_img.id = key;
-            edit_img.onclick = editLeague;
+            edit_img.onclick = leagueUpdate;
             edit_img.style.cursor = "pointer";
             tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
@@ -60,85 +46,61 @@
             tools_cell.appendChild(delete_img);
         }
     }
+    function leagueUpdate(event) {
+        if (editmode) {
+            return;
+        }
+        editmode = true;
+        const table = document.getElementById("leagueInsert");
+        table.hidden = false;
+        table.innerText = "";
+        let row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row = table.insertRow();
+        forms = Object();
+        const name_cell = row.insertCell();
+        let form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", "15");
+        name_cell.appendChild(form_name);
+        forms["name"] = form_name;
+        const button = document.getElementById("leaguesButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const league = leagues[index];
+            form_name.value = league["name"];
+            button.onclick = function () {
+                sendLeagueUpdate("PUT", "/leagues/" + index);
+            };
+        } else {
+            button.onclick = function () {
+                sendLeagueUpdate("POST", "/leagues");
+            };
+        }
+    }
     function deleteLeague(event) {
         if (editmode) {
             return;
         }
-        index = event.target.id;
+        const index = event.target.id;
         if (confirm("La lega " + leagues[index]["name"] + " verrà eliminata. Continuare ?") != true) {
             return;
         }
-        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+        Promise.all([sendRequest("DELETE", "/leagues/" + index, null)]).then(function (values) {
             delete leagues[index];
             updateTable();
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
-    function editLeague(event) {
-        editmode = true;
-        index = event.target.id;
-        league = leagues[index];
-        table = document.getElementById("leagueInsert");
-        table.hidden = false;
-        table.innerText = "";
-        row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row = table.insertRow();
-        forms = Object();
-        name_cell = row.insertCell();
-        let form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", 15);
-        form_name.value = league["name"];
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        button = document.getElementById("leaguesButton");
-        button.innerText = "Invia";
-        button.onclick = function() {
-            sendLeagueUpdate(index);
-        };
-        document.getElementById("cancelButton").hidden = false;
-    }
-    function newLeague() {
-        editmode = true;
-        table = document.getElementById("leagueInsert");
-        table.hidden = false;
-        table.innerText = "";
-        row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row = table.insertRow();
-        name_cell = row.insertCell();
-        forms = Object();
-        let form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", 15);
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        button = document.getElementById("leaguesButton");
-        button.innerText = "Invia";
-        button.onclick = sendLeague;
-        document.getElementById("cancelButton").hidden = false;
-    }
-    function sendLeague() {
-        requestJson = Object();
+    function sendLeagueUpdate(method, url) {
+        const requestJson = Object();
         requestJson["name"] = forms["name"].value.trim();
-        Promise.all([sendLeagueRequest(requestJson)]).then(function (values) {
-            new_league = JSON.parse(values[0]);
-            for (key in new_League) {
-                leagues[key] = new_league[key];
-            }
-            restoreLeagues();
-        }).catch(function (reason) {
-            window.alert(reason);
-        });
-    }
-    function sendLeagueUpdate(index) {
-        requestJson = Object();
-        requestJson["name"] = forms["name"].value.trim();
-        Promise.all([sendLeagueUpdateRequest(requestJson, index)]).then(function (values) {
-            updated_league = JSON.parse(values[0]);
-            for (key in updated_league) {
+        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
+            const updated_league = JSON.parse(values[0]);
+            for (const key in updated_league) {
                 leagues[key] = updated_league[key];
             }
             restoreLeagues();
@@ -146,60 +108,12 @@
             window.alert(reason);
         });
     }
-    function sendLeagueRequest(requestJson) {
-        return new Promise(function (resolve, reject) {
-            var postRequest = new XMLHttpRequest();
-            postRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            postRequest.open("POST", "/leagues", true);
-            postRequest.setRequestHeader("Content-Type", "application/json");
-            postRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendLeagueUpdateRequest(requestJson, index) {
-        return new Promise(function (resolve, reject) {
-            var putRequest = new XMLHttpRequest();
-            putRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            putRequest.open("PUT", "/leagues/" + index, true);
-            putRequest.setRequestHeader("Content-Type", "application/json");
-            putRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendDeleteRequest(index) {
-        return new Promise(function (resolve, reject) {
-            var deleteRequest = new XMLHttpRequest();
-            deleteRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            deleteRequest.open("DELETE", "/leagues/" + index, true);
-            deleteRequest.send();
-        })
-    }
     function restoreLeagues() {
-        button = document.getElementById("leaguesButton");
+        const button = document.getElementById("leaguesButton");
         button.innerText = "Crea una lega";
-        button.onclick = newLeague;
+        button.onclick = function () {
+            leagueUpdate(null);
+        };
         document.getElementById("cancelButton").hidden = true;
         document.getElementById("leagueInsert").innerText = "";
         document.getElementById("leagueInsert").hidden = true;
@@ -212,9 +126,9 @@
 
 {% block content %}
 <h1>Leghe</h1>
-<button id="leaguesButton" onclick="newLeague()">Crea una lega</button>
-<button id="cancelButton" hidden="true" onclick="restoreLeagues()">Annulla</button>
-<table id="leagueInsert" hidden="true"></table>
+<button id="leaguesButton" onclick="leagueUpdate(null)">Crea una lega</button>
+<button id="cancelButton" hidden onclick="restoreLeagues()">Annulla</button>
+<table id="leagueInsert" hidden></table>
 <table class="styled-table">
     <thead>
         <tr>
