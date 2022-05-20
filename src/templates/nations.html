@@ -7,12 +7,12 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    var nations;
-    var forms;
-    var editmode = false;
+    let nations;
+    let forms;
+    let editmode = false;
     function callNations() {
         return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
+            const getRequest = new XMLHttpRequest();
             getRequest.onreadystatechange = function() {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
@@ -35,9 +35,9 @@
         });
     }
     function updateTable() {
-        table = document.getElementById("tableBody");
+        const table = document.getElementById("tableBody");
         table.innerText = "";
-        for (var key in nations) {
+        for (let key in nations) {
             if (nations[key]["name"] == "BYE") {
                 continue;
             }
@@ -55,7 +55,7 @@
             const edit_img = document.createElement('img');
             edit_img.src = '/static/edit.png';
             edit_img.id = key;
-            edit_img.onclick = editNation;
+            edit_img.onclick = nationUpdate;
             edit_img.style.cursor = "pointer";
             tools_cell.appendChild(edit_img);
             const delete_img = document.createElement('img');
@@ -67,102 +67,70 @@
             tools_cell.appendChild(delete_img);
         }
     }
+    function nationUpdate(event) {
+        if (editmode) {
+            return;
+        }
+        editmode = true;
+        const table = document.getElementById("nationInsert");
+        table.hidden = false;
+        table.innerText = "";
+        let row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Codice";
+        row = table.insertRow();
+        forms = Object();
+        const name_cell = row.insertCell();
+        const form_name = document.createElement("input");
+        form_name.setAttribute("type", "text");
+        form_name.setAttribute("size", "15");
+        name_cell.appendChild(form_name);
+        forms["name"] = form_name;
+        const code_cell = row.insertCell();
+        const form_code = document.createElement("input");
+        form_code.setAttribute("type", "text");
+        form_code.setAttribute("size", "3");
+        code_cell.appendChild(form_code);
+        forms["code"] = form_code;
+        const button = document.getElementById("nationsButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const nation = nations[index];
+            form_name.value = nation["name"];
+            form_code.value = nation["code"];
+            button.onclick = function() {
+                sendNationUpdate("PUT", "/nations/" + index);
+            };
+        } else {
+            button.onclick = function() {
+                sendNationUpdate("POST", "/nations");
+            }
+        }
+    }
     function deleteNation(event) {
         if (editmode) {
             return;
         }
-        index = event.target.id;
+        const index = event.target.id;
         if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") != true) {
             return;
         }
-        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+        Promise.all([sendRequest("DELETE", "/nations/" + index, null)]).then(function (values) {
             delete nations[index];
             updateTable();
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
-    function editNation(event) {
-        editmode = true;
-        index = event.target.id;
-        nation = nations[index];
-        table = document.getElementById("nationInsert");
-        table.hidden = false;
-        table.innerText = "";
-        row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Codice";
-        row = table.insertRow();
-        forms = Object();
-        name_cell = row.insertCell();
-        let form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", 15);
-        form_name.value = nation["name"];
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        code_cell = row.insertCell();
-        let form_code = document.createElement("input");
-        form_code.setAttribute("type", "text");
-        form_code.setAttribute("size", 3);
-        form_code.value = nation["code"];
-        code_cell.appendChild(form_code);
-        forms["code"] = form_code;
-        button = document.getElementById("nationsButton");
-        button.innerText = "Invia";
-        button.onclick = function() {
-            sendNationUpdate(index);
-        };
-        document.getElementById("cancelButton").hidden = false;
-    }
-    function newNation() {
-        editmode = true;
-        table = document.getElementById("nationInsert");
-        table.hidden = false;
-        table.innerText = "";
-        row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Codice";
-        row = table.insertRow();
-        forms = Object();
-        name_cell = row.insertCell();
-        let form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", 15);
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        code_cell = row.insertCell();
-        let form_code = document.createElement("input");
-        form_code.setAttribute("type", "text");
-        form_code.setAttribute("size", 3);
-        code_cell.appendChild(form_code);
-        forms["code"] = form_code;
-        button = document.getElementById("nationsButton");
-        button.innerText = "Invia";
-        button.onclick = sendNation;
-        document.getElementById("cancelButton").hidden = false;
-    }
-    function sendNation() {
-        requestJson = Object();
+    function sendNationUpdate(method, url) {
+        const requestJson = Object();
         requestJson["name"] = forms["name"].value.trim();
         requestJson["code"] = forms["code"].value.trim();
-        Promise.all([sendNationRequest(requestJson)]).then(function (values) {
-            new_nation = JSON.parse(values[0]);
-            for (key in new_nation) {
-                nations[key] = new_nation[key];
-            }
-            restoreNations();
-        }).catch(function (reason) {
-            window.alert(reason);
-        });
-    }
-    function sendNationUpdate(index) {
-        requestJson = Object();
-        requestJson["name"] = forms["name"].value.trim();
-        requestJson["code"] = forms["code"].value.trim();
-        Promise.all([sendNationUpdateRequest(requestJson, index)]).then(function (values) {
-            updated_nation = JSON.parse(values[0]);
-            for (key in updated_nation) {
+        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
+            const updated_nation = JSON.parse(values[0]);
+            for (let key in updated_nation) {
                 nations[key] = updated_nation[key];
             }
             restoreNations();
@@ -170,10 +138,10 @@
             window.alert(reason);
         });
     }
-    function sendNationRequest(requestJson) {
+    function sendRequest(method, url, requestJson) {
         return new Promise(function (resolve, reject) {
-            var postRequest = new XMLHttpRequest();
-            postRequest.onreadystatechange = function () {
+            const request = new XMLHttpRequest();
+            request.onreadystatechange = function () {
                 if (this.readyState == 4) {
                     if (this.status == 200) {
                         resolve(this.responseText);
@@ -182,48 +150,17 @@
                     }
                 }
             };
-            postRequest.open("POST", "/nations", true);
-            postRequest.setRequestHeader("Content-Type", "application/json");
-            postRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendNationUpdateRequest(requestJson, index) {
-        return new Promise(function (resolve, reject) {
-            var putRequest = new XMLHttpRequest();
-            putRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            putRequest.open("PUT", "/nations/" + index, true);
-            putRequest.setRequestHeader("Content-Type", "application/json");
-            putRequest.send(JSON.stringify(requestJson));
-        })
-    }
-    function sendDeleteRequest(index) {
-        return new Promise(function (resolve, reject) {
-            var deleteRequest = new XMLHttpRequest();
-            deleteRequest.onreadystatechange = function () {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            deleteRequest.open("DELETE", "/nations/" + index, true);
-            deleteRequest.send();
+            request.open(method, url, true);
+            request.setRequestHeader("Content-Type", "application/json");
+            request.send(JSON.stringify(requestJson));
         })
     }
     function restoreNations() {
-        button = document.getElementById("nationsButton");
+        const button = document.getElementById("nationsButton");
         button.innerText = "Crea una nazione";
-        button.onclick = newNation;
+        button.onclick = function() {
+            nationUpdate(null);
+        };
         document.getElementById("cancelButton").hidden = true;
         document.getElementById("nationInsert").innerText = "";
         document.getElementById("nationInsert").hidden = true;
@@ -236,9 +173,9 @@
 
 {% block content %}
 <h1>Nazioni</h1>
-<button id="nationsButton" onclick="newNation()">Crea una nazione</button>
-<button id="cancelButton" hidden="true" onclick="restoreNations()">Annulla</button>
-<table id="nationInsert" hidden="true"></table>
+<button id="nationsButton" onclick="nationUpdate(null)">Crea una nazione</button>
+<button id="cancelButton" hidden onclick="restoreNations()">Annulla</button>
+<table id="nationInsert" hidden></table>
 <table class="styled-table">
     <thead>
         <tr>

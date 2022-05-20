@@ -336,7 +336,7 @@ def update_tournament(*, league_index, tournament_index, nation_index=None, is_o
 def delete_tournament(*, league_index, tournament_index):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
-    league.remove_tournament(tournament_id)
+    league.remove_tournament(tournament_id=tournament_id)
     return {}
 
 

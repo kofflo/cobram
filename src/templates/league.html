@@ -293,6 +293,7 @@
     }
     function updateTableTournaments() {
         table = document.getElementById("tableTournamentsBody");
+        table.innerText = "";
         index = 0;
         for (var key in tournaments) {
             {% if not is_privileged %}
@@ -361,9 +362,38 @@
                 if (tournaments[key]["is_ghost"]) {
                     ghost_cell.innerText = "GHOST";
                 }
+                const tools_cell = row.insertCell();
+                const edit_img = document.createElement('img');
+                edit_img.src = '/static/edit.png';
+                edit_img.id = key;
+                edit_img.onclick = editTournament;
+                edit_img.style.cursor = "pointer";
+                tools_cell.appendChild(edit_img);
+                const delete_img = document.createElement('img');
+                delete_img.src = '/static/delete.png';
+                delete_img.id = key;
+                delete_img.onclick = deleteTournament;
+                delete_img.style.cursor = "pointer";
+                tools_cell.appendChild(document.createTextNode(' '));
+                tools_cell.appendChild(delete_img);
             {% endif %}
             index += 1;
         }
+    }
+    function editTournament(event) {
+
+    }
+    function deleteTournament(event) {
+        let index = event.target.id;
+        if (confirm("Il torneo " + tournaments[index]["name"] + " " + tournaments[index]["year"] + " verrà eliminato dalla lega. Continuare ?") != true) {
+            return;
+        }
+        Promise.all([sendDeleteRequest(index)]).then(function (values) {
+            delete tournaments[index];
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
     }
     function updateTablesRanking() {
         table = document.getElementById("tableRankingBody");
@@ -821,84 +851,6 @@
         })
     }
     {% endif %}
-</script>
-{% endblock %}
-
-{% block content %}
-<h1 id="mainHeader"></h1>
-{% if is_privileged %}
-<button id="tournamentButton" onclick="newTournament()">Crea un torneo</button>
-<button id="addGamblerButton" onclick="addGambler()">Aggiungi uno scommettitore</button>
-<button id="removeGamblerButton" onclick="removeGambler()">Elimina uno scommettitore</button>
-<button id="inactiveGamblerButton" onclick="inactiveGambler()">Disattiva uno scommettitore</button>
-<button id="activeGamblerButton" onclick="activeGambler()">Attiva uno scommettitore</button>
-<select id="gamblerSelect" hidden="true"></select>
-<table id="tournamentInsert" hidden="true"></table>
-{% endif %}
-<div id="tournamentDiv">
-    <h2>Tornei</h2>
-    <table class="styled-table">
-        <thead>
-        <tr>
-            <td>Nome</td>
-            <td>Anno</td>
-            <td>Nazione</td>
-            <td>Bandiera</td>
-            <td>Set</td>
-            <td>Tie-break al 5° set</td>
-            <td>Categoria</td>
-            <td>Tabellone</td>
-            <td>Vincitore</td>
-            <td id="winnerLeague"></td>
-            {% if is_privileged %}
-                <td>Ghost</td>
-            {% endif %}
-        </tr>
-        </thead>
-        <tbody id="tableTournamentsBody">
-        </tbody>
-    </table>
-</div>
-<div>
-    <div class="floatRankings">
-        <h2>Ranking</h2>
-        <table class="styled-table">
-            <thead>
-            <tr>
-                <td>Posizione</td>
-                <td>Scommettitore</td>
-                <td>Punti</td>
-            </tr>
-            </thead>
-            <tbody id="tableRankingBody">
-            </tbody>
-        </table>
-    </div>
-    <div class="floatRankings">
-    <h2 id="raceTitle"></h2>
-        <table id="tableRace" class="styled-table">
-            <thead>
-            <tr>
-                <td>Posizione</td>
-                <td>Scommettitore</td>
-                <td>Punti</td>
-            </tr>
-            </thead>
-            <tbody id="tableRaceBody">
-            </tbody>
-        </table>
-    </div>
-    <div class="floatRankings">
-        <h2 id="Palmarès"></h2>
-        <table id="tableWinnersRecord" class="styled-table">
-        </table>
-    </div>
-</div>
-    <div>
-        <canvas id="rankingChart"></canvas>
-    </div>
-    <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
-    <script>
     function randomColorGenerator() {
         return '#' + (Math.random().toString(16) + '0000000').slice(2, 8);
     };
@@ -958,5 +910,82 @@
             config
         );
     }
-    </script>
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 id="mainHeader"></h1>
+{% if is_privileged %}
+<button id="tournamentButton" onclick="newTournament()">Crea un torneo</button>
+<button id="addGamblerButton" onclick="addGambler()">Aggiungi uno scommettitore</button>
+<button id="removeGamblerButton" onclick="removeGambler()">Elimina uno scommettitore</button>
+<button id="inactiveGamblerButton" onclick="inactiveGambler()">Disattiva uno scommettitore</button>
+<button id="activeGamblerButton" onclick="activeGambler()">Attiva uno scommettitore</button>
+<select id="gamblerSelect" hidden="true"></select>
+<table id="tournamentInsert" hidden="true"></table>
+{% endif %}
+<div id="tournamentDiv">
+    <h2>Tornei</h2>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Anno</td>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+            <td>Set</td>
+            <td>Tie-break al 5° set</td>
+            <td>Categoria</td>
+            <td>Tabellone</td>
+            <td>Vincitore</td>
+            <td id="winnerLeague"></td>
+            {% if is_privileged %}
+                <td>Ghost</td>
+                <td></td>
+            {% endif %}
+        </tr>
+        </thead>
+        <tbody id="tableTournamentsBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    <div class="floatRankings">
+        <h2>Ranking</h2>
+        <table class="styled-table">
+            <thead>
+            <tr>
+                <td>Posizione</td>
+                <td>Scommettitore</td>
+                <td>Punti</td>
+            </tr>
+            </thead>
+            <tbody id="tableRankingBody">
+            </tbody>
+        </table>
+    </div>
+    <div class="floatRankings">
+    <h2 id="raceTitle"></h2>
+        <table id="tableRace" class="styled-table">
+            <thead>
+            <tr>
+                <td>Posizione</td>
+                <td>Scommettitore</td>
+                <td>Punti</td>
+            </tr>
+            </thead>
+            <tbody id="tableRaceBody">
+            </tbody>
+        </table>
+    </div>
+    <div class="floatRankings">
+        <h2 id="Palmarès"></h2>
+        <table id="tableWinnersRecord" class="styled-table">
+        </table>
+    </div>
+</div>
+    <div>
+        <canvas id="rankingChart"></canvas>
+    </div>
+    <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
 {% endblock %}
