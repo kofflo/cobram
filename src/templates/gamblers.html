@@ -10,11 +10,11 @@
     let leagues;
     let gamblers;
     let forms;
-    let editmode = false;
+    let editMode = false;
     function updatePage() {
         Promise.all([
-            sendRequest("GET", "/leagues", null),
-            sendRequest("GET", "/gamblers", null)
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers")
         ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
@@ -28,93 +28,75 @@
         table.innerText = "";
         for (const [key, gambler] of Object.entries(gamblers)) {
             const row = table.insertRow();
-            const name_cell = row.insertCell();
-            name_cell.innerText = gambler["nickname"];
-            const code_cell = row.insertCell();
-            code_cell.innerText = gambler["email"];
-            const leagues_cell = row.insertCell();
-            const inner_table = document.createElement('table');
-            for (const league_key of gambler["leagues"]) {
-                const inner_row = inner_table.insertRow();
-                const inner_cell = inner_row.insertCell();
-                const league_link = document.createElement("a");
-                league_link.innerText = leagues[league_key].name;
-                league_link.setAttribute("href", "/web/leagues/" + league_key);
-                inner_cell.appendChild(league_link);
+            const nameCell = row.insertCell();
+            nameCell.innerText = gambler["nickname"];
+            const codeCell = row.insertCell();
+            codeCell.innerText = gambler["email"];
+            const leaguesCell = row.insertCell();
+            const innerTable = document.createElement('table');
+            for (const leagueKey of gambler["leagues"]) {
+                const innerRow = innerTable.insertRow();
+                const innerCell = innerRow.insertCell();
+                const leagueLink = document.createElement("a");
+                leagueLink.innerText = leagues[leagueKey].name;
+                leagueLink.setAttribute("href", "/web/leagues/" + leagueKey);
+                innerCell.appendChild(leagueLink);
             }
-            leagues_cell.appendChild(inner_table);
-            const tools_cell = row.insertCell();
-            const edit_img = document.createElement('img');
-            edit_img.src = '/static/edit.png';
-            edit_img.id = key;
-            edit_img.onclick = gamblerUpdate;
-            edit_img.style.cursor = "pointer";
-            tools_cell.appendChild(edit_img);
-            const delete_img = document.createElement('img');
-            delete_img.src = '/static/delete.png';
-            delete_img.id = key;
-            delete_img.onclick = deleteGambler;
-            delete_img.style.cursor = "pointer";
-            tools_cell.appendChild(document.createTextNode(' '));
-            tools_cell.appendChild(delete_img);
+            leaguesCell.appendChild(innerTable);
+            addToolsCell(row, key, gamblerUpdate, deleteGambler);
         }
     }
     function gamblerUpdate(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
-        editmode = true;
-        const table = document.getElementById("gamblerInsert");
-        table.hidden = false;
+        editMode = true;
+        document.getElementById("gamblerInsert").hidden = false;
+        const table = document.getElementById("gamblerInsertBody");
         table.innerText = "";
-        let row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Email";
-        row.insertCell().innerText = "";
-        row.insertCell().innerText = "Password";
-        row = table.insertRow();
+        const row = table.insertRow();
         forms = Object();
-        const nickname_cell = row.insertCell();
-        let form_nickname = document.createElement("input");
-        form_nickname.setAttribute("type", "text");
-        form_nickname.setAttribute("size", 15);
-        nickname_cell.appendChild(form_nickname);
-        forms["nickname"] = form_nickname;
-        const email_cell = row.insertCell();
-        let form_email = document.createElement("input");
-        form_email.setAttribute("type", "email");
-        form_email.setAttribute("size", 20);
-        email_cell.appendChild(form_email);
-        forms["email"] = form_email;
-        const checkbox_cell = row.insertCell();
-        let form_password_checkbox = document.createElement("input");
-        form_password_checkbox.type = "checkbox";
-        form_password_checkbox.checked = false;
-        checkbox_cell.appendChild(form_password_checkbox);
-        forms["password_checkbox"] = form_password_checkbox;
-        const password_cell = row.insertCell();
-        let form_password = document.createElement("input");
-        form_password.setAttribute("type", "text");
-        form_password.setAttribute("size", 15);
-        password_cell.appendChild(form_password);
-        forms["password"] = form_password;
-        button = document.getElementById("gamblersButton");
+        const nicknameCell = row.insertCell();
+        const formNickname = document.createElement("input");
+        formNickname.setAttribute("type", "text");
+        formNickname.setAttribute("size", "15");
+        nicknameCell.appendChild(formNickname);
+        forms["nickname"] = formNickname;
+        const emailCell = row.insertCell();
+        const formEmail = document.createElement("input");
+        formEmail.setAttribute("type", "email");
+        formEmail.setAttribute("size", "20");
+        emailCell.appendChild(formEmail);
+        forms["email"] = formEmail;
+        const checkboxCell = row.insertCell();
+        const formPasswordCheckbox = document.createElement("input");
+        formPasswordCheckbox.type = "checkbox";
+        formPasswordCheckbox.checked = false;
+        checkboxCell.appendChild(formPasswordCheckbox);
+        forms["password_checkbox"] = formPasswordCheckbox;
+        const passwordCell = row.insertCell();
+        const formPassword = document.createElement("input");
+        formPassword.setAttribute("type", "text");
+        formPassword.setAttribute("size", "15");
+        passwordCell.appendChild(formPassword);
+        forms["password"] = formPassword;
+        const button = document.getElementById("gamblersButton");
         button.innerText = "Invia";
         document.getElementById("cancelButton").hidden = false;
         if (event != null) {
             const index = event.target.id;
             const gambler = gamblers[index];
-            form_nickname.value = gambler["nickname"];
-            form_email.value = gambler["email"];
-            form_password_checkbox.onchange = function() {
-                if (form_password_checkbox.checked) {
-                    form_password.disabled = false;
+            formNickname.value = gambler["nickname"];
+            formEmail.value = gambler["email"];
+            formPasswordCheckbox.onchange = function() {
+                if (formPasswordCheckbox.checked) {
+                    formPassword.disabled = false;
                 } else {
-                    form_password.value = "";
-                    form_password.disabled = true;
+                    formPassword.value = "";
+                    formPassword.disabled = true;
                 }
             };
-            form_password.disabled = true;
+            formPassword.disabled = true;
             button.onclick = function() {
                 sendGamblerUpdate("PUT", "/gamblers/" + index);
             };
@@ -122,19 +104,21 @@
             button.onclick = function() {
                 sendGamblerUpdate("POST", "/gamblers");
             };
-            form_password_checkbox.checked = true;
-            form_password_checkbox.disabled = true;
+            formPasswordCheckbox.checked = true;
+            formPasswordCheckbox.disabled = true;
         }
     }
     function deleteGambler(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
         const index = event.target.id;
-        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") != true) {
+        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") !== true) {
             return;
         }
-        Promise.all([sendRequest("DELETE", "/gamblers/" + index, null)]).then(function (values) {
+        Promise.all([
+            sendRequest("DELETE", "/gamblers/" + index)
+        ]).then(function (values) {
             delete gamblers[index];
             updateTable();
         }).catch(function (reason) {
@@ -142,24 +126,26 @@
         });
     }
     function sendGamblerUpdate(method, url) {
-        let new_password;
+        let password;
         if (forms["password_checkbox"].checked) {
-            new_password = forms["password"].value;
+            password = forms["password"].value;
         } else {
-            new_password = null;
+            password = null;
         }
-        if (new_password != null && new_password.length < 8) {
+        if (password != null && password.length < 8) {
             alert("La password deve avere almeno 8 caratteri");
             return;
         }
         const requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
-        requestJson["password"] = new_password;
-        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
-            const updated_gambler = JSON.parse(values[0]);
-            for (const key in updated_gambler) {
-                gamblers[key] = updated_gambler[key];
+        requestJson["password"] = password;
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const gambler = JSON.parse(values[0]);
+            for (const key in gambler) {
+                gamblers[key] = gambler[key];
             }
             restoreGamblers();
         }).catch(function (reason) {
@@ -173,10 +159,10 @@
             gamblerUpdate(null);
         };
         document.getElementById("cancelButton").hidden = true;
-        document.getElementById("gamblerInsert").innerText = "";
+        document.getElementById("gamblerInsertBody").innerText = "";
         document.getElementById("gamblerInsert").hidden = true;
         forms = Object();
-        editmode = false;
+        editMode = false;
         updateTable();
     }
 </script>
@@ -186,14 +172,25 @@
 <h1>Scommettitori</h1>
 <button id="gamblersButton" onclick="gamblerUpdate(null)">Crea uno scommettitore</button>
 <button id="cancelButton" hidden onclick="restoreGamblers()">Annulla</button>
-<table id="gamblerInsert" hidden></table>
+<table id="gamblerInsert" hidden>
+    <thead>
+    <tr>
+        <th scope="col">Nome</th>
+        <th scope="col">E-mail</th>
+        <th scope="col"></th>
+        <th scope="col">Password</th>
+    </tr>
+    </thead>
+    <tbody id="gamblerInsertBody">
+    </tbody>
+</table>
 <table class="styled-table">
     <thead>
         <tr>
-            <td>Nome</td>
-            <td>E-mail</td>
-            <td>Leghe</td>
-            <td></td>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Leghe</th>
+            <th scope="col"></th>
         </tr>
     </thead>
     <tbody id="tableBody">

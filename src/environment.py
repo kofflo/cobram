@@ -263,7 +263,7 @@ def remove_gambler_from_league(*, league_index, gambler_index):
 
 @_autosave
 def create_tournament(*, league_index, name, nation_index, year, n_sets, tie_breaker_5th, category, draw_type,
-                      previous_year_scores, ghost):
+                      ghost, previous_year_scores=None):
     league = _get_league(league_index)
     nation = _get_nation(nation_index)
     year = to_int(year)
@@ -329,7 +329,7 @@ def update_tournament(*, league_index, tournament_index, nation_index=None, is_o
         is_open = to_boolean(is_open)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     league.update_tournament(tournament_id=tournament_id, nation=nation, is_open=is_open)
-    return get_tournament_info(league_index=league_index, tournament_index=tournament_index)
+    return {tournament_index: get_tournament_info(league_index=league_index, tournament_index=tournament_index)}
 
 
 @_autosave

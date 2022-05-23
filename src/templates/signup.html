@@ -5,51 +5,22 @@
 {% block script_content %}
     <script>
         function sendSignUp() {
-            new_password = document.getElementById("password").value;
-            if (new_password.length < 8) {
+            const password = document.getElementById("password").value;
+            if (password.length < 8) {
                 alert("La password deve avere almeno 8 caratteri");
                 return;
             }
-            requestJson = Object();
+            const requestJson = Object();
             requestJson["nickname"] = document.getElementById("nickname").value.trim();
             requestJson["email"] = document.getElementById("email").value.trim();
-            requestJson["password"] = new_password;
-            Promise.all([sendSignUpRequest(requestJson)]).then(function (values) {
+            requestJson["password"] = password;
+            Promise.all([
+                sendRequest("POST", "/signup", requestJson)
+            ]).then(function (values) {
                 redirectToPage();
             }).catch(function (reason) {
                 window.alert(reason);
             });
-        }
-        function redirectToPage() {
-            var qd = {};
-            if (location.search) location.search.substr(1).split("&").forEach(function(item) {
-                var s = item.split("="),
-                    k = s[0],
-                    v = s[1] && decodeURIComponent(s[1]); //  null-coalescing / short-circuit
-                (qd[k] = qd[k] || []).push(v) // null-coalescing / short-circuit
-            });
-            if (qd["next"] != undefined) {
-                window.location.assign(qd["next"]);
-            } else {
-                window.location.assign("/index");
-            }
-        }
-        function sendSignUpRequest(requestJson) {
-            return new Promise(function (resolve, reject) {
-                var loginRequest = new XMLHttpRequest();
-                loginRequest.onreadystatechange = function () {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.responseText);
-                        } else {
-                            reject(this.responseText);
-                        }
-                    }
-                };
-                loginRequest.open("POST", "/signup", true);
-                loginRequest.setRequestHeader("Content-Type", "application/json");
-                loginRequest.send(JSON.stringify(requestJson));
-            })
         }
     </script>
 {% endblock %}
@@ -58,13 +29,6 @@
 <div class="column is-4 is-offset-4">
     <h3 class="title">Registrazione</h3>
     <div class="box">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="notification is-danger">
-                {{ messages[0] }}. Go to <a href="{{ url_for('login') }}">login page</a>.
-            </div>
-        {% endif %}
-        {% endwith %}
         <form>
             <div class="field">
                 <div class="control">

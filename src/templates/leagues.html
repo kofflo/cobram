@@ -9,10 +9,10 @@
     window.onload = updatePage;
     let leagues;
     let forms;
-    let editmode = false;
+    let editMode = false;
     function updatePage() {
         Promise.all([
-            sendRequest("GET", "/leagues", null)
+            sendRequest("GET", "/leagues")
         ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             updateTable();
@@ -25,52 +25,37 @@
         table.innerText = "";
         for (const [key, league] of Object.entries(leagues)) {
             const row = table.insertRow();
-            const name_cell = row.insertCell();
+            const nameCell = row.insertCell();
             const leagueLink = document.createElement("a");
             leagueLink.innerText = league["name"];
             leagueLink.setAttribute("href", "/web/leagues/" + key);
-            name_cell.appendChild(leagueLink);
-            const tools_cell = row.insertCell();
-            const edit_img = document.createElement('img');
-            edit_img.src = '/static/edit.png';
-            edit_img.id = key;
-            edit_img.onclick = leagueUpdate;
-            edit_img.style.cursor = "pointer";
-            tools_cell.appendChild(edit_img);
-            const delete_img = document.createElement('img');
-            delete_img.src = '/static/delete.png';
-            delete_img.id = key;
-            delete_img.onclick = deleteLeague;
-            delete_img.style.cursor = "pointer";
-            tools_cell.appendChild(document.createTextNode(' '));
-            tools_cell.appendChild(delete_img);
+            nameCell.appendChild(leagueLink);
+            addToolsCell(row, key, leagueUpdate, deleteLeague);
         }
     }
     function leagueUpdate(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
-        editmode = true;
-        const table = document.getElementById("leagueInsert");
-        table.hidden = false;
+        editMode = true;
+        document.getElementById("leagueInsert").hidden = false;
+        const table = document.getElementById("leagueInsertBody");
         table.innerText = "";
-        let row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row = table.insertRow();
+        const row = table.insertRow();
         forms = Object();
-        const name_cell = row.insertCell();
-        let form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", "15");
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
         const button = document.getElementById("leaguesButton");
         button.innerText = "Invia";
         document.getElementById("cancelButton").hidden = false;
         if (event != null) {
             const index = event.target.id;
             const league = leagues[index];
-            form_name.value = league["name"];
+            formName.value = league["name"];
             button.onclick = function () {
                 sendLeagueUpdate("PUT", "/leagues/" + index);
             };
@@ -81,14 +66,16 @@
         }
     }
     function deleteLeague(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
         const index = event.target.id;
-        if (confirm("La lega " + leagues[index]["name"] + " verrà eliminata. Continuare ?") != true) {
+        if (confirm("La lega " + leagues[index]["name"] + " verrà eliminata. Continuare ?") !== true) {
             return;
         }
-        Promise.all([sendRequest("DELETE", "/leagues/" + index, null)]).then(function (values) {
+        Promise.all([
+            sendRequest("DELETE", "/leagues/" + index)
+        ]).then(function (values) {
             delete leagues[index];
             updateTable();
         }).catch(function (reason) {
@@ -98,10 +85,12 @@
     function sendLeagueUpdate(method, url) {
         const requestJson = Object();
         requestJson["name"] = forms["name"].value.trim();
-        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
-            const updated_league = JSON.parse(values[0]);
-            for (const key in updated_league) {
-                leagues[key] = updated_league[key];
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
             }
             restoreLeagues();
         }).catch(function (reason) {
@@ -115,10 +104,10 @@
             leagueUpdate(null);
         };
         document.getElementById("cancelButton").hidden = true;
-        document.getElementById("leagueInsert").innerText = "";
+        document.getElementById("leagueInsertBody").innerText = "";
         document.getElementById("leagueInsert").hidden = true;
         forms = Object();
-        editmode = false;
+        editMode = false;
         updateTable();
     }
 </script>
@@ -128,12 +117,20 @@
 <h1>Leghe</h1>
 <button id="leaguesButton" onclick="leagueUpdate(null)">Crea una lega</button>
 <button id="cancelButton" hidden onclick="restoreLeagues()">Annulla</button>
-<table id="leagueInsert" hidden></table>
+<table id="leagueInsert" hidden>
+    <thead>
+    <tr>
+        <th scope="col">Nome</th>
+    </tr>
+    </thead>
+    <tbody id="leagueInsertBody">
+    </tbody>
+</table>
 <table class="styled-table">
     <thead>
         <tr>
-            <td>Nome</td>
-            <td></td>
+            <th scope="col">Nome</th>
+            <th scope="col"></th>
         </tr>
     </thead>
     <tbody id="tableBody">

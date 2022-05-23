@@ -296,7 +296,7 @@ class BetTournament:
         self._is_open = True
 
     def close(self):
-        if self._draw.winner is None:
+        if self._draw.winner is None and not self._is_ghost:
             raise BetTournamentError(BetTournament.CANNOT_CLOSE_A_NOT_FINISHED_TOURNAMENT)
         self._close_all_matches()
         self._is_open = False

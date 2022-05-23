@@ -9,7 +9,7 @@
     window.onload = updatePage;
     let nations;
     let forms;
-    let editmode = false;
+    let editMode = false;
     function updatePage() {
         Promise.all([
             sendRequest("GET", "/nations")
@@ -24,7 +24,7 @@
         const table = document.getElementById("tableBody");
         table.innerText = "";
         for (const [key, nation] of Object.entries(nations)) {
-            if (nation["name"] == "BYE") {
+            if (nation["name"] === "BYE") {
                 continue;
             }
             const row = table.insertRow();
@@ -37,55 +37,39 @@
             img.src = '/static/flags/' + nation["code"] + '.png';
             img.setAttribute("class", "bordered");
             flag.appendChild(img);
-            const tools_cell = row.insertCell();
-            const edit_img = document.createElement('img');
-            edit_img.src = '/static/edit.png';
-            edit_img.id = key;
-            edit_img.onclick = nationUpdate;
-            edit_img.style.cursor = "pointer";
-            tools_cell.appendChild(edit_img);
-            const delete_img = document.createElement('img');
-            delete_img.src = '/static/delete.png';
-            delete_img.id = key;
-            delete_img.onclick = deleteNation;
-            delete_img.style.cursor = "pointer";
-            tools_cell.appendChild(document.createTextNode(' '));
-            tools_cell.appendChild(delete_img);
+            addToolsCell(row, key, nationUpdate, deleteNation);
         }
     }
     function nationUpdate(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
-        editmode = true;
-        const table = document.getElementById("nationInsert");
-        table.hidden = false;
+        editMode = true;
+        document.getElementById("nationInsert").hidden = false;
+        const table = document.getElementById("nationInsertBody");
         table.innerText = "";
-        let row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Codice";
-        row = table.insertRow();
+        const row = table.insertRow();
         forms = Object();
-        const name_cell = row.insertCell();
-        const form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", "15");
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        const code_cell = row.insertCell();
-        const form_code = document.createElement("input");
-        form_code.setAttribute("type", "text");
-        form_code.setAttribute("size", "3");
-        code_cell.appendChild(form_code);
-        forms["code"] = form_code;
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
+        const codeCell = row.insertCell();
+        const formCode = document.createElement("input");
+        formCode.setAttribute("type", "text");
+        formCode.setAttribute("size", "3");
+        codeCell.appendChild(formCode);
+        forms["code"] = formCode;
         const button = document.getElementById("nationsButton");
         button.innerText = "Invia";
         document.getElementById("cancelButton").hidden = false;
         if (event != null) {
             const index = event.target.id;
             const nation = nations[index];
-            form_name.value = nation["name"];
-            form_code.value = nation["code"];
+            formName.value = nation["name"];
+            formCode.value = nation["code"];
             button.onclick = function() {
                 sendNationUpdate("PUT", "/nations/" + index);
             };
@@ -96,14 +80,16 @@
         }
     }
     function deleteNation(event) {
-        if (editmode) {
+        if (editMode) {
             return;
         }
         const index = event.target.id;
-        if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") != true) {
+        if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") !== true) {
             return;
         }
-        Promise.all([sendRequest("DELETE", "/nations/" + index)]).then(function (values) {
+        Promise.all([
+            sendRequest("DELETE", "/nations/" + index)
+        ]).then(function (values) {
             delete nations[index];
             updateTable();
         }).catch(function (reason) {
@@ -114,10 +100,12 @@
         const requestJson = Object();
         requestJson["name"] = forms["name"].value.trim();
         requestJson["code"] = forms["code"].value.trim();
-        Promise.all([sendRequest(method, url, requestJson)]).then(function (values) {
-            const updated_nation = JSON.parse(values[0]);
-            for (const key in updated_nation) {
-                nations[key] = updated_nation[key];
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const nation = JSON.parse(values[0]);
+            for (const key in nation) {
+                nations[key] = nation[key];
             }
             restoreNations();
         }).catch(function (reason) {
@@ -131,10 +119,10 @@
             nationUpdate(null);
         };
         document.getElementById("cancelButton").hidden = true;
-        document.getElementById("nationInsert").innerText = "";
+        document.getElementById("nationInsertBody").innerText = "";
         document.getElementById("nationInsert").hidden = true;
         forms = Object();
-        editmode = false;
+        editMode = false;
         updateTable();
     }
 </script>
@@ -144,14 +132,23 @@
 <h1>Nazioni</h1>
 <button id="nationsButton" onclick="nationUpdate(null)">Crea una nazione</button>
 <button id="cancelButton" hidden onclick="restoreNations()">Annulla</button>
-<table id="nationInsert" hidden></table>
+<table id="nationInsert" hidden>
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Codice</>
+        </tr>
+    </thead>
+    <tbody id="nationInsertBody">
+    </tbody>
+</table>
 <table class="styled-table">
     <thead>
         <tr>
-            <td>Nome</td>
-            <td>Codice</td>
-            <td>Bandiera</td>
-            <td></td>
+            <th scope="col">Nome</th>
+            <th scope="col">Codice</>
+            <th scope="col">Bandiera</>
+            <th scope="col"></>
         </tr>
     </thead>
     <tbody id="tableBody">

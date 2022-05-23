@@ -7,149 +7,25 @@
 {% block script_content %}
 <script>
     window.onload = updatePage;
-    window.mobileCheck = function() {
-        let check = false;
-        (function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))) check = true;})(navigator.userAgent||navigator.vendor||window.opera);
-        return check;
-    };
-    var leagues;
-    var gamblers;
-    var players;
-    var nations;
-    var ranking;
-    var tournamentInfo;
-    var tournamentPlayers;
-    var matches;
-    function callLeagues() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues", true);
-            getRequest.send();
-        })
-    }
-    function callGamblers() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/gamblers", true);
-            getRequest.send();
-        })
-    }
-    function callPlayers() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/players", true);
-            getRequest.send();
-        })
-    }
-    function callNations() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/nations", true);
-            getRequest.send();
-        })
-    }
-    function callRanking() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking", true);
-            getRequest.send();
-        })
-    }
-    function callTournamentInfo() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
-            getRequest.send();
-        })
-    }
-    function callTournamentPlayers() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players", true);
-            getRequest.send();
-        })
-    }
-    function callMatches() {
-        return new Promise(function(resolve, reject) {
-            var getRequest = new XMLHttpRequest();
-            getRequest.onreadystatechange = function() {
-                if (this.readyState == 4) {
-                    if (this.status == 200) {
-                        resolve(this.responseText);
-                    } else {
-                        reject(this.responseText);
-                    }
-                }
-            };
-            getRequest.open("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches", true);
-            getRequest.send();
-        })
-    }
+    let leagues;
+    let gamblers;
+    let players;
+    let nations;
+    let ranking;
+    let tournamentInfo;
+    let tournamentPlayers;
+    let matches;
     function updatePage() {
-        Promise.all([callLeagues(), callGamblers(), callPlayers(), callNations(), callRanking(), callTournamentInfo(), callTournamentPlayers(), callMatches()]).then(function (values) {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers"),
+            sendRequest("GET", "/players"),
+            sendRequest("GET", "/nations"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches")
+        ]).then(function (values) {
             leagues = JSON.parse(values[0]);
             gamblers = JSON.parse(values[1]);
             players = JSON.parse(values[2]);
@@ -170,24 +46,44 @@
         });
     }
     function updateTitles() {
-        mainHeader = document.getElementById("mainHeader");
+        const mainHeader = document.getElementById("mainHeader");
         mainHeader.innerText = tournamentInfo["name"] + "  " + tournamentInfo["year"];
         if (tournamentInfo["is_ghost"]) {
             mainHeader.innerText += " [ GHOST ]";
         }
-        subHeaderLink = document.createElement("a");
+        const subHeader = document.getElementById("subHeader");
+        subHeader.innerHTML = "";
+        const subHeaderLink = document.createElement("a");
         subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
         subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
-        subHeader = document.getElementById("subHeader");
-        subHeader.innerHTML = "";
         subHeader.appendChild(subHeaderLink);
         document.title = tournamentInfo["name"] + "  " + tournamentInfo["year"];
+        const table = document.getElementById("infoTableBody");
+        const row = table.insertRow();
+        const nation_cell = row.insertCell();
+        nation_cell.innerText = nations[tournamentInfo["nation"]]["name"];
+        const flag_cell = row.insertCell();
+        const img = document.createElement('img');
+        img.src = '/static/flags/' + nations[tournamentInfo["nation"]].code + '.png';
+        img.setAttribute("class", "bordered");
+        flag_cell.appendChild(img);
+        const n_sets_cell = row.insertCell();
+        n_sets_cell.innerText = tournamentInfo["n_sets"];
+        const tie_breaker_cell = row.insertCell();
+        const tie_breaker = tournamentInfo["tie_breaker_5th"];
+        tie_breaker_cell.innerText = tieBreaker2text(tie_breaker);
+        const category_cell = row.insertCell();
+        const category = tournamentInfo["category"];
+        category_cell.innerText = category2text(category);
+        const draw_cell = row.insertCell();
+        const draw = tournamentInfo["draw_type"];
+        draw_cell.innerText = draw2text(draw);
     }
     function updateInfo() {
         {% if is_privileged %}
-            closeButton = document.getElementById("closeButton");
-            playersButton = document.getElementById("playersButton");
-            scoresButton = document.getElementById("scoresButton");
+            const closeButton = document.getElementById("closeButton");
+            const playersButton = document.getElementById("playersButton");
+            const scoresButton = document.getElementById("scoresButton");
             if (!tournamentInfo["is_open"]) {
                 closeButton.innerText = "Apri il torneo";
                 closeButton.onclick = openTournament;
@@ -203,15 +99,15 @@
     }
     function updateMatches() {
         if (tournamentInfo["is_ghost"]) {
-            table = document.getElementById("matches");
+            const table = document.getElementById("matches");
             table.innerText = "";
-            scoresButton = document.getElementById("scoresButton");
+            const scoresButton = document.getElementById("scoresButton");
             scoresButton.hidden = true;
             return;
         }
-        table = document.getElementById("tableMatchesBody");
+        const table = document.getElementById("tableMatchesBody");
         table.innerText = "";
-        for (var key in matches) {
+        for (const key in matches) {
             const row = table.insertRow();
             const id_cell = row.insertCell();
             id_cell.innerText = key;
@@ -220,11 +116,9 @@
                 lock.src = "/static/lock.png";
                 id_cell.innerText += "   ";
                 id_cell.appendChild(lock);
-            } else {
-                any_open_match = true;
             }
             if (matches[key]["timestamp"] != null) {
-                let clock = document.createElement("img");
+                const clock = document.createElement("img");
                 clock.src = "/static/clock.png";
                 id_cell.innerText += "   ";
                 id_cell.appendChild(clock);
@@ -236,28 +130,30 @@
             if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                 continue;
             }
-            if (matches[key]["winner"] == matches[key]["players"]["player_1"]) {
+            let winner;
+            if (matches[key]["winner"] === matches[key]["players"]["player_1"]) {
                 winner = 1;
-            } else if (matches[key]["winner"] == matches[key]["players"]["player_2"]) {
+            } else if (matches[key]["winner"] === matches[key]["players"]["player_2"]) {
                 winner = 2;
             } else {
                 winner = null;
             }
-            if (winner == 1) {
+            if (winner === 1) {
                 player_1_cell.className = "bold";
             }
-            seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
-            if (seed_player_1 != 0) {
+            const seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
+            let seed_string;
+            if (seed_player_1 !== 0) {
                 seed_string = " [" + seed_player_1 + "]";
             } else {
                 seed_string = "";
             }
             player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
-            if (winner == 2) {
+            if (winner === 2) {
                 player_2_cell.className = "bold";
             }
-            seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
-            if (seed_player_2 != 0) {
+            const seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seed_player_2 !== 0) {
                 seed_string = " [" + seed_player_2 + "]";
             } else {
                 seed_string = "";
@@ -272,22 +168,22 @@
         }
     }
     function getSeed(player) {
-        for (key in tournamentPlayers) {
+        for (const key in tournamentPlayers) {
             if (tournamentPlayers[key] == null) {
                 continue;
             }
-            index = tournamentPlayers[key]["index"];
-            if (index == player) {
+            const index = tournamentPlayers[key]["index"];
+            if (index === player) {
                 return tournamentPlayers[key]["seed"];
             }
         }
     }
     function formatScore(score) {
-        formatted = "";
-        for (set in score) {
-            if (score[set][0] == -1) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
                 formatted += "A- " + " / ";
-            } else if (score[set][1] == -1) {
+            } else if (score[set][1] === -1) {
                 formatted += " -A" + " / ";
             }
             else {
@@ -297,11 +193,11 @@
         return formatted.slice(0, -2);
     }
     function formatScoreForm(score) {
-        formatted = "";
-        for (set in score) {
-            if (score[set][0] == -1) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
                 formatted += "A- ";
-            } else if (score[set][1] == -1) {
+            } else if (score[set][1] === -1) {
                 formatted += "-A ";
             } else if (score[set][0] < 10 && score[set][1] < 10) {
                 formatted += String(score[set][0]) + String(score[set][1]) + " ";
@@ -313,31 +209,31 @@
     }
     function updateTableRanking() {
         if (tournamentInfo["is_ghost"]) {
-            table = document.getElementById("ranking");
+            const table = document.getElementById("ranking");
             table.innerText = "";
             return;
         }
-        table = document.getElementById("tableRankingBody");
+        const table = document.getElementById("tableRankingBody");
         table.innerText = "";
-        scores = ranking["tournament_scores"];
-        ranking_scores = ranking["tournament_ranking_scores"];
-        scores_array = Object.entries(scores);
+        const scores = ranking["tournament_scores"];
+        const ranking_scores = ranking["tournament_ranking_scores"];
+        const scores_array = Object.entries(scores);
         scores_array.sort(function (first_pair, second_pair) {
             return first_pair[1] - second_pair[1];
         });
         scores_array.reverse();
-        var last_position = undefined;
-        var last_points = undefined;
-        for (index = 0; index < scores_array.length; index++) {
+        let last_position = undefined;
+        let last_points = undefined;
+        for (let index = 0; index < scores_array.length; index++) {
             const pair = scores_array[index];
             const gambler_index = pair[0];
             const gambler_points = pair[1];
             const row = table.insertRow();
             const position_cell = row.insertCell();
-            if (gambler_points == last_points) {
+            if (gambler_points === last_points) {
                 position_cell.innerText = last_position;
             } else {
-                position_cell.innerText = index + 1;
+                position_cell.innerText = String(index + 1);
                 last_position = index + 1;
             }
             const gambler_cell = row.insertCell();
@@ -346,55 +242,57 @@
             gambler_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/" + pair[0]);
             gambler_cell.appendChild(gambler_link);
             const points_cell = row.insertCell();
-            points_cell.innerText = gambler_points;
+            points_cell.innerText = String(gambler_points);
             const ranking_points_cell = row.insertCell();
             ranking_points_cell.innerText = ranking_scores[gambler_index];
             last_points = gambler_points;
         }
     }
     {% if is_privileged %}
-        seedForms = Object();
-        playerForms = Object();
+        let seedForms = Object();
+        let playerForms = Object();
         function insertPlayers() {
-            playersButton = document.getElementById("playersButton");
+            const playersButton = document.getElementById("playersButton");
             playersButton.innerText = "Manda i tennisti";
             playersButton.onclick = sendPlayers;
-            scoresButton = document.getElementById("scoresButton");
+            const scoresButton = document.getElementById("scoresButton");
             scoresButton.disabled = true;
-            closeButton = document.getElementById("closeButton");
+            const closeButton = document.getElementById("closeButton");
             closeButton.disabled = true;
-            cancelButton = document.createElement("button");
+            const cancelButton = document.createElement("button");
             cancelButton.id = "cancelButton";
             cancelButton.innerText = "Annulla";
             cancelButton.onclick = restorePlayers;
             playersButton.parentNode.insertBefore(cancelButton, playersButton.nextSibling);
-            table = document.getElementById("tablePlayersBody");
+            const table = document.getElementById("tablePlayersBody");
             table.innerText = "";
-            if (tournamentInfo["draw_type"] == "Draw16") {
+            let playersNumber;
+            if (tournamentInfo["draw_type"] === "Draw16") {
                 playersNumber = 16;
-            } else if (tournamentInfo["draw_type"] == "DrawRoundRobin") {
+            } else if (tournamentInfo["draw_type"] === "DrawRoundRobin") {
                 playersNumber = 12;
             }
-            for (index = 0; index < playersNumber; index++) {
-                playerObject = tournamentPlayers[index];
-                player_index = playerObject["index"];
-                if (player_index == -1) {
+            for (let index = 0; index < playersNumber; index++) {
+                const playerObject = tournamentPlayers[index];
+                const player_index = playerObject["index"];
+                let player_surname;
+                if (player_index === -1) {
                     player_surname = "/";
                 } else {
                     player_surname = players[player_index]["surname"];
                 }
-                seed = playerObject["seed"];
+                const seed = playerObject["seed"];
                 const row = table.insertRow();
                 const position_cell = row.insertCell();
-                position_cell.innerText = index + 1;
+                position_cell.innerText = String(index + 1);
                 const player_cell = row.insertCell();
                 let form_player = document.createElement("select");
                 form_player.onchange = playerChange;
-                option = document.createElement("option");
-                option.value = -1;
+                let option = document.createElement("option");
+                option.value = String(-1);
                 option.innerText = "";
                 form_player.appendChild(option);
-                for (key in players) {
+                for (const key in players) {
                     option = document.createElement("option");
                     option.value = key;
                     option.innerText = players[key]["surname"];
@@ -404,15 +302,15 @@
                 playerForms[index] = form_player;
                 form_player.value = player_index;
                 const seed_cell = row.insertCell();
-                let seedForm = document.createElement("input");
+                const seedForm = document.createElement("input");
                 seedForm.setAttribute("type", "text");
-                seedForm.setAttribute("size", 1);
-                if (seed != 0) {
+                seedForm.setAttribute("size", "1");
+                if (seed !== 0) {
                     seedForm.value = seed;
                 } else {
                     seedForm.value = "";
                 }
-                if (player_index == 0 || player_index == -1) {
+                if (player_index === 0 || player_index === -1) {
                     seedForm.disabled = true;
                 }
                 seed_cell.appendChild(seedForm);
@@ -420,12 +318,12 @@
             }
         }
         function playerChange(event) {
-            changedForm = event.target;
+            const changedForm = event.target;
             let newPlayer = changedForm.value;
-            if (newPlayer == 0 || newPlayer == -1) {
-                for (let index in playerForms) {
-                    playerForm = playerForms[index];
-                    if (changedForm == playerForm) {
+            if (newPlayer === 0 || newPlayer === -1) {
+                for (const index in playerForms) {
+                    const playerForm = playerForms[index];
+                    if (changedForm === playerForm) {
                         seedForms[index].value = "";
                         seedForms[index].disabled = true;
                         break;
@@ -433,13 +331,13 @@
                 }
                 return;
             }
-            for (let index in playerForms) {
-                playerForm = playerForms[index];
-                if (changedForm == playerForm) {
+            for (const index in playerForms) {
+                const playerForm = playerForms[index];
+                if (changedForm === playerForm) {
                     seedForms[index].disabled = false;
                     continue;
                 }
-                if (playerForm.value == newPlayer) {
+                if (playerForm.value === newPlayer) {
                     playerForm.value = -1;
                     seedForms[index].value = "";
                     seedForms[index].disabled = true;
@@ -447,20 +345,21 @@
             }
         }
         function sendPlayers() {
-            all_players = Object();
-            all_seeds = Array();
-            for (var index in playerForms) {
-                player_index = playerForms[index].value;
+            const all_players = Object();
+            const all_seeds = Array();
+            for (const index in playerForms) {
+                const player_index = parseInt(playerForms[index].value);
                 const re_seed = /^([0-9]*)$/;
-                seed_value = seedForms[index].value;
+                const seed_value = seedForms[index].value;
+                let seed;
                 if (re_seed.test(seed_value)) {
-                    seed = seed_value.match(re_seed).slice(1, 3);
-                    if (seed == "") {
+                    seed = seed_value.match(re_seed).slice(1, 3).join("");
+                    if (seed === "") {
                         seed = 0;
                     } else {
                         seed = parseInt(seed);
                     }
-                    if (seed != 0 && all_seeds.includes(seed)) {
+                    if (seed !== 0 && all_seeds.includes(seed)) {
                         window.alert("Seed duplicato nel posto " + index + ": " + seed_value);
                         return;
                     }
@@ -469,45 +368,48 @@
                     window.alert("Seed non valido nel posto " + index + ": " + seed_value);
                     return;
                 }
-                if (player_index == tournamentPlayers[index]["index"] && seed == tournamentPlayers[index]["seed"]) {
+                if (player_index === tournamentPlayers[index]["index"] && seed === tournamentPlayers[index]["seed"]) {
                     continue;
                 }
-                player_seed = Object();
+                const player_seed = Object();
                 player_seed["player_seed"] = Object();
                 player_seed["player_seed"]["player_index"] = player_index;
                 player_seed["player_seed"]["seed"] = seed;
                 all_players[index] = player_seed;
             }
-            all_reset_promises = Array();
-            reset_player_seed = Object();
+            const all_reset_promises = Array();
+            const reset_player_seed = Object();
             reset_player_seed["player_seed"] = Object();
             reset_player_seed["player_seed"]["player_index"] = -1;
             reset_player_seed["player_seed"]["seed"] = 0;
-            for (let place in all_players) {
-                all_reset_promises.push(sendPlayerRequest(place, reset_player_seed));
+            for (const place in all_players) {
+                all_reset_promises.push(
+                    sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, reset_player_seed, place)
+                );
             }
             Promise.allSettled(all_reset_promises).then(function (results) {
-                for (var index in results) {
-                    if (results[index]["status"] != "fulfilled") {
-                        message = results[index]["reason"]["response"];
+                for (const index in results) {
+                    if (results[index]["status"] !== "fulfilled") {
+                        const message = results[index]["reason"]["response"];
                         window.alert("Attenzione: " + message);
                         return;
                     }
                 }
             });
-            all_promises = Array();
-            for (let place in all_players) {
-                all_promises.push(sendPlayerRequest(place, all_players[place]));
+            const all_promises = Array();
+            for (const place in all_players) {
+                all_promises.push(
+                    sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, all_players[place], place)
+                );
             }
             Promise.allSettled(all_promises).then(function (results) {
-                var restore = true;
-                for (var index in results) {
-                    if (results[index]["status"] == "fulfilled") {
-                        place = results[index]["value"]["place"]
-                        response = JSON.parse(results[index]["value"]["response"]);
-                        tournamentPlayers[place] = response;
+                let restore = true;
+                for (const index in results) {
+                    if (results[index]["status"] === "fulfilled") {
+                        const place = results[index]["value"]["key"];
+                        tournamentPlayers[place] = JSON.parse(results[index]["value"]["response"]);
                     } else {
-                        message = results[index]["reason"]["response"];
+                        const message = results[index]["reason"]["response"];
                         window.alert("Attenzione: " + message);
                         restore = false;
                     }
@@ -517,104 +419,89 @@
                 }
             });
         }
-        function sendPlayerRequest(place, player_object) {
-            return new Promise(function (resolve, reject) {
-                var putRequest = new XMLHttpRequest();
-                putRequest.onreadystatechange = function () {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve({"place": place, "response": this.responseText});
-                        } else {
-                            reject({"place": place, "response": this.responseText});
-                        }
-                    }
-                };
-                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, true);
-                putRequest.setRequestHeader("Content-Type", "application/json");
-                putRequest.send(JSON.stringify(player_object));
-            })
-        }
         function restorePlayers() {
-            playersButton = document.getElementById("playersButton");
+            const playersButton = document.getElementById("playersButton");
             playersButton.innerText = "Cambia i tennisti";
             playersButton.onclick = insertPlayers;
-            scoresButton = document.getElementById("scoresButton");
+            const scoresButton = document.getElementById("scoresButton");
             scoresButton.disabled = false;
-            closeButton = document.getElementById("closeButton");
+            const closeButton = document.getElementById("closeButton");
             closeButton.disabled = false;
             document.getElementById("cancelButton").remove();
-            playersForms = Array();
+            playerForms = Array();
             seedForms = Array();
             updateTablePlayers();
         }
         function updateTablePlayers() {
             if (tournamentInfo["is_ghost"]) {
-                table = document.getElementById("players");
+                const table = document.getElementById("players");
                 table.innerText = "";
-                playersButton = document.getElementById("playersButton");
+                const playersButton = document.getElementById("playersButton");
                 playersButton.hidden = true;
                 return;
             }
-            table = document.getElementById("tablePlayersBody");
+            const table = document.getElementById("tablePlayersBody");
             table.innerText = "";
-            if (tournamentInfo["draw_type"] == "Draw16") {
+            let playersNumber;
+            if (tournamentInfo["draw_type"] === "Draw16") {
                 playersNumber = 16;
-            } else if (tournamentInfo["draw_type"] == "DrawRoundRobin") {
+            } else if (tournamentInfo["draw_type"] === "DrawRoundRobin") {
                 playersNumber = 12;
             }
-            for (index = 0; index < playersNumber; index++) {
-                playerObject = tournamentPlayers[index];
-                player_index = playerObject["index"];
-                if (player_index == -1) {
+            for (let index = 0; index < playersNumber; index++) {
+                const playerObject = tournamentPlayers[index];
+                const player_index = playerObject["index"];
+                let player_surname;
+                if (player_index === -1) {
                     player_surname = "/";
                 } else {
                     player_surname = players[tournamentPlayers[index]["index"]]["surname"];
                 }
-                seed = tournamentPlayers[index]["seed"];
+                const seed = tournamentPlayers[index]["seed"];
                 const row = table.insertRow();
                 const position_cell = row.insertCell();
-                position_cell.innerText = index + 1;
+                position_cell.innerText = String(index + 1);
                 const player_cell = row.insertCell();
                 player_cell.innerText = player_surname;
                 const seed_cell = row.insertCell();
-                if (seed != 0) {
+                if (seed !== 0) {
                     seed_cell.innerText = seed;
                 } else {
                     seed_cell.innerText = "";
                 }
             }
         }
-        var forms = Object();
-        var checkboxes = Object();
-        var datetimes = Object();
-        var clear_buttons = Object();
+        let forms = Object();
+        let checkboxes = Object();
+        let datetimes = Object();
+        let clear_buttons = Object();
         function insertScores() {
-            scoresButton = document.getElementById("scoresButton");
+            const scoresButton = document.getElementById("scoresButton");
             scoresButton.innerText = "Manda i punteggi";
             scoresButton.onclick = sendScores;
-            playersButton = document.getElementById("playersButton");
+            const playersButton = document.getElementById("playersButton");
             playersButton.disabled = true;
-            closeButton = document.getElementById("closeButton");
+            const closeButton = document.getElementById("closeButton");
             closeButton.disabled = true;
-            cancelButton = document.createElement("button");
+            const cancelButton = document.createElement("button");
             cancelButton.id = "cancelButton";
             cancelButton.innerText = "Annulla";
             cancelButton.onclick = restoreMatches;
             scoresButton.parentNode.insertBefore(cancelButton, scoresButton.nextSibling);
-            table = document.getElementById("tableMatchesBody");
+            const table = document.getElementById("tableMatchesBody");
             table.innerText = "";
-            for (var key in matches) {
+            for (const key in matches) {
                 const row = table.insertRow();
                 const id_cell = row.insertCell();
                 id_cell.innerText = key;
                 if (matches[key]["bets_closed"]) {
-                    lock = document.createElement("img");
+                    const lock = document.createElement("img");
                     lock.src = "/static/lock.png";
                     id_cell.innerText += "   ";
                     id_cell.appendChild(lock);
                 }
                 if (matches[key]["timestamp"] != null) {
-                    let clock = document.createElement("img");
+                    const clock = document.createElement("img");
                     clock.src = "/static/clock.png";
                     id_cell.innerText += "   ";
                     id_cell.appendChild(clock);
@@ -626,39 +513,41 @@
                 if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
                     continue;
                 }
-                seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
-                if (seed_player_1 != 0) {
+                const seed_player_1 = getSeed(matches[key]["players"]["player_1"]);
+                let seed_string;
+                if (seed_player_1 !== 0) {
                     seed_string = " [" + seed_player_1 + "]";
                 } else {
                     seed_string = "";
                 }
                 player_1_cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seed_string;
-                seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
-                if (seed_player_2 != 0) {
+                const seed_player_2 = getSeed(matches[key]["players"]["player_2"]);
+                if (seed_player_2 !== 0) {
                     seed_string = " [" + seed_player_2 + "]";
                 } else {
                     seed_string = "";
                 }
                 player_2_cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seed_string;
-                if (matches[key]["players"]["player_1"] == 0 || matches[key]["players"]["player_2"] == 0) {
+                if (matches[key]["players"]["player_1"] === 0 || matches[key]["players"]["player_2"] === 0) {
                     continue;
                 }
-                inner_table = document.createElement("table");
+                const inner_table = document.createElement("table");
                 inner_table.setAttribute("class", "forms-table");
-                inner_row = inner_table.insertRow();
+                const inner_row = inner_table.insertRow();
                 forms[key] = Object();
+                let score;
                 if (!window.mobileCheck()) {
                     // desktop
                     score = matches[key]["score"];
-                    for (var set = 0; set < tournamentInfo["n_sets"]; set++) {
-                        set_cell = inner_row.insertCell();
+                    for (let set = 0; set < tournamentInfo["n_sets"]; set++) {
+                        const set_cell = inner_row.insertCell();
                         let form = document.createElement("input");
                         form.setAttribute("type", "text");
-                        form.setAttribute("size", 1);
-                        if (score != null && score[set] != undefined) {
-                            if (score[set][0] == -1) {
+                        form.setAttribute("size", "1");
+                        if (score != null && score[set] !== undefined) {
+                            if (score[set][0] === -1) {
                                 form.value = "A-";
-                            } else if (score[set][1] == -1) {
+                            } else if (score[set][1] === -1) {
                                 form.value += "-A";
                             } else if (score[set][0] < 10 && score[set][1] < 10) {
                                 form.value = String(score[set][0]) + String(score[set][1]);
@@ -674,7 +563,7 @@
                     // mobile
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
-                    form.setAttribute("size", 3 * tournamentInfo["n_sets"]);
+                    form.setAttribute("size", String(3 * tournamentInfo["n_sets"]));
                     score = matches[key]["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);
@@ -683,13 +572,12 @@
                     score_cell.appendChild(form);
                 }
                 if (score == null) {
-
-                    let checkbox = document.createElement("input");
+                    const checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.onclick = showDatetime;
                     checkboxes[key] = checkbox;
                     bets_closed_cell.appendChild(checkbox);
-                    let datetime = document.createElement("input");
+                    const datetime = document.createElement("input");
                     datetime.required = true;
                     datetime.type = "time";
                     bets_closed_cell.appendChild(datetime);
@@ -697,7 +585,7 @@
                         datetime.value = timestamp2localtime(matches[key]["timestamp"]);
                     }
                     datetimes[key] = datetime;
-                    let clear_button = document.createElement("button");
+                    const clear_button = document.createElement("button");
                     clear_button.innerText = "X";
                     clear_button.onclick = function(event) {
                         datetime.value = "";
@@ -713,11 +601,11 @@
             }
         }
         function timestamp2localtime(timestamp) {
-            var tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
             return (new Date(timestamp * 1000 - tzoffset)).toISOString().slice(11, 16);
         }
         function getKeyByValue(obj, value) {
-            for(var prop in obj) {
+            for (const prop in obj) {
                 if(obj.hasOwnProperty(prop)) {
                     if(obj[prop] === value)
                         return prop;
@@ -725,7 +613,7 @@
             }
         }
         function showDatetime(event) {
-            key = getKeyByValue(checkboxes, event.target);
+            const key = getKeyByValue(checkboxes, event.target);
             if (event.target.checked) {
                 datetimes[key].hidden = true;
                 clear_buttons[key].hidden = true;
@@ -735,10 +623,10 @@
             }
         }
         function getTimeStamp(value_string) {
-            if (value_string == "") {
+            if (value_string === "") {
                 return null;
             }
-            var currentdate = new Date();
+            const currentdate = new Date();
             const year = currentdate.getFullYear();
             const month = currentdate.getMonth();
             const day = currentdate.getDate();
@@ -746,8 +634,8 @@
             const current_minute = currentdate.getMinutes();
             const hour = value_string.slice(0, 2);
             const minute = value_string.slice(3, 5);
-            var delta;
-            if ((hour < current_hour) || (hour == current_hour && minute < current_minute)) {
+            let delta;
+            if ((hour < current_hour) || (hour === current_hour && minute < current_minute)) {
                 delta = 24*60*60;
             } else {
                 delta = 0;
@@ -757,35 +645,37 @@
         function sendScores() {
             const re_score_minus = /^([0-9]*)-([0-9]*)$/;
             const re_score_simple = /^([0-9])([0-9])$/;
-            all_scores = Object();
-            for (var key in forms) {
+            const all_scores = Object();
+            for (const key in forms) {
+                let set_scores;
                 if (!window.mobileCheck()) {
                     // desktop
                     set_scores = Array();
-                    for (set in forms[key]) {
+                    for (const set in forms[key]) {
                         set_scores.push(forms[key][set].value.trim());
                     }
                 } else {
                     // mobile
                     set_scores = forms[key].value.trim().split(/\s+/);
                 }
-                last_set = false;
-                match_score = Array();
-                for (set in set_scores) {
-                    set_score = set_scores[set];
-                    if (set_score != "" && last_set) {
+                let last_set = false;
+                const match_score = Array();
+                for (const set in set_scores) {
+                    let set_score = set_scores[set];
+                    let set_score_array;
+                    if (set_score !== "" && last_set) {
                         window.alert("Punteggio non valido nel match " + key + ": set dopo un set vuoto");
                         return;
                     }
-                    if (set_score == "") {
+                    if (set_score === "") {
                         last_set = true;
                         continue;
-                    } else if (set_score == "-A") {
+                    } else if (set_score === "-A") {
                         set_score = Array(0, -1);
                         match_score.push(set_score);
                         last_set = true;
                         continue;
-                    } else if (set_score == "A-") {
+                    } else if (set_score === "A-") {
                         set_score = Array(-1, 0);
                         match_score.push(set_score);
                         last_set = true;
@@ -805,7 +695,7 @@
                 all_scores[key] = Object();
                 all_scores[key]["score"] = match_score;
                 if (key in checkboxes) {
-                    var timestamp;
+                    let timestamp;
                     if (key in datetimes) {
                         timestamp = getTimeStamp(datetimes[key].value);
                     } else {
@@ -822,26 +712,28 @@
                     all_scores[key]["timestamp"] = null;
                 }
             }
-            all_promises = Array();
-            for (key in all_scores) {
-                if (!equalScores(all_scores[key]["score"], matches[key]["score"]) || all_scores[key]["bets_closed"] != matches[key]["bets_closed"]
-                    || all_scores[key]["timestamp"] != matches[key]["timestamp"]) {
-                    all_promises.push(sendScoreRequest(key, all_scores[key]));
+            const all_promises = Array();
+            for (const key in all_scores) {
+                if (!equalScores(all_scores[key]["score"], matches[key]["score"]) || all_scores[key]["bets_closed"] !== matches[key]["bets_closed"]
+                    || all_scores[key]["timestamp"] !== matches[key]["timestamp"]) {
+                    all_promises.push(
+                        sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + key, all_scores[key], key)
+                    );
                 }
             }
-            if (all_promises.length == 0) {
+            if (all_promises.length === 0) {
                 restoreMatches();
             }
             Promise.allSettled(all_promises).then(function (results) {
-                var restore = true;
-                successful = [];
-                failed = [];
-                for (var index in results) {
-                    if (results[index]["status"] == "fulfilled") {
-                        match_id = results[index]["value"]["match_id"];
-                        match = JSON.parse(results[index]["value"]["response"]);
+                let restore = true;
+                const successful = [];
+                const failed = [];
+                for (const index in results) {
+                    if (results[index]["status"] === "fulfilled") {
+                        const match_id = results[index]["value"]["key"];
+                        const match = JSON.parse(results[index]["value"]["response"]);
                         matches[match_id] = match;
-                        successful_string = "Match " + match_id + " aggiornato: [ " + formatScore(match['score']) + " ]";
+                        let successful_string = "Match " + match_id + " aggiornato: [ " + formatScore(match['score']) + " ]";
                         if (match['bets_closed']) {
                             successful_string += " con scommesse chiuse";
                         } else {
@@ -852,8 +744,8 @@
                         }
                         successful.push(successful_string);
                     } else {
-                        match_id = results[index]["reason"]["match_id"];
-                        message = results[index]["reason"]["response"];
+                        const match_id = results[index]["reason"]["key"];
+                        const message = results[index]["reason"]["response"];
                         failed.push("Attenzione! Match " + match_id + ": " + message);
                         restore = false;
                     }
@@ -869,80 +761,24 @@
                 }
             });
         }
-        function equalScores(score1, score2) {
-            if (score2 == null) {
-                return score1.length == 0;
-            }
-            return equalArrays(score1, score2);
-        }
-        function equalArrays(a1, a2) {
-            var i = a1.length;
-            if (i != a2.length) {
-                return false;
-            }
-            while (i--) {
-                if (Array.isArray(a1[i]) && Array.isArray(a2[i])) {
-                    if (!equalArrays(a1[i], a2[i])) {
-                        return false;
-                    }
-                } else if (a1[i] != a2[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
         function restoreMatches() {
-            scoresButton = document.getElementById("scoresButton");
+            const scoresButton = document.getElementById("scoresButton");
             scoresButton.innerText = "Cambia i punteggi";
             scoresButton.onclick = insertScores;
-            playersButton = document.getElementById("playersButton");
+            const playersButton = document.getElementById("playersButton");
             playersButton.disabled = false;
-            closeButton = document.getElementById("closeButton");
+            const closeButton = document.getElementById("closeButton");
             closeButton.disabled = false;
             document.getElementById("cancelButton").remove();
             forms = Object();
             checkboxes = Object();
             updateMatches();
         }
-        function sendScoreRequest(match_id, bet) {
-            return new Promise(function (resolve, reject) {
-                var putRequest = new XMLHttpRequest();
-                putRequest.onreadystatechange = function () {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve({"match_id": match_id, "response": this.responseText});
-                        } else {
-                            reject({"match_id": match_id, "response": this.responseText});
-                        }
-                    }
-                };
-                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id, true);
-                putRequest.setRequestHeader("Content-Type", "application/json");
-                putRequest.send(JSON.stringify(bet));
-            })
-        }
-        function sendScheduledCloseRequest(match_id, time) {
-            return new Promise(function (resolve, reject) {
-                var postRequest = new XMLHttpRequest();
-                postRequest.onreadystatechange = function () {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve({"match_id": match_id, "response": this.responseText});
-                        } else {
-                            reject({"match_id": match_id, "response": this.responseText});
-                        }
-                    }
-                };
-                postRequest.open("POST", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + match_id + '/close', true);
-                postRequest.setRequestHeader("Content-Type", "application/json");
-                postRequest.send(JSON.stringify(time));
-            })
-        }
         function closeTournament() {
             if (!changeTournamentStatus(false)) {
                 return;
             }
-            for (key in matches) {
+            for (const key in matches) {
                 matches[key]["bets_closed"] = true;
             }
             updateMatches();
@@ -951,22 +787,29 @@
             changeTournamentStatus(true);
         }
         function changeTournamentStatus(is_open) {
-            var text;
+            let text;
             if (is_open) {
                 text = "Il torneo verrà aperto. Continuare?";
             } else {
                 text = "Il torneo verrà chiuso. Continuare?";
             }
-            if (confirm(text) != true) {
+            if (confirm(text) !== true) {
                 return false;
             }
-            requestContent = Object();
-            requestContent["is_open"] = is_open;
+            const requestJson = Object();
+            requestJson["is_open"] = is_open;
             let returnValue = false;
-            Promise.all([sendStatusRequest(requestContent)]).then(function (values) {
-                tournamentInfo = JSON.parse(values[0]);
+            Promise.all([
+                sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", requestJson)
+            ]).then(function (values) {
+                const updated_tournament = JSON.parse(values[0]);
+                for (const key in updated_tournament) {
+                    tournamentInfo = updated_tournament[key];
+                }
                 updateInfo();
-                Promise.all([callRanking()]).then(function (values) {
+                Promise.all([
+                    sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking")
+                ]).then(function (values) {
                     ranking = JSON.parse(values[0]);
                     updateTableRanking();
                     returnValue = true;
@@ -978,23 +821,6 @@
             });
             return returnValue;
         }
-        function sendStatusRequest(is_open) {
-            return new Promise(function (resolve, reject) {
-                var putRequest = new XMLHttpRequest();
-                putRequest.onreadystatechange = function () {
-                    if (this.readyState == 4) {
-                        if (this.status == 200) {
-                            resolve(this.responseText);
-                        } else {
-                            reject(this.responseText);
-                        }
-                    }
-                };
-                putRequest.open("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", true);
-                putRequest.setRequestHeader("Content-Type", "application/json");
-                putRequest.send(JSON.stringify(is_open));
-            })
-        }
     {% endif %}
 </script>
 {% endblock %}
@@ -1002,6 +828,20 @@
 {% block content %}
 <h1 id="mainHeader"></h1>
 <h2 id="subHeader"></h2>
+<table class="styled-table">
+    <thead>
+    <tr>
+        <td>Nazione</td>
+        <td>Bandiera</td>
+        <td>Set</td>
+        <td>Tie-break al 5° set</td>
+        <td>Categoria</td>
+        <td>Tabellone</td>
+    </tr>
+    </thead>
+    <tbody id="infoTableBody">
+    </tbody>
+</table>
 {% if is_privileged %}
     <button id="scoresButton" onclick="insertScores()">Cambia i punteggi</button>
     <button id="closeButton" onclick="closeTournament()">Chiudi il torneo</button>

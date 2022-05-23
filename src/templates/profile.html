@@ -14,7 +14,9 @@
             sendRequest("GET", "/leagues"),
             sendRequest("GET", "/profile")];
         {% if is_privileged %}
-        all_promises.push(sendRequest("GET", "/load"));
+        all_promises.push(
+            sendRequest("GET", "/load")
+        );
         {% endif %}
         Promise.all(all_promises).then(function (values) {
             leagues = JSON.parse(values[0]);
@@ -62,14 +64,14 @@
         const nickname_cell = row.insertCell();
         let form_nickname = document.createElement("input");
         form_nickname.setAttribute("type", "text");
-        form_nickname.setAttribute("size", 15);
+        form_nickname.setAttribute("size", "15");
         form_nickname.value = profile["nickname"];
         nickname_cell.appendChild(form_nickname);
         forms["nickname"] = form_nickname;
         const email_cell = row.insertCell();
         let form_email = document.createElement("input");
         form_email.setAttribute("type", "email");
-        form_email.setAttribute("size", 20);
+        form_email.setAttribute("size", "20");
         form_email.value = profile["email"];
         email_cell.appendChild(form_email);
         forms["email"] = form_email;
@@ -82,7 +84,7 @@
         const password_cell = row.insertCell();
         let form_password = document.createElement("input");
         form_password.setAttribute("type", "text");
-        form_password.setAttribute("size", 15);
+        form_password.setAttribute("size", "15");
         form_password.disabled = true;
         password_cell.appendChild(form_password);
         forms["password"] = form_password;
@@ -172,13 +174,13 @@
             const requestJson = Object();
             requestJson['timestamp'] = timestamps[index];
             Promise.all([
-                sendRequest("POST", "/download", requestJson, "blob")
+                sendRequest("POST", "/download", requestJson, null, "blob")
             ]).then(function (values) {
                 const blob = new Blob([values[0]], {type: "application/octet-stream"});
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 document.body.appendChild(link);
-                link.style = "display:none";
+                link.style.cssText = "display:none";
                 link.href = url;
                 link.download = 'save_' + timestamps[index] + '.dat';
                 link.click();
@@ -199,8 +201,8 @@
         {{ nickname }}
     </h1>
     <button id="profileButton" onclick="editProfile()">Cambia il profilo</button>
-    <button id="cancelButton" hidden="true" onclick="restoreProfile()">Annulla</button>
-    <table id="profileInsert" hidden="true"></table>
+    <button id="cancelButton" hidden onclick="restoreProfile()">Annulla</button>
+    <table id="profileInsert" hidden></table>
     <table class="styled-table">
         <thead>
         <tr>

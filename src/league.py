@@ -407,7 +407,7 @@ class League(Entity):
             for gambler in tournament_ranking_scores:
                 if gambler in self._gamblers:
                     ranking_scores[gambler] += \
-                        tournament_ranking_scores[gambler] - self._previous_year_scores[year - 1][name][gambler]
+                        tournament_ranking_scores[gambler] - self._previous_year_scores[year - 1][name].get(gambler, 0)
                 self._previous_year_scores[year][name][gambler] = tournament_ranking_scores[gambler]
                 if year in yearly_scores:
                     if gambler in yearly_scores[year]:
