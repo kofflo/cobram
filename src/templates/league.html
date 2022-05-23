@@ -38,13 +38,13 @@
             updateTableWinnersRecord();
             plotRankingChart();
             leagueGamblerDetails = Object();
-            const all_details_promises = Array();
+            const allDetailsPromises = Array();
             for (const key in leagueGamblers) {
-                all_details_promises.push(
+                allDetailsPromises.push(
                     sendRequest("GET", "/leagues/{{ league_index }}/gamblers/" + key, null, key)
                 );
             }
-            Promise.all(all_details_promises).then(function (values) {
+            Promise.all(allDetailsPromises).then(function (values) {
                 for (const index in values) {
                     const responseObject = values[index];
                     leagueGamblerDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
@@ -66,8 +66,8 @@
         let cell = headerRow.insertCell();
         const tournamentNames = Array();
         for (const key in ranking["record_tournament"]) {
-            const tournament_object = ranking["record_tournament"][key];
-            for (const tournamentName in tournament_object) {
+            const tournamentObject = ranking["record_tournament"][key];
+            for (const tournamentName in tournamentObject) {
                 if (!tournamentNames.includes(tournamentName)) {
                     tournamentNames.push(tournamentName);
                 }
@@ -75,8 +75,8 @@
         }
         const categoryNames = Array();
         for (const key in ranking["record_category"]) {
-            const category_object = ranking["record_category"][key];
-            for (const categoryName in category_object) {
+            const categoryObject = ranking["record_category"][key];
+            for (const categoryName in categoryObject) {
                 if (!categoryNames.includes(categoryName)) {
                     categoryNames.push(categoryName);
                 }
@@ -93,24 +93,24 @@
         cell = headerRow.insertCell();
         cell.innerText = "Totale";
         const body = table.createTBody();
-        let current_season_year;
+        let currentSeasonYear;
         if (ranking["last_tournament"] != null) {
-            current_season_year = tournaments[ranking["last_tournament"]]["year"];
+            currentSeasonYear = tournaments[ranking["last_tournament"]]["year"];
         } else {
-            current_season_year = null;
+            currentSeasonYear = null;
         }
         for (const key in ranking["record_tournament"]) {
             const row = body.insertRow();
-            const name_cell = row.insertCell();
-            name_cell.innerText = gamblers[key]["nickname"];
+            const nameCell = row.insertCell();
+            nameCell.innerText = gamblers[key]["nickname"];
             let total = 0;
-            let total_current_season = false;
+            let totalCurrentSeason = false;
             for (const index in tournamentNames) {
                 cell = row.insertCell();
                 if (tournamentNames[index] in ranking["record_tournament"][key]) {
                     cell.innerText = ranking["record_tournament"][key][tournamentNames[index]];
-                    if (current_season_year != null && check_name_current_season(key, tournamentNames[index], current_season_year)) {
-                        total_current_season = true;
+                    if (currentSeasonYear != null && checkNameCurrentSeason(key, tournamentNames[index], currentSeasonYear)) {
+                        totalCurrentSeason = true;
                         cell.className = 'currentSeason';
                     }
                     total += ranking["record_tournament"][key][tournamentNames[index]];
@@ -122,7 +122,7 @@
                 cell = row.insertCell();
                 if (categoryNames[index] in ranking["record_category"][key]) {
                     cell.innerText = ranking["record_category"][key][categoryNames[index]];
-                    if (current_season_year != null && check_category_current_season(key, categoryNames[index], current_season_year)) {
+                    if (currentSeasonYear != null && checkCategoryCurrentSeason(key, categoryNames[index], currentSeasonYear)) {
                         cell.className = 'currentSeason';
                     }
                 } else {
@@ -131,12 +131,12 @@
             }
             cell = row.insertCell();
             cell.innerText = String(total);
-            if (total_current_season) {
+            if (totalCurrentSeason) {
                 cell.className = 'currentSeason';
             }
         }
     }
-    function check_name_current_season(gambler, name, year) {
+    function checkNameCurrentSeason(gambler, name, year) {
         for (const index in tournaments) {
             const tournament = tournaments[index];
             if (tournament["name"] === name && tournament["year"] === year && ranking["winners"][index] === gambler) {
@@ -145,7 +145,7 @@
         }
         return false;
     }
-    function check_category_current_season(gambler, category, year) {
+    function checkCategoryCurrentSeason(gambler, category, year) {
         for (const index in tournaments) {
             const tournament = tournaments[index];
             if (tournament["category"] === category && tournament["year"] === year && ranking["winners"][index] === gambler) {
@@ -169,134 +169,121 @@
             }
             {% endif %}
             const row = table.insertRow();
-            const name_cell = row.insertCell();
-            const name_link = document.createElement("a");
-            name_link.innerText = tournaments[key]["name"];
-            name_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/" + key);
-            name_cell.appendChild(name_link);
+            const nameCell = row.insertCell();
+            const nameLink = document.createElement("a");
+            nameLink.innerText = tournaments[key]["name"];
+            nameLink.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/" + key);
+            nameCell.appendChild(nameLink);
             if (!tournaments[key]["is_open"]) {
                 const lock = document.createElement("img");
                 lock.src = "/static/lock.png";
-                name_link.innerText += "   ";
-                name_link.appendChild(lock);
+                nameLink.innerText += "   ";
+                nameLink.appendChild(lock);
             }
-            const year_cell = row.insertCell();
-            year_cell.innerText = tournaments[key]["year"];
-            const nation_code_cell = row.insertCell();
-            nation_code_cell.innerText = nations[tournaments[key]["nation"]].code;
-            const flag_cell = row.insertCell();
+            const yearCell = row.insertCell();
+            yearCell.innerText = tournaments[key]["year"];
+            const nationCodeCell = row.insertCell();
+            nationCodeCell.innerText = nations[tournaments[key]["nation"]].code;
+            const flagCell = row.insertCell();
             const img = document.createElement('img');
             img.src = '/static/flags/' + nations[tournaments[key]["nation"]].code + '.png';
             img.setAttribute("class", "bordered");
-            flag_cell.appendChild(img);
-            const n_sets_cell = row.insertCell();
-            n_sets_cell.innerText = tournaments[key]["n_sets"];
-            const tie_breaker_cell = row.insertCell();
-            const tie_breaker = tournaments[key]["tie_breaker_5th"];
-            tie_breaker_cell.innerText = tieBreaker2text(tie_breaker);
-            const category_cell = row.insertCell();
+            flagCell.appendChild(img);
+            const nSetsCell = row.insertCell();
+            nSetsCell.innerText = tournaments[key]["n_sets"];
+            const tieBreakerCell = row.insertCell();
+            const tieBreaker = tournaments[key]["tie_breaker_5th"];
+            tieBreakerCell.innerText = tieBreaker2text(tieBreaker);
+            const categoryCell = row.insertCell();
             const category = tournaments[key]["category"];
-            category_cell.innerText = category2text(category);
-            const draw_cell = row.insertCell();
+            categoryCell.innerText = category2text(category);
+            const drawCell = row.insertCell();
             const draw = tournaments[key]["draw_type"];
-            draw_cell.innerText = draw2text(draw);
-            const player_winner_cell = row.insertCell();
-            const player_winner = tournaments[key]["winner"] != null ? players[tournaments[key]["winner"]] : null;
-            if (player_winner != null) {
-                player_winner_cell.innerText = player_winner["name"] + " " + player_winner["surname"];
+            drawCell.innerText = draw2text(draw);
+            const playerWinnerCell = row.insertCell();
+            const playerWinner = tournaments[key]["winner"] != null ? players[tournaments[key]["winner"]] : null;
+            if (playerWinner != null) {
+                playerWinnerCell.innerText = playerWinner["name"] + " " + playerWinner["surname"];
             } else {
-                player_winner_cell.innerText = "/";
+                playerWinnerCell.innerText = "/";
             }
-            const gambler_winner_cell = row.insertCell();
-            const gambler_winner = key in ranking["winners"] ? gamblers[ranking["winners"][key]] : null;
-            if (gambler_winner != null) {
-                gambler_winner_cell.innerText = gambler_winner["nickname"];
+            const gamblerWinnerCell = row.insertCell();
+            const gamblerWinner = key in ranking["winners"] ? gamblers[ranking["winners"][key]] : null;
+            if (gamblerWinner != null) {
+                gamblerWinnerCell.innerText = gamblerWinner["nickname"];
             } else {
-                gambler_winner_cell.innerText = "/";
+                gamblerWinnerCell.innerText = "/";
             }
             {% if is_privileged %}
-                const ghost_cell = row.insertCell();
+                const ghostCell = row.insertCell();
                 if (tournaments[key]["is_ghost"]) {
-                    ghost_cell.innerText = "GHOST";
+                    ghostCell.innerText = "GHOST";
                 }
-                const tools_cell = row.insertCell();
-                const edit_img = document.createElement('img');
-                edit_img.src = '/static/edit.png';
-                edit_img.id = key;
-                edit_img.onclick = tournamentUpdate;
-                edit_img.style.cursor = "pointer";
-                tools_cell.appendChild(edit_img);
-                const delete_img = document.createElement('img');
-                delete_img.src = '/static/delete.png';
-                delete_img.id = key;
-                delete_img.onclick = deleteTournament;
-                delete_img.style.cursor = "pointer";
-                tools_cell.appendChild(document.createTextNode(' '));
-                tools_cell.appendChild(delete_img);
+                addToolsCell(row, key, tournamentUpdate, deleteTournament);
             {% endif %}
         }
     }
     function updateTablesRanking() {
         const tableRanking = document.getElementById("tableRankingBody");
-        const ranking_scores = ranking["ranking_scores"];
-        const ranking_scores_array = Object.entries(ranking_scores);
-        ranking_scores_array.sort(function(first_pair, second_pair) {
-            return first_pair[1] - second_pair[1];
+        const rankingScores = ranking["ranking_scores"];
+        const rankingScoresArray = Object.entries(rankingScores);
+        rankingScoresArray.sort(function(firstPair, secondPair) {
+            return firstPair[1] - secondPair[1];
         });
-        ranking_scores_array.reverse();
-        let last_position = undefined;
-        let last_points = undefined;
-        for (let index = 0; index < ranking_scores_array.length; index++) {
-            const pair = ranking_scores_array[index];
-            const gambler_index = pair[0];
-            const gambler_points = pair[1];
+        rankingScoresArray.reverse();
+        let lastPosition = undefined;
+        let lastPoints = undefined;
+        for (let index = 0; index < rankingScoresArray.length; index++) {
+            const pair = rankingScoresArray[index];
+            const gamblerIndex = pair[0];
+            const gamblerPoints = pair[1];
             const row = tableRanking.insertRow();
-            const position_cell = row.insertCell();
-            if (gambler_points === last_points) {
-                position_cell.innerText = last_position;
+            const positionCell = row.insertCell();
+            if (gamblerPoints === lastPoints) {
+                positionCell.innerText = lastPosition;
             } else {
-                position_cell.innerText = String(index + 1);
-                last_position = index + 1;
+                positionCell.innerText = String(index + 1);
+                lastPosition = index + 1;
             }
-            const gambler_cell = row.insertCell();
-            gambler_cell.innerText = gamblers[gambler_index]["nickname"];
-            const points_cell = row.insertCell();
-            points_cell.innerText = String(gambler_points);
-            last_points = gambler_points;
+            const gamblerCell = row.insertCell();
+            gamblerCell.innerText = gamblers[gamblerIndex]["nickname"];
+            const pointsCell = row.insertCell();
+            pointsCell.innerText = String(gamblerPoints);
+            lastPoints = gamblerPoints;
         }
         const tableRace = document.getElementById("tableRaceBody");
-        const yearly_scores = ranking["yearly_scores"];
-        const years = Object.keys(yearly_scores).map(x => parseInt(x));
+        const yearlyScores = ranking["yearly_scores"];
+        const years = Object.keys(yearlyScores).map(x => parseInt(x));
         if (years.length === 0) {
             document.getElementById("tableRace").remove();
             return;
         }
-        const last_year = Math.max(...years);
-        document.getElementById("raceTitle").innerText = "Race " + last_year;
-        const yearly_scores_array = Object.entries(yearly_scores[last_year]);
-        yearly_scores_array.sort(function(first_pair, second_pair) {
-            return first_pair[1] - second_pair[1];
+        const lastYear = Math.max(...years);
+        document.getElementById("raceTitle").innerText = "Race " + lastYear;
+        const yearlyScoresArray = Object.entries(yearlyScores[lastYear]);
+        yearlyScoresArray.sort(function(firstPair, secondPair) {
+            return firstPair[1] - secondPair[1];
         });
-        yearly_scores_array.reverse();
-        last_position = undefined;
-        last_points = undefined;
-        for (let index = 0; index < yearly_scores_array.length; index++) {
-            const pair = yearly_scores_array[index];
-            const gambler_index = pair[0];
-            const gambler_points = pair[1];
+        yearlyScoresArray.reverse();
+        lastPosition = undefined;
+        lastPoints = undefined;
+        for (let index = 0; index < yearlyScoresArray.length; index++) {
+            const pair = yearlyScoresArray[index];
+            const gamblerIndex = pair[0];
+            const gamblerPoints = pair[1];
             const row = tableRace.insertRow();
-            const position_cell = row.insertCell();
-            if (gambler_points === last_points) {
-                position_cell.innerText = String(last_position);
+            const positionCell = row.insertCell();
+            if (gamblerPoints === lastPoints) {
+                positionCell.innerText = String(lastPosition);
             } else {
-                position_cell.innerText = String(index + 1);
-                last_position = index + 1;
+                positionCell.innerText = String(index + 1);
+                lastPosition = index + 1;
             }
-            const gambler_cell = row.insertCell();
-            gambler_cell.innerText = gamblers[gambler_index]["nickname"];
-            const points_cell = row.insertCell();
-            points_cell.innerText = String(gambler_points);
-            last_points = gambler_points;
+            const gamblerCell = row.insertCell();
+            gamblerCell.innerText = gamblers[gamblerIndex]["nickname"];
+            const pointsCell = row.insertCell();
+            pointsCell.innerText = String(gamblerPoints);
+            lastPoints = gamblerPoints;
         }
     }
     {% if is_privileged %}
@@ -337,21 +324,21 @@
         row.insertCell().innerText = "Ghost";
         row = table.insertRow();
         forms = Object();
-        const name_cell = row.insertCell();
-        const form_name = document.createElement("input");
-        form_name.setAttribute("type", "text");
-        form_name.setAttribute("size", "15");
-        name_cell.appendChild(form_name);
-        forms["name"] = form_name;
-        const year_cell = row.insertCell();
-        const form_year = document.createElement("input");
-        form_year.setAttribute("type", "text");
-        form_year.setAttribute("size", "3");
-        form_year.value = String((new Date()).getFullYear());
-        year_cell.appendChild(form_year);
-        forms["year"] = form_year;
-        const nation_cell = row.insertCell();
-        const form_nation = document.createElement("select");
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
+        const yearCell = row.insertCell();
+        const formYear = document.createElement("input");
+        formYear.setAttribute("type", "text");
+        formYear.setAttribute("size", "3");
+        formYear.value = String((new Date()).getFullYear());
+        yearCell.appendChild(formYear);
+        forms["year"] = formYear;
+        const nationCell = row.insertCell();
+        const formNation = document.createElement("select");
         for (const key in nations) {
             if (nations[key]["name"] === "BYE") {
                 continue;
@@ -359,56 +346,56 @@
             const option = document.createElement("option");
             option.value = key;
             option.innerText = nations[key]["name"];
-            form_nation.appendChild(option);
+            formNation.appendChild(option);
         }
-        nation_cell.appendChild(form_nation);
-        forms["nation"] = form_nation;
-        const set_cell = row.insertCell();
-        const form_set = document.createElement("select");
-        addOptions(form_set, [3, 5]);
-        set_cell.appendChild(form_set);
-        forms["n_sets"] = form_set;
-        const tie_break_cell = row.insertCell();
-        const form_tie_break = document.createElement("select");
-        form_tie_break.disabled = true;
-        function set_change() {
-            form_tie_break.disabled = form_set.value === "3";
+        nationCell.appendChild(formNation);
+        forms["nation"] = formNation;
+        const setCell = row.insertCell();
+        const formSet = document.createElement("select");
+        addOptions(formSet, [3, 5]);
+        setCell.appendChild(formSet);
+        forms["n_sets"] = formSet;
+        const tieBreakCell = row.insertCell();
+        const formTieBreak = document.createElement("select");
+        formTieBreak.disabled = true;
+        function setChange() {
+            formTieBreak.disabled = formSet.value === "3";
         }
-        form_set.onchange = set_change;
-        addOptions(form_tie_break, ["Tie-break sul 6-6", "Tie-break sul 12-12", "Senza tie-break"]);
-        tie_break_cell.appendChild(form_tie_break);
-        forms["tie_breaker_5th"] = form_tie_break;
-        const category_cell = row.insertCell();
-        const form_category = document.createElement("select");
-        addOptions(form_category, ["GRAND SLAM", "MASTER 1000", "ATP FINALS", "OLIMPIADI", "ATP 500", "ATP 250"]);
-        category_cell.appendChild(form_category);
-        forms["category"] = form_category;
-        const draw_cell = row.insertCell();
-        const form_draw = document.createElement("select");
-        addOptions(form_draw, ["Eliminazione-16", "Round Robin"]);
-        draw_cell.appendChild(form_draw);
-        forms["draw_type"] = form_draw;
-        const ghost_cell = row.insertCell();
-        const form_ghost = document.createElement("input");
-        form_ghost.type = "checkbox";
-        function ghost_change() {
-            if (form_ghost.checked === true) {
-                form_nation.disabled = true;
-                form_set.disabled = true;
-                form_tie_break.disabled = true;
-                form_category.disabled = true;
-                form_draw.disabled = true;
+        formSet.onchange = setChange;
+        addOptions(formTieBreak, ["Tie-break sul 6-6", "Tie-break sul 12-12", "Senza tie-break"]);
+        tieBreakCell.appendChild(formTieBreak);
+        forms["tie_breaker_5th"] = formTieBreak;
+        const categoryCell = row.insertCell();
+        const formCategory = document.createElement("select");
+        addOptions(formCategory, ["GRAND SLAM", "MASTER 1000", "ATP FINALS", "OLIMPIADI", "ATP 500", "ATP 250"]);
+        categoryCell.appendChild(formCategory);
+        forms["category"] = formCategory;
+        const drawCell = row.insertCell();
+        const formDraw = document.createElement("select");
+        addOptions(formDraw, ["Eliminazione-16", "Round Robin"]);
+        drawCell.appendChild(formDraw);
+        forms["draw_type"] = formDraw;
+        const ghostCell = row.insertCell();
+        const formGhost = document.createElement("input");
+        formGhost.type = "checkbox";
+        function ghostChange() {
+            if (formGhost.checked === true) {
+                formNation.disabled = true;
+                formSet.disabled = true;
+                formTieBreak.disabled = true;
+                formCategory.disabled = true;
+                formDraw.disabled = true;
             } else {
-                form_nation.disabled = false;
-                form_set.disabled = false;
-                form_tie_break.disabled = form_set.value === "3";
-                form_category.disabled = false;
-                form_draw.disabled = false;
+                formNation.disabled = false;
+                formSet.disabled = false;
+                formTieBreak.disabled = formSet.value === "3";
+                formCategory.disabled = false;
+                formDraw.disabled = false;
             }
         }
-        form_ghost.onchange = ghost_change;
-        ghost_cell.appendChild(form_ghost);
-        forms["ghost"] = form_ghost;
+        formGhost.onchange = ghostChange;
+        ghostCell.appendChild(formGhost);
+        forms["ghost"] = formGhost;
         const button = document.getElementById("tournamentButton");
         button.innerText = "Invia";
         const cancelButton = document.createElement("button");
@@ -423,21 +410,21 @@
         if (event != null) {
             const index = event.target.id;
             const tournament = tournaments[index];
-            form_name.value = tournament["name"];
-            form_name.disabled = true;
-            form_year.value = tournament["year"];
-            form_year.disabled = true;
-            form_nation.value = tournament["nation"];
-            form_set.value = tournament["n_sets"];
-            form_set.disabled = true;
-            form_tie_break.value = tieBreaker2text(tournament["tie_breaker_5th"]);
-            form_tie_break.disabled = true;
-            form_category.value = category2text(tournament["category"]);
-            form_category.disabled = true;
-            form_draw.value = draw2text(tournament["draw_type"]);
-            form_draw.disabled = true;
-            form_ghost.checked = tournament["is_ghost"];
-            form_ghost.disabled = true;
+            formName.value = tournament["name"];
+            formName.disabled = true;
+            formYear.value = tournament["year"];
+            formYear.disabled = true;
+            formNation.value = tournament["nation"];
+            formSet.value = tournament["n_sets"];
+            formSet.disabled = true;
+            formTieBreak.value = tieBreaker2text(tournament["tie_breaker_5th"]);
+            formTieBreak.disabled = true;
+            formCategory.value = category2text(tournament["category"]);
+            formCategory.disabled = true;
+            formDraw.value = draw2text(tournament["draw_type"]);
+            formDraw.disabled = true;
+            formGhost.checked = tournament["is_ghost"];
+            formGhost.disabled = true;
             button.onclick = function () {
                 sendTournamentUpdate("PUT", "/leagues/{{ league_index }}/tournaments/" + index);
             };
@@ -478,9 +465,9 @@
         Promise.all([
             sendRequest(method, url, requestJson)
         ]).then(function (values) {
-            const updated_tournament = JSON.parse(values[0]);
-            for (const key in updated_tournament) {
-                tournaments[key] = updated_tournament[key];
+            const updatedTournament = JSON.parse(values[0]);
+            for (const key in updatedTournament) {
+                tournaments[key] = updatedTournament[key];
             }
             restoreTournaments();
         }).catch(function (reason) {
@@ -667,10 +654,10 @@
             window.alert(reason);
         });
     }
-    function sendActiveGambler(is_active) {
+    function sendActiveGambler(isActive) {
         const index = document.getElementById("gamblerSelect").value;
         Promise.all([
-            sendRequest("PUT", "/leagues/{{ league_index }}/gamblers/" + index, {"is_active": is_active})
+            sendRequest("PUT", "/leagues/{{ league_index }}/gamblers/" + index, {"is_active": isActive})
         ]).then(function (values) {
             leagueGamblerDetails[index] = JSON.parse(values[0]);
             restoreTournaments();
@@ -691,27 +678,27 @@
             labels: labels
         };
         const datasets = Array();
-        for (const gambler_key in gamblers) {
-            const gambler_color = randomColorGenerator();
+        for (const gamblerKey in gamblers) {
+            const gamblerColor = randomColorGenerator();
             const dataset = {
-                label: gamblers[gambler_key]["nickname"],
-                backgroundColor: gambler_color,
-                borderColor: gambler_color
+                label: gamblers[gamblerKey]["nickname"],
+                backgroundColor: gamblerColor,
+                borderColor: gamblerColor
             };
-            const gambler_data = Array();
-            let add_gambler = false;
-            for (const tournament_key in ranking["ranking_history"]) {
-                const current_ranking = ranking["ranking_history"][tournament_key];
-                const gambler_index = current_ranking.indexOf(parseInt(gambler_key));
-                if (gambler_index !== -1) {
-                    add_gambler = true;
-                    gambler_data.push(gambler_index + 1);
+            const gamblerData = Array();
+            let addGambler = false;
+            for (const tournamentKey in ranking["ranking_history"]) {
+                const currentRanking = ranking["ranking_history"][tournamentKey];
+                const gamblerIndex = currentRanking.indexOf(parseInt(gamblerKey));
+                if (gamblerIndex !== -1) {
+                    addGambler = true;
+                    gamblerData.push(gamblerIndex + 1);
                 } else {
-                    gambler_data.push(undefined);
+                    gamblerData.push(undefined);
                 }
             }
-            if (add_gambler) {
-                dataset["data"] = gambler_data;
+            if (addGambler) {
+                dataset["data"] = gamblerData;
                 datasets.push(dataset);
             }
         }

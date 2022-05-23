@@ -10,15 +10,15 @@
     let leagues;
     let profile;
     function updatePage() {
-        const all_promises = [
+        const allPromises = [
             sendRequest("GET", "/leagues"),
             sendRequest("GET", "/profile")];
         {% if is_privileged %}
-        all_promises.push(
+        allPromises.push(
             sendRequest("GET", "/load")
         );
         {% endif %}
-        Promise.all(all_promises).then(function (values) {
+        Promise.all(allPromises).then(function (values) {
             leagues = JSON.parse(values[0]);
             profile = JSON.parse(values[1]);
             updateTable();
@@ -34,21 +34,21 @@
         const table = document.getElementById("tableBody");
         table.innerText = "";
         const row = table.insertRow();
-        const name_cell = row.insertCell();
-        name_cell.innerText = profile["nickname"];
-        const code_cell = row.insertCell();
-        code_cell.innerText = profile["email"];
-        const leagues_cell = row.insertCell();
-        const inner_table = document.createElement('table');
-        for (const league_key of profile["leagues"]) {
-            const inner_row = inner_table.insertRow();
-            const inner_cell = inner_row.insertCell();
-            const league_link = document.createElement("a");
-            league_link.innerText = leagues[league_key].name;
-            league_link.setAttribute("href", "/web/leagues/" + league_key);
-            inner_cell.appendChild(league_link);
+        const nameCell = row.insertCell();
+        nameCell.innerText = profile["nickname"];
+        const codeCell = row.insertCell();
+        codeCell.innerText = profile["email"];
+        const leaguesCell = row.insertCell();
+        const innerTable = document.createElement('table');
+        for (const leagueKey of profile["leagues"]) {
+            const innerRow = innerTable.insertRow();
+            const innerCell = innerRow.insertCell();
+            const leagueLink = document.createElement("a");
+            leagueLink.innerText = leagues[leagueKey].name;
+            leagueLink.setAttribute("href", "/web/leagues/" + leagueKey);
+            innerCell.appendChild(leagueLink);
         }
-        leagues_cell.appendChild(inner_table);
+        leaguesCell.appendChild(innerTable);
     }
     function editProfile() {
         const table = document.getElementById("profileInsert");
@@ -61,39 +61,39 @@
         row.insertCell().innerText = "Password";
         row = table.insertRow();
         forms = Object();
-        const nickname_cell = row.insertCell();
-        let form_nickname = document.createElement("input");
-        form_nickname.setAttribute("type", "text");
-        form_nickname.setAttribute("size", "15");
-        form_nickname.value = profile["nickname"];
-        nickname_cell.appendChild(form_nickname);
-        forms["nickname"] = form_nickname;
-        const email_cell = row.insertCell();
-        let form_email = document.createElement("input");
-        form_email.setAttribute("type", "email");
-        form_email.setAttribute("size", "20");
-        form_email.value = profile["email"];
-        email_cell.appendChild(form_email);
-        forms["email"] = form_email;
-        const checkbox_cell = row.insertCell();
-        let form_password_checkbox = document.createElement("input");
-        form_password_checkbox.type = "checkbox";
-        form_password_checkbox.checked = false;
-        checkbox_cell.appendChild(form_password_checkbox);
-        forms["password_checkbox"] = form_password_checkbox;
-        const password_cell = row.insertCell();
-        let form_password = document.createElement("input");
-        form_password.setAttribute("type", "text");
-        form_password.setAttribute("size", "15");
-        form_password.disabled = true;
-        password_cell.appendChild(form_password);
-        forms["password"] = form_password;
-        form_password_checkbox.onchange = function() {
-            if (form_password_checkbox.checked) {
-                form_password.disabled = false;
+        const nicknameCell = row.insertCell();
+        let formNickname = document.createElement("input");
+        formNickname.setAttribute("type", "text");
+        formNickname.setAttribute("size", "15");
+        formNickname.value = profile["nickname"];
+        nicknameCell.appendChild(formNickname);
+        forms["nickname"] = formNickname;
+        const emailCell = row.insertCell();
+        let formEmail = document.createElement("input");
+        formEmail.setAttribute("type", "email");
+        formEmail.setAttribute("size", "20");
+        formEmail.value = profile["email"];
+        emailCell.appendChild(formEmail);
+        forms["email"] = formEmail;
+        const checkboxCell = row.insertCell();
+        let formPasswordCheckbox = document.createElement("input");
+        formPasswordCheckbox.type = "checkbox";
+        formPasswordCheckbox.checked = false;
+        checkboxCell.appendChild(formPasswordCheckbox);
+        forms["password_checkbox"] = formPasswordCheckbox;
+        const passwordCell = row.insertCell();
+        let formPassword = document.createElement("input");
+        formPassword.setAttribute("type", "text");
+        formPassword.setAttribute("size", "15");
+        formPassword.disabled = true;
+        passwordCell.appendChild(formPassword);
+        forms["password"] = formPassword;
+        formPasswordCheckbox.onchange = function() {
+            if (formPasswordCheckbox.checked) {
+                formPassword.disabled = false;
             } else {
-                form_password.value = "";
-                form_password.disabled = true;
+                formPassword.value = "";
+                formPassword.disabled = true;
             }
         };
         const button = document.getElementById("profileButton");
@@ -102,20 +102,20 @@
         document.getElementById("cancelButton").hidden = false;
     }
     function sendProfileUpdate() {
-        let new_password;
+        let newPassword;
         if (forms["password_checkbox"].checked) {
-            new_password = forms["password"].value;
+            newPassword = forms["password"].value;
         } else {
-            new_password = null;
+            newPassword = null;
         }
-        if (new_password != null && new_password.length < 8) {
+        if (newPassword != null && newPassword.length < 8) {
             alert("La password deve avere almeno 8 caratteri");
             return;
         }
         const requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
-        requestJson["password"] = new_password;
+        requestJson["password"] = newPassword;
         Promise.all([
             sendRequest("PUT", "/profile", requestJson)
         ]).then(function (values) {
