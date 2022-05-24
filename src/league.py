@@ -541,6 +541,7 @@ class League(Entity):
             winner = self._winners[tournament_id]
             if winner not in record_tournament:
                 record_tournament[winner] = {}
+            if winner not in record_category:
                 record_category[winner] = {}
             if name in record_tournament[winner]:
                 record_tournament[winner][name] += 1
