@@ -285,8 +285,9 @@ class Tournament:
     def get_seed(self, player):
         if not hasattr(self, '_new_seed'):
             self._new_seed = [0] * self._draw.number_players
-            for player in self._players:
-                self._new_seed[self.get_player_place(player)] = self._seed[player]
+            for tournament_player in self._players:
+                if tournament_player is not None:
+                    self._new_seed[self.get_player_place(tournament_player)] = self._seed[tournament_player]
             self._seed = self._new_seed
             self._new_seed = True
         if player is None:
