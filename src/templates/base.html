@@ -21,17 +21,18 @@
                 const request = new XMLHttpRequest();
                 request.onreadystatechange = function () {
                     if (this.readyState === 4) {
+                        const responseValue = responseType === "blob" ? this.response : this.responseText;
                         if (this.status === 200) {
                             if (key != null) {
-                                resolve({"key": key, "response": this.responseText});
+                                resolve({"key": key, "response": responseValue});
                             } else {
-                                resolve(this.responseText);
+                                resolve(responseValue);
                             }
                         } else {
                             if (key != null) {
-                                reject({"key": key, "response": this.responseText});
+                                reject({"key": key, "response": responseValue});
                             } else {
-                                reject(this.responseText);
+                                reject(responseValue);
                             }
                         }
                     }
