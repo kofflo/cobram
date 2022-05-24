@@ -99,7 +99,20 @@
         } else {
             currentSeasonYear = null;
         }
+
+        let gamblerTotal = Object();
         for (const key in ranking["record_tournament"]) {
+            gamblerTotal[key] = 0;
+            for (const index in tournamentNames) {
+                if (tournamentNames[index] in ranking["record_tournament"][key]) {
+                    gamblerTotal[key] += ranking["record_tournament"][key][tournamentNames[index]];
+                }
+            }
+        }
+        const sortedGamblers = orderObjectByValue(gamblerTotal);
+        sortedGamblers.reverse();
+        for (const index in sortedGamblers) {
+            const key = sortedGamblers[index][0];
             const row = body.insertRow();
             const nameCell = row.insertCell();
             nameCell.innerText = gamblers[key]["nickname"];
@@ -139,7 +152,7 @@
     function checkNameCurrentSeason(gambler, name, year) {
         for (const index in tournaments) {
             const tournament = tournaments[index];
-            if (tournament["name"] === name && tournament["year"] === year && ranking["winners"][index] === gambler) {
+            if (tournament["name"] === name && tournament["year"] === year && String(ranking["winners"][index]) === gambler) {
                 return true;
             }
         }
@@ -148,7 +161,7 @@
     function checkCategoryCurrentSeason(gambler, category, year) {
         for (const index in tournaments) {
             const tournament = tournaments[index];
-            if (tournament["category"] === category && tournament["year"] === year && ranking["winners"][index] === gambler) {
+            if (tournament["category"] === category && tournament["year"] === year && String(ranking["winners"][index]) === gambler) {
                 return true;
             }
         }
@@ -226,10 +239,7 @@
     function updateTablesRanking() {
         const tableRanking = document.getElementById("tableRankingBody");
         const rankingScores = ranking["ranking_scores"];
-        const rankingScoresArray = Object.entries(rankingScores);
-        rankingScoresArray.sort(function(firstPair, secondPair) {
-            return firstPair[1] - secondPair[1];
-        });
+        const rankingScoresArray = orderObjectByValue(rankingScores);
         rankingScoresArray.reverse();
         let lastPosition = undefined;
         let lastPoints = undefined;
@@ -260,10 +270,7 @@
         }
         const lastYear = Math.max(...years);
         document.getElementById("raceTitle").innerText = "Race " + lastYear;
-        const yearlyScoresArray = Object.entries(yearlyScores[lastYear]);
-        yearlyScoresArray.sort(function(firstPair, secondPair) {
-            return firstPair[1] - secondPair[1];
-        });
+        const yearlyScoresArray = orderObjectByValue(yearlyScores[lastYear]);
         yearlyScoresArray.reverse();
         lastPosition = undefined;
         lastPoints = undefined;

@@ -173,6 +173,13 @@
             }
             return true;
         }
+        function orderObjectByValue(anObject) {
+            const entries = Object.entries(anObject);
+            entries.sort(function(firstPair, secondPair) {
+                return firstPair[1] - secondPair[1];
+            });
+            return entries;
+        }
     </script>
     {% block script_content %}
     {% endblock %}

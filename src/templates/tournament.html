@@ -217,10 +217,7 @@
         table.innerText = "";
         const scores = ranking["tournament_scores"];
         const rankingScores = ranking["tournament_ranking_scores"];
-        const scoresArray = Object.entries(scores);
-        scoresArray.sort(function (firstPair, secondPair) {
-            return firstPair[1] - secondPair[1];
-        });
+        const scoresArray = orderObjectByValue(scores);
         scoresArray.reverse();
         let lastPosition = undefined;
         let lastPoints = undefined;
