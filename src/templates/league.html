@@ -461,6 +461,18 @@
         }
         if (!forms["ghost"].disabled) {
             requestJson["ghost"] = forms["ghost"].checked;
+            if (requestJson["ghost"]) {
+                const lastYearTournament = findLastYearTournament(requestJson["name"], parseInt(requestJson['year']));
+                if (lastYearTournament == null) {
+                    window.alert("Un torneo ghost deve avere un corrispondente torneo nell'anno precedente");
+                    return;
+                }
+                requestJson["nation_index"] = lastYearTournament["nation"];
+                requestJson["n_sets"] = lastYearTournament["n_sets"];
+                requestJson["tie_breaker_5th"] = lastYearTournament["tie_breaker_5th"];
+                requestJson["category"] = lastYearTournament["category"];
+                requestJson["draw_type"] = lastYearTournament["draw_type"];
+            }
         }
         Promise.all([
             sendRequest(method, url, requestJson)
@@ -473,6 +485,15 @@
         }).catch(function (reason) {
             window.alert(reason);
         });
+    }
+    function findLastYearTournament(name, year) {
+        for (const key in tournaments) {
+            const tournament = tournaments[key];
+            if (tournament["name"] === name && tournament["year"] === (year - 1)) {
+                return tournament;
+            }
+        }
+        return null;
     }
     function restoreTournaments() {
         const button = document.getElementById("tournamentButton");
