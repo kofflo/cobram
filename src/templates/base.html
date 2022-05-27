@@ -6,7 +6,7 @@
 <head>
     {% block title_content %}
     {% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='prova.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheet.css') }}">
 </head>
 
 <body>
@@ -137,19 +137,23 @@
         }
         function addToolsCell(row, key, editFunction, deleteFunction) {
             const toolsCell = row.insertCell();
-            const editImg = document.createElement('img');
-            editImg.src = '/static/edit.png';
-            editImg.id = key;
-            editImg.onclick = editFunction;
-            editImg.style.cursor = "pointer";
-            toolsCell.appendChild(editImg);
-            const deleteImg = document.createElement('img');
-            deleteImg.src = '/static/delete.png';
-            deleteImg.id = key;
-            deleteImg.onclick = deleteFunction;
-            deleteImg.style.cursor = "pointer";
-            toolsCell.appendChild(document.createTextNode(' '));
-            toolsCell.appendChild(deleteImg);
+            if (editFunction != null) {
+                const editImg = document.createElement('img');
+                editImg.src = '/static/edit.png';
+                editImg.id = key;
+                editImg.onclick = editFunction;
+                editImg.style.cursor = "pointer";
+                toolsCell.appendChild(editImg);
+            }
+            if (deleteFunction != null) {
+                const deleteImg = document.createElement('img');
+                deleteImg.src = '/static/delete.png';
+                deleteImg.id = key;
+                deleteImg.onclick = deleteFunction;
+                deleteImg.style.cursor = "pointer";
+                toolsCell.appendChild(document.createTextNode(' '));
+                toolsCell.appendChild(deleteImg);
+            }
         }
         function equalScores(score1, score2) {
             if (score2 == null) {

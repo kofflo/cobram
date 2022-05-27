@@ -57,7 +57,7 @@
         subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
         subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
         subHeader.appendChild(subHeaderLink);
-        document.title = tournamentInfo["name"] + "  " + tournamentInfo["year"];
+        document.title = tournamentInfo["name"] + "  " + tournamentInfo["year"] + " - risultati";
         const table = document.getElementById("infoTableBody");
         const row = table.insertRow();
         const nationCell = row.insertCell();

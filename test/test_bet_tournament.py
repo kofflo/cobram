@@ -76,6 +76,9 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament.set_match_score(gambler=second_gambler, match_id="A4", score=third_bet, joker=True)
         self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A4")['joker'], True)
         self.assertTrue(bet_tournament.is_open)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.close()
+        complete_tournament(bet_tournament)
         bet_tournament.close()
         self.assertFalse(bet_tournament.is_open)
         with self.assertRaises(BetTournamentError):
@@ -159,6 +162,9 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A7", score=[[6, 2], [6, 2]], force=True)
         scores = bet_tournament.get_scores()[0]
         self.assertEqual(scores[first_gambler], 32)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.close()
+        complete_tournament(bet_tournament)
         bet_tournament.close()
         with self.assertRaises(BetTournamentError):
             bet_tournament.set_match_score(gambler=first_gambler, match_id="B1", score=[[2, 6], [2, 6]], force=True)
@@ -201,3 +207,14 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A7", score=[[6, 2], [6, 4], [6, 2]], force=True)
         scores = bet_tournament.get_scores()[0]
         self.assertEqual(scores[first_gambler], 17)
+
+
+def complete_tournament(bet_tournament):
+    if bet_tournament.n_sets == 3:
+        score = [[6, 4], [6, 4]]
+    else:
+        score = [[6, 4], [6, 4], [6, 4]]
+    for round in range(bet_tournament.draw.number_rounds):
+        for match in range(bet_tournament.draw.number_matches_for_round(round)):
+            match_id = bet_tournament.draw._indexes_to_match_id(round, match)
+            bet_tournament.set_match_score(match_id=match_id, score=score, force=True)

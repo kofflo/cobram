@@ -52,7 +52,7 @@
         subHeader.innerHTML = "";
         subHeader.appendChild(subHeaderLink);
         document.getElementById("pointsHeader").innerText = "Punti: " + ranking["tournament_scores"][{{ gambler_index }}] + "   (Jolly finale: " + ranking["joker_gambler_seed_points"][{{ gambler_index }}] + ")";
-        document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
+        document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"] + " - scommesse";
     }
     function updateMatches() {
         const table = document.getElementById("matches");

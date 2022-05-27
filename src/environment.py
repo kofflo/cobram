@@ -17,6 +17,7 @@ from draw import Draw16, DrawRoundRobin, DrawError
 from tournament import Tournament, TournamentCategory, TieBreaker5th, TournamentError
 from utils import to_boolean, to_int
 from task import Task, TaskType
+from gmail_bridge import GMailBridge
 
 
 _league_objects = []
@@ -24,6 +25,7 @@ _player_objects = [Tournament.BYE]
 _gambler_objects = [ADMIN]
 _nation_objects = [Tournament.BYE_NATION]
 _scheduled_tasks = []
+_gmail_bridge_object = GMailBridge()
 
 
 ENTITY_WITH_INDEX_DOES_NOT_EXIST = "Entity [{entity_name}] with index [{index}] does not exists"
@@ -40,7 +42,7 @@ def _autosave(func):
     @wraps(func)
     def func_with_autosave(*args, **kwargs):
         return_value = func(*args, **kwargs)
-        save(autosave=True)
+        save_entities(autosave=True)
         return return_value
     return func_with_autosave
 
@@ -328,8 +330,12 @@ def update_tournament(*, league_index, tournament_index, nation_index=None, is_o
     if is_open is not None:
         is_open = to_boolean(is_open)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
+    was_open = get_tournament_info(league_index=league_index, tournament_index=tournament_index)['is_open']
     league.update_tournament(tournament_id=tournament_id, nation=nation, is_open=is_open)
-    return {tournament_index: get_tournament_info(league_index=league_index, tournament_index=tournament_index)}
+    updated_info = get_tournament_info(league_index=league_index, tournament_index=tournament_index)
+    if was_open and not updated_info['is_open']:
+        send_gmail_close_tournament(league_index=league_index, tournament_index=tournament_index)
+    return {tournament_index: updated_info}
 
 
 @_autosave
@@ -473,7 +479,7 @@ def update_tournament_bet(*, league_index, tournament_index, gambler_index, matc
 
 # Database management
 
-def save(autosave=False):
+def save_entities(autosave=False):
     save_folder = Path(SAVE_FOLDER)
     save_folder.mkdir(parents=True, exist_ok=True)
     if autosave:
@@ -492,7 +498,7 @@ def save(autosave=False):
         if autosave:
             return None
         else:
-            all_saved = get_saved()
+            all_saved = get_saved_entities()
             for key, value in all_saved.items():
                 if timestamp == value:
                     return {key: value}
@@ -501,11 +507,11 @@ def save(autosave=False):
         raise(IOError(ERROR_DURING_ENVIRONMENT_SAVING.format(message=str(e))))
 
 
-def get_saved():
+def get_saved_entities():
     save_folder = Path(SAVE_FOLDER)
     all_saved_list = []
     for path in save_folder.glob("*.dat"):
-        if 'autosave' not in path.name and 'tasks' not in path.name:
+        if 'autosave' not in path.name and 'tasks' not in path.name and 'gmail' not in path.name:
             all_saved_list.append(re.match("save_(.+).dat", path.name)[1])
     all_saved_list.sort()
     all_saved = {}
@@ -514,7 +520,7 @@ def get_saved():
     return all_saved
 
 
-def load(*, timestamp):
+def load_entities(*, timestamp):
     save_folder = Path(SAVE_FOLDER)
     filename = "save_{timestamp}.dat".format(timestamp=timestamp)
     full_path = save_folder / filename
@@ -788,6 +794,7 @@ def get_task(index):
 def remove_task(index):
     del _scheduled_tasks[index]
     save_tasks()
+    return {}
 
 
 def save_tasks():
@@ -816,3 +823,174 @@ def load_tasks():
     except (IOError, pickle.PickleError):
         return
     _scheduled_tasks = _scheduled_tasks_temp
+
+
+def save_gmail_bridge():
+    save_folder = Path(SAVE_FOLDER)
+    save_folder.mkdir(parents=True, exist_ok=True)
+    filename = "save_gmail.dat"
+    full_path = save_folder / filename
+    try:
+        with open(full_path, 'wb') as file:
+            pickler = pickle.Pickler(file)
+            pickler.dump(_gmail_bridge_object)
+        return
+    except (IOError, pickle.PickleError) as e:
+        logging.info("Error in saving Gmail bridge: '%s'", str(e))
+
+
+def load_gmail_bridge():
+    save_folder = Path(SAVE_FOLDER)
+    filename = "save_gmail.dat"
+    full_path = save_folder / filename
+    global _gmail_bridge_object
+    try:
+        with open(full_path, 'rb') as file:
+            unpickler = pickle.Unpickler(file)
+            _gmail_bridge_object_temp = unpickler.load()
+    except (IOError, pickle.PickleError):
+        return
+    _gmail_bridge_object = _gmail_bridge_object_temp
+
+
+def update_gmail_bridge(username=None, password=None, is_active=None):
+    if username is not None:
+        _gmail_bridge_object.username = username
+    if password is not None:
+        _gmail_bridge_object.password = password
+    if is_active is not None:
+        _gmail_bridge_object.is_active = is_active
+    return _gmail_bridge_object.get_info()
+
+
+def get_gmail_bridge():
+    return _gmail_bridge_object.get_info()
+
+
+def send_gmail_close_tournament(*, league_index, tournament_index):
+    league = _get_league(league_index)
+    tournament_id = league.get_tournament_id(tournament_index=tournament_index)
+    tournament_info = league.get_tournament_info(tournament_id=tournament_id)
+    if tournament_info['is_ghost']:
+        return
+    tournament_points, tournament_ranking_points, _ = league.get_tournament_ranking(tournament_id=tournament_id)
+    winner = league_leader = race_leader = None
+    for winner in tournament_points:
+        break
+    ranking_scores, yearly_scores, _, _, _, _, _ = league.get_ranking()
+    for league_leader in ranking_scores:
+        break
+    current_year_scores = yearly_scores[tournament_info['year']]
+    for race_leader in current_year_scores:
+        break
+    if winner is None or league_leader is None or race_leader is None:
+        return {}
+    to = [gambler.email for gambler in league.get_gamblers(is_active=True)]
+    to = ['alxconti@yahoo.com']
+    subject = "Risultati {name} {year}".format(name=tournament_info['name'], year=tournament_info['year'])
+    longest_nickname = max([len(gambler.nickname) for gambler in tournament_points])
+    longest_nickname = max([longest_nickname] + [len(gambler.nickname) for gambler in ranking_scores])
+    longest_nickname = max([longest_nickname] + [len(gambler.nickname) for gambler in current_year_scores]) + 3
+    longest_nickname = max([longest_nickname, len("Scommettitore")])
+    tournament_ranking_header = [["Posizione  ", "Scommettitore", "    Punti", "  Punti ranking"]]
+    league_ranking_header = [["Posizione  ", "Scommettitore", "    Punti"]]
+    race_ranking_header = [["Posizione  ", "Scommettitore", "    Punti"]]
+    tournament_ranking_list = [['{:<11d}'.format(index + 1), gambler.nickname.ljust(longest_nickname), '{:9.1f}'.format(tournament_points[gambler]), '{:15d}'.format(tournament_ranking_points[gambler])] for index, gambler in enumerate(tournament_points)]
+    league_ranking_list = [['{:<11d}'.format(index + 1), gambler.nickname.ljust(longest_nickname), '{:9d}'.format(ranking_scores[gambler])] for index, gambler in enumerate(ranking_scores)]
+    race_ranking_list = [['{:<11d}'.format(index + 1), gambler.nickname.ljust(longest_nickname), '{:9d}'.format(current_year_scores[gambler])] for index, gambler in enumerate(current_year_scores)]
+    tournament_ranking_lines = ["".join(line) for line in tournament_ranking_header + tournament_ranking_list]
+    league_ranking_lines = ["".join(line) for line in league_ranking_header + league_ranking_list]
+    race_ranking_lines = ["".join(line) for line in race_ranking_header + race_ranking_list]
+    tournament_ranking = "\n".join(tournament_ranking_lines)
+    league_ranking = "\n".join(league_ranking_lines)
+    race_ranking = "\n".join(race_ranking_lines)
+
+    tournament_ranking_html_lines = ["".join(["<td>%s</td>\n" % element for element in line]) for line in tournament_ranking_list]
+    league_ranking_html_lines = ["".join(["<td>%s</td>\n" % element for element in line]) for line in league_ranking_list]
+    race_ranking_html_lines = ["".join(["<td>%s</td>\n" % element for element in line]) for line in race_ranking_list]
+    tournament_ranking_html = "".join(["<tr>\n%s</tr>\n" % element for element in tournament_ranking_html_lines])
+    league_ranking_html = "".join(["<tr>\n%s</tr>\n" % element for element in league_ranking_html_lines])
+    race_ranking_html = "".join(["<tr>\n%s</tr>\n" % element for element in race_ranking_html_lines])
+
+    message_html = \
+    """
+<html>
+<body>
+Carissimi tennisti della <a href="http://cobram.pythonanywhere.com/web/leagues/{league_index}">{league}</a>,<br><br>
+il torneo <a href="http://cobram.pythonanywhere.com/web/leagues/{league_index}/tournaments/{tournament_index}">{name} {year}</a> è stato vinto da <b>{winner}</b>.<br>
+La prima posizione del ranking è occupata da <b>{league_leader}</b> mentre al comando della race c'è <b>{race_leader}</b>.<br>
+
+<h2>Classifica del torneo:</h2>
+    <table>
+    <thead>
+    <tr>
+        <th scope="col">Posizione</th>
+        <th scope="col">Scommettitore</th>
+        <th scope="col">Punti</th>
+        <th scope="col">Punti ranking</th>
+    </tr>
+    </thead>
+    <tbody>
+{tournament_ranking_html}
+    </tbody>
+    </table>
+
+<h2>Classifica della {league}:</h2>
+    <table>
+    <thead>
+    <tr>
+        <th scope="col">Posizione</th>
+        <th scope="col">Scommettitore</th>
+        <th scope="col">Punti</th>
+    </tr>
+    </thead>
+    <tbody>
+{league_ranking_html}
+    </tbody>
+    </table>
+
+<h2>Race dell'anno {year}:</h2>
+    <table>
+    <thead>
+    <tr>
+        <th scope="col">Posizione</th>
+        <th scope="col">Scommettitore</th>
+        <th scope="col">Punti</th>
+    </tr>
+    </thead>
+    <tbody>
+{race_ranking_html}
+    </tbody>
+    </table>
+</body>
+</html>
+    """.format(league_index=league_index, tournament_index=tournament_index,
+               league=league.name, name=tournament_info['name'], year=tournament_info['year'], winner=winner.nickname,
+               league_leader=league_leader.nickname, race_leader=race_leader.nickname,
+               tournament_ranking_html=tournament_ranking_html, league_ranking_html=league_ranking_html, race_ranking_html=race_ranking_html)
+
+    message_text = \
+    """
+Carissimi tennisti della {league},
+
+il torneo {name} {year} è stato vinto da {winner}.
+La prima posizione del ranking è occupata da {league_leader} mentre al comando della race c'è {race_leader}.
+
+Classifica del torneo:
+
+{tournament_ranking}
+
+
+Classifica della {league}:
+
+{league_ranking}
+
+
+Race dell'anno {year}:
+
+{race_ranking}
+    """.format(league=league.name, name=tournament_info['name'], year=tournament_info['year'], winner=winner.nickname,
+           league_leader=league_leader.nickname, race_leader=race_leader.nickname,
+           tournament_ranking=tournament_ranking, league_ranking=league_ranking, race_ranking=race_ranking)
+
+    _gmail_bridge_object.send_gmail(to=to, subject=subject, message_text=message_text, message_html=message_html)

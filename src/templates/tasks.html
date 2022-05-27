@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Task</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let tasks;
+    let tasksDetails;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/tasks"),
+        ]).then(function (values) {
+            tasks = JSON.parse(values[0]);
+            tasksDetails = Object();
+            const allDetailsPromises = Array();
+            for (const key in tasks) {
+                allDetailsPromises.push(
+                    sendRequest("GET", "/tasks/" + key, null, key)
+                );
+            }
+            Promise.all(allDetailsPromises).then(function (values) {
+                for (const index in values) {
+                    const responseObject = values[index];
+                    tasksDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
+                }
+                updateTasks();
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTasks() {
+        const table = document.getElementById("tasksBody");
+        table.innerText = "";
+        for (const key in tasksDetails) {
+            const row = table.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = tasksDetails[key]["name"];
+            const commandCell = row.insertCell();
+            commandCell.innerText = tasksDetails[key]["command"];
+            const typeCell = row.insertCell();
+            typeCell.innerText = tasksDetails[key]["type"];
+            const timeCell = row.insertCell();
+            if (tasksDetails[key]["time"] != null) {
+                timeCell.innerText = tasksDetails[key]["time"];
+            } else {
+                timeCell.innerText = "/";
+            }
+            const nextRunCell = row.insertCell();
+            nextRunCell.innerText = tasksDetails[key]["next_run"];
+            addToolsCell(row, key, null, deleteTask);
+        }
+    }
+    function deleteTask(event) {
+        const index = event.target.id;
+        if (confirm("Il task " + tasksDetails[index]["name"] + " verrà eliminato. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/tasks/" + index)
+        ]).then(function (values) {
+            delete tasks[index];
+            delete tasksDetails[index];
+            updateTasks();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+    <h1 id="mainHeader">Task attivi</h1>
+    <div>
+        <table class="styled-table">
+            <thead>
+            <tr>
+                <td>Nome</td>
+                <td>Comando</td>
+                <td>Tipo</td>
+                <td>Intervallo</td>
+                <td>Prossima esecuzione</td>
+                <td></td>
+            </tr>
+            </thead>
+            <tbody id="tasksBody">
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

@@ -22,7 +22,7 @@ class Gambler(Entity, UserMixin):
     INVALID_BET_TOURNAMENT_FOR_A_GAMBLER = "Invalid bet tournament for a gambler"
     GAMBLER_ALREADY_IN_BET_TOURNAMENT = "Gambler already in bet tournament"
     GAMBLER_NOT_IN_BET_TOURNAMENT = "Gambler not in bet tournament"
-    CANNOT_RENAME_ADMIN = "Cannopt rename admin"
+    CANNOT_RENAME_ADMIN = "Cannot rename admin"
     EMAIL_RE = r"[^@]+@[^@]+\.[^@]+"
 
     def __init__(self, *, nickname, email, password):

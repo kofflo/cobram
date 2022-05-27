@@ -388,16 +388,16 @@ def _tournament_ranking(**kwargs):
 @app.route('/save', methods=['POST'])
 @admin_required_rest
 def _save(**kwargs):
-    return _redirect_to_function(environment.save, '')
+    return _redirect_to_function(environment.save_entities, '')
 
 
 @app.route('/load', methods=['GET', 'POST'])
 @admin_required_rest
 def _load(**kwargs):
     if request.method == 'GET':
-        return _redirect_to_function(environment.get_saved, '')
+        return _redirect_to_function(environment.get_saved_entities, '')
     elif request.method == 'POST':
-        return _redirect_to_function(environment.load, 'JSON')
+        return _redirect_to_function(environment.load_entities, 'JSON')
 
 
 @app.route('/download', methods=['POST'])
@@ -565,7 +565,16 @@ def manage_task(**kwargs):
         return _redirect_to_function(environment.remove_task, '')
 
 
-environment.load(timestamp='autosave')
+@app.route('/gmail', methods=['GET', 'PUT'])
+@admin_required_rest
+def _manage_gmail(**kwargs):
+    if request.method == 'GET':
+        return _redirect_to_function(environment.get_gmail_bridge, '')
+    elif request.method == 'PUT':
+        return _redirect_to_function(environment.update_gmail_bridge, 'JSON')
+
+
+environment.load_entities(timestamp='autosave')
 environment.load_tasks()
 
 #from waitress import serve
