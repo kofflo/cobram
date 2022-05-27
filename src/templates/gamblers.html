@@ -32,6 +32,12 @@
             nameCell.innerText = gambler["nickname"];
             const codeCell = row.insertCell();
             codeCell.innerText = gambler["email"];
+            const statusCell = row.insertCell();
+            if (gambler["is_email_enabled"]) {
+                statusCell.innerText = "ATTIVA";
+            } else {
+                statusCell.innerText = "NON ATTIVA";
+            }
             const leaguesCell = row.insertCell();
             const innerTable = document.createElement('table');
             for (const leagueKey of gambler["leagues"]) {
@@ -68,6 +74,12 @@
         formEmail.setAttribute("size", "20");
         emailCell.appendChild(formEmail);
         forms["email"] = formEmail;
+        const statusCell = row.insertCell();
+        const formStatusCheckbox = document.createElement("input");
+        formStatusCheckbox.type = "checkbox";
+        formStatusCheckbox.checked = false;
+        statusCell.appendChild(formStatusCheckbox);
+        forms["status_checkbox"] = formStatusCheckbox;
         const checkboxCell = row.insertCell();
         const formPasswordCheckbox = document.createElement("input");
         formPasswordCheckbox.type = "checkbox";
@@ -88,6 +100,7 @@
             const gambler = gamblers[index];
             formNickname.value = gambler["nickname"];
             formEmail.value = gambler["email"];
+            formStatusCheckbox.checked = gambler["is_email_enabled"];
             formPasswordCheckbox.onchange = function() {
                 if (formPasswordCheckbox.checked) {
                     formPassword.disabled = false;
@@ -139,6 +152,7 @@
         const requestJson = Object();
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
+        requestJson["is_email_enabled"] = forms["status_checkbox"].checked;
         requestJson["password"] = password;
         Promise.all([
             sendRequest(method, url, requestJson)
@@ -177,6 +191,7 @@
     <tr>
         <th scope="col">Nome</th>
         <th scope="col">E-mail</th>
+        <th scope="col">Attiva</th>
         <th scope="col"></th>
         <th scope="col">Password</th>
     </tr>
@@ -189,6 +204,7 @@
         <tr>
             <th scope="col">Nome</th>
             <th scope="col">E-mail</th>
+            <th scope="col">Stato</th>
             <th scope="col">Leghe</th>
             <th scope="col"></th>
         </tr>

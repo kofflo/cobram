@@ -45,8 +45,14 @@
         const row = table.insertRow();
         const nameCell = row.insertCell();
         nameCell.innerText = profile["nickname"];
-        const codeCell = row.insertCell();
-        codeCell.innerText = profile["email"];
+        const emailCell = row.insertCell();
+        emailCell.innerText = profile["email"];
+        const statusCell = row.insertCell();
+        if (profile["is_email_enabled"]) {
+            statusCell.innerText = "ATTIVA";
+        } else {
+            statusCell.innerText = "NON ATTIVA";
+        }
         const leaguesCell = row.insertCell();
         const innerTable = document.createElement('table');
         for (const leagueKey of profile["leagues"]) {
@@ -63,30 +69,29 @@
         {% if is_privileged %}
         document.getElementById("GmailButton").disabled = true;
         {% endif %}
-        const table = document.getElementById("profileInsert");
-        table.hidden = false;
+        document.getElementById("profileInsert").hidden = false;
+        const table = document.getElementById("profileInsertBody");
         table.innerText = "";
         let row = table.insertRow();
-        row.insertCell().innerText = "Nome";
-        row.insertCell().innerText = "Email";
-        row.insertCell().innerText = "";
-        row.insertCell().innerText = "Password";
-        row = table.insertRow();
         forms = Object();
         const nicknameCell = row.insertCell();
         let formNickname = document.createElement("input");
         formNickname.setAttribute("type", "text");
         formNickname.setAttribute("size", "15");
-        formNickname.value = profile["nickname"];
         nicknameCell.appendChild(formNickname);
         forms["nickname"] = formNickname;
         const emailCell = row.insertCell();
         let formEmail = document.createElement("input");
         formEmail.setAttribute("type", "email");
         formEmail.setAttribute("size", "20");
-        formEmail.value = profile["email"];
         emailCell.appendChild(formEmail);
         forms["email"] = formEmail;
+        const statusCell = row.insertCell();
+        const formStatusCheckbox = document.createElement("input");
+        formStatusCheckbox.type = "checkbox";
+        formStatusCheckbox.checked = false;
+        statusCell.appendChild(formStatusCheckbox);
+        forms["status_checkbox"] = formStatusCheckbox;
         const checkboxCell = row.insertCell();
         let formPasswordCheckbox = document.createElement("input");
         formPasswordCheckbox.type = "checkbox";
@@ -108,6 +113,9 @@
                 formPassword.disabled = true;
             }
         };
+        formNickname.value = profile["nickname"];
+        formEmail.value = profile["email"];
+        formStatusCheckbox.checked = profile["is_email_enabled"];
         const button = document.getElementById("profileButton");
         button.innerText = "Invia";
         button.onclick = sendProfileUpdate;
@@ -128,6 +136,7 @@
         requestJson["nickname"] = forms["nickname"].value.trim();
         requestJson["email"] = forms["email"].value.trim();
         requestJson["password"] = newPassword;
+        requestJson["is_email_enabled"] = forms["status_checkbox"].checked;
         Promise.all([
             sendRequest("PUT", "/profile", requestJson)
         ]).then(function (values) {
@@ -142,7 +151,7 @@
         button.innerText = "Cambia il profilo";
         button.onclick = editProfile;
         document.getElementById("cancelButton").hidden = true;
-        document.getElementById("profileInsert").innerText = "";
+        document.getElementById("profileInsertBody").innerText = "";
         document.getElementById("profileInsert").hidden = true;
         {% if is_privileged %}
         document.getElementById("GmailButton").disabled = false;
@@ -231,15 +240,10 @@
         }
         function editGmail() {
             document.getElementById("profileButton").disabled = true;
-            const table = document.getElementById("GmailInsert");
-            table.hidden = false;
+            document.getElementById("GmailInsert").hidden = false;
+            const table = document.getElementById("GmailInsertBody");
             table.innerText = "";
             let row = table.insertRow();
-            row.insertCell().innerText = "Username";
-            row.insertCell().innerText = "";
-            row.insertCell().innerText = "Password";
-            row.insertCell().innerText = "Attivo";
-            row = table.insertRow();
             forms = Object();
             const usernameCell = row.insertCell();
             let formUsername = document.createElement("input");
@@ -276,7 +280,7 @@
             formStatusCheckbox.type = "checkbox";
             formStatusCheckbox.checked = gmailBridge["is_active"];
             statusCheckboxCell.appendChild(formStatusCheckbox);
-            forms["status_checkbox"] = formStatusCheckbox;
+            forms["Gmail_status_checkbox"] = formStatusCheckbox;
             const button = document.getElementById("GmailButton");
             button.innerText = "Invia";
             button.onclick = sendGmailUpdate;
@@ -292,7 +296,7 @@
             const requestJson = Object();
             requestJson["username"] = forms["Gmail_username"].value.trim();
             requestJson["password"] = newPassword;
-            requestJson["is_active"] = forms["status_checkbox"].checked;
+            requestJson["is_active"] = forms["Gmail_status_checkbox"].checked;
             Promise.all([
                 sendRequest("PUT", "/gmail", requestJson)
             ]).then(function (values) {
@@ -307,7 +311,7 @@
             button.innerText = "Modifica";
             button.onclick = editGmail;
             document.getElementById("GmailCancelButton").hidden = true;
-            document.getElementById("GmailInsert").innerText = "";
+            document.getElementById("GmailInsertBody").innerText = "";
             document.getElementById("GmailInsert").hidden = true;
             document.getElementById("profileButton").disabled = false;
             updateGmailTable();
@@ -322,12 +326,25 @@
     </h1>
     <button id="profileButton" onclick="editProfile()">Cambia il profilo</button>
     <button id="cancelButton" hidden onclick="restoreProfile()">Annulla</button>
-    <table id="profileInsert" hidden></table>
+    <table id="profileInsert" hidden>
+        <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Attiva</th>
+            <th scope="col"></th>
+            <th scope="col">Password</th>
+        </tr>
+        </thead>
+        <tbody id="profileInsertBody">
+        </tbody>
+    </table>
     <table class="styled-table">
         <thead>
         <tr>
             <th scope="col">Nome</th>
             <th scope="col">E-mail</th>
+            <th scope="col">Stato</th>
             <th scope="col">Leghe</th>
         </tr>
         </thead>
@@ -348,7 +365,18 @@
     <h3>Gmail</h3>
     <button id="GmailButton" onclick="editGmail()">Modifica</button>
     <button id="GmailCancelButton" hidden onclick="restoreGmail()">Annulla</button>
-    <table id="GmailInsert" hidden></table>
+    <table id="GmailInsert" hidden>
+        <thead>
+        <tr>
+            <th scope="col">Username</th>
+            <th scope="col"></th>
+            <th scope="col">Password</th>
+            <th scope="col">Attivo</th>
+        </tr>
+        </thead>
+        <tbody id="GmailInsertBody">
+        </tbody>
+    </table>
     <table class="styled-table">
         <thead>
         <tr>

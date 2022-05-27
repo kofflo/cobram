@@ -533,8 +533,9 @@ def profile():
         return _redirect_to_function(lambda: environment.get_gambler_info(index=current_user_index), '')
     elif request.method == 'PUT':
         return _redirect_to_function(
-            lambda nickname=None, email=None, password=None: environment.update_gambler(
-                index=current_user_index, nickname=nickname, email=email, password=password
+            lambda nickname=None, email=None, is_email_enabled=None, password=None: environment.update_gambler(
+                index=current_user_index,
+                nickname=nickname, email=email, is_email_enabled=is_email_enabled, password=password
             )[current_user_index], 'JSON'
         )
 
@@ -576,6 +577,7 @@ def _manage_gmail(**kwargs):
 
 environment.load_entities(timestamp='autosave')
 environment.load_tasks()
+environment.load_gmail_bridge()
 
 #from waitress import serve
 #serve(app, listen='*:8080')

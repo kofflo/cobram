@@ -143,10 +143,10 @@ def get_gambler_info(*, index):
     return gambler_info
 
 
-def update_gambler(*, index, nickname=None, email=None, password=None):
+def update_gambler(*, index, nickname=None, email=None, is_email_enabled=None, password=None):
     if password is not None:
         password=generate_password_hash(password, method='sha256')
-    gambler_info = _update_entity('gambler', index, nickname=nickname, email=email, password=password)
+    gambler_info = _update_entity('gambler', index, nickname=nickname, email=email, is_email_enabled=is_email_enabled, password=password)
     for value in gambler_info.values():
         value['leagues'] = [_get_league_index(league) for league in value['leagues']]
     return gambler_info
@@ -859,7 +859,11 @@ def update_gmail_bridge(username=None, password=None, is_active=None):
     if password is not None:
         _gmail_bridge_object.password = password
     if is_active is not None:
-        _gmail_bridge_object.is_active = is_active
+        if to_boolean(is_active):
+            _gmail_bridge_object.activate()
+        else:
+            _gmail_bridge_object.deactivate()
+    save_gmail_bridge()
     return _gmail_bridge_object.get_info()
 
 
@@ -885,8 +889,7 @@ def send_gmail_close_tournament(*, league_index, tournament_index):
         break
     if winner is None or league_leader is None or race_leader is None:
         return {}
-    to = [gambler.email for gambler in league.get_gamblers(is_active=True)]
-    to = ['alxconti@yahoo.com']
+    to = [gambler.email for gambler in league.get_gamblers(is_active=True) if gambler.is_email_enabled]
     subject = "Risultati {name} {year}".format(name=tournament_info['name'], year=tournament_info['year'])
     longest_nickname = max([len(gambler.nickname) for gambler in tournament_points])
     longest_nickname = max([longest_nickname] + [len(gambler.nickname) for gambler in ranking_scores])

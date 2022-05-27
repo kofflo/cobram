@@ -43,9 +43,11 @@ class GMailBridge:
     def is_active(self):
         return self._is_active
 
-    @is_active.setter
-    def is_active(self, is_active):
-        self._is_active = to_boolean(is_active)
+    def activate(self):
+        self._is_active = True
+
+    def deactivate(self):
+        self._is_active = False
 
     def get_info(self):
         return {'username': self.username, 'is_active': self.is_active}

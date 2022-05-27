@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash
 
 from entity import Entity, EntityError
 import class_id_strings
+from utils import to_boolean
 
 ADMIN_NICKNAME = 'admin'
 ADMIN_EMAIL = 'admin@admin.com'
@@ -29,10 +30,12 @@ class Gambler(Entity, UserMixin):
         super().__init__('nickname', unique_attributes=['email'])
         self._nickname = None
         self._email = None
+        self._is_email_enabled = None
         self._password = None
         self.nickname = nickname
         self.email = email
         self.password = password
+        self.is_email_enabled = False
         self._leagues = set()
         self._bet_tournaments = set()
         self._unique_id = None
@@ -46,7 +49,9 @@ class Gambler(Entity, UserMixin):
         if not isinstance(input_nickname, str) or len(input_nickname) == 0:
             raise GamblerError(Gambler.INVALID_NICKNAME_FOR_A_GAMBLER)
         if self._nickname == ADMIN_NICKNAME:
-            raise GamblerError(Gambler.CANNOT_RENAME_ADMIN)
+            if input_nickname != ADMIN_NICKNAME:
+                raise GamblerError(Gambler.CANNOT_RENAME_ADMIN)
+            return
         self._nickname = input_nickname
 
     @property
@@ -58,6 +63,16 @@ class Gambler(Entity, UserMixin):
         if not re.fullmatch(Gambler.EMAIL_RE, input_email):
             raise GamblerError(Gambler.INVALID_EMAIL_FOR_A_GAMBLER)
         self._email = input_email
+
+    @property
+    def is_email_enabled(self):
+        if not hasattr(self, '_is_email_enabled') or self._is_email_enabled is None:
+            self._is_email_enabled = False
+        return self._is_email_enabled
+
+    @is_email_enabled.setter
+    def is_email_enabled(self, is_email_enabled):
+        self._is_email_enabled = to_boolean(is_email_enabled)
 
     @property
     def password(self):
@@ -72,7 +87,8 @@ class Gambler(Entity, UserMixin):
     @property
     def info(self):
         info = super().info
-        info.update({'nickname': self.nickname, 'email': self.email, 'leagues': [league for league in self._leagues]})
+        info.update({'nickname': self.nickname, 'email': self.email, 'leagues': [league for league in self._leagues],
+                     'is_email_enabled': self.is_email_enabled})
         return info
 
     def add_to_league(self, league, initial_score=0, initial_credit=0):
@@ -122,6 +138,9 @@ class Gambler(Entity, UserMixin):
 
     def restore(self, old_gambler):
         self.nickname = old_gambler.nickname
+        self.email = old_gambler.email
+        self.password = old_gambler.password
+        self.is_email_enabled = old_gambler.is_email_enabled
 
     @property
     def unique_id(self):
