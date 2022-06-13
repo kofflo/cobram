@@ -68,10 +68,14 @@ class BetTournament:
             raise AttributeError("'BetTournament' object has no attribute '%s'" % attribute) from None
 
     def __setattr__(self, attribute, value):
-        if attribute in ['_tournament', '_bets', '_joker', '_scores', '_is_open', '_recompute_scores']:
+        if attribute in ['_tournament', '_bets', '_joker', '_scores', '_is_open', '_need_recompute_scores']:
             super().__setattr__(attribute, value)
         else:
             setattr(self._tournament, attribute, value)
+
+    def set_player(self, *, place, player, seed=0, force=False):
+        self._need_recompute_scores = True
+        self._tournament.set_player(place=place, player=player, seed=seed, force=force)
 
     def add_gambler(self, gambler):
         if not self.is_open:

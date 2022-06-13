@@ -17,9 +17,9 @@ app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '9OeWZNd4oa3j4KjiuowO'
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-#app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
-#app.config['REMEMBER_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_SECURE'] = True
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -142,10 +142,10 @@ def _redirect_to_function(function, source):
         _check_args(request.args, [])
     args.update(request.view_args)
     _check_args(args, signature(function).parameters)
-#    try:
-    return function(**args)
-#    except Exception as e:
-#        return str(e), 400
+    try:
+        return function(**args)
+    except Exception as e:
+        return str(e), 400
 
 
 def _check_args(args, allowed):

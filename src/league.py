@@ -28,6 +28,7 @@ class League(Entity):
     INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET = "Invalid tournament tie breaker at 5th set [{tie_breaker_5th}]"
     A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS = "A closed tournament cannot follow open tournaments"
     A_GHOST_TOURNAMENT_MUST_HAVE_A_CORRESPONDENT_TOURNAMENT_IN_THE_PREVIOUS_YEAR = "A ghost tournament must have a correspondent tournament in the previous year"
+    A_TOURNAMENT_CAN_ONLY_BE_CREATED_IN_THE_CURRENT_YEAR = "A tournament can only be created in the current year"
 
     def __init__(self, *, name):
         super().__init__('name')
@@ -47,6 +48,7 @@ class League(Entity):
         self._ranking_history = {}
         self._record_tournament = {}
         self._record_category = {}
+        self._current_year = None
         self.name = name
 
     def __contains__(self, gambler):
@@ -74,6 +76,13 @@ class League(Entity):
         info.update({'name': self.name})
         return info
 
+    @property
+    def current_year(self):
+        if not hasattr(self, '_current_year'):
+            last_tournament = list(self._bet_tournaments.values())[-1]
+            self._current_year = last_tournament.year
+        return self._current_year
+
     def create_tournament(self, *, name, nation, year, n_sets, tie_breaker_5th=None, category, draw_type,
                           previous_year_scores=None, ghost=False):
         tie_breaker_5th, category, draw_type = self._convert_tournament_parameters_to_object(tie_breaker_5th=tie_breaker_5th,
@@ -99,6 +108,10 @@ class League(Entity):
         name, year = id_
         if id_ in self._bet_tournaments:
             raise LeagueError(League.TOURNAMENT_ALREADY_EXISTING_IN_LEAGUE)
+        if self.current_year is None:
+            self._current_year = year
+        elif year != self.current_year:
+            raise LeagueError(League.A_TOURNAMENT_CAN_ONLY_BE_CREATED_IN_THE_CURRENT_YEAR)
         if (year - 1) not in self._previous_year_scores:
             self._previous_year_scores[year - 1] = {}
         self._previous_year_scores[year - 1][name] = {}

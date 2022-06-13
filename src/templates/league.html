@@ -33,6 +33,7 @@
             tournaments = JSON.parse(values[5]);
             leagueGamblers = JSON.parse(values[6]);
             updateTitles();
+            updateYearSelect();
             updateTableTournaments();
             updateTablesRanking();
             updateTableWinnersRecord();
@@ -58,6 +59,10 @@
         }).catch(function (reason) {
             window.alert(reason);
         });
+    }
+    function changeSelectedYear() {
+        updateTableTournaments();
+        updateTablesRanking();
     }
     function updateTableWinnersRecord() {
         const table = document.getElementById("tableWinnersRecord");
@@ -172,10 +177,36 @@
         document.getElementById("winnerLeague").innerText = "Vincitore\n" + leagues["{{ league_index }}"]["name"];
         document.title = leagues["{{ league_index }}"]["name"];
     }
+    function updateYearSelect() {
+        const allYears = Array();
+        let currentSeasonYear;
+        for (const key in tournaments) {
+            const year = tournaments[key]["year"];
+            currentSeasonYear = year;
+            if (allYears.indexOf(year) === -1) {
+                allYears.push(year);
+            }
+        }
+        const yearSelect = document.getElementById("yearSelect");
+        yearSelect.innerText = "";
+        for (const index in allYears) {
+            const year = allYears[index];
+            const option = document.createElement("option");
+            option.value = year;
+            option.innerText = year;
+            yearSelect.appendChild(option);
+        }
+        yearSelect.value = currentSeasonYear;
+    }
     function updateTableTournaments() {
+        const yearSelect = document.getElementById("yearSelect");
+        const selectedYear = parseInt(yearSelect.value);
         const table = document.getElementById("tableTournamentsBody");
         table.innerText = "";
         for (const key in tournaments) {
+            if (tournaments[key]["year"] !== selectedYear) {
+                continue;
+            }
             {% if not is_privileged %}
             if (tournaments[key]["is_ghost"]) {
                 continue;
@@ -238,6 +269,7 @@
     }
     function updateTablesRanking() {
         const tableRanking = document.getElementById("tableRankingBody");
+        tableRanking.innerText = "";
         const rankingScores = ranking["ranking_scores"];
         const rankingScoresArray = orderObjectByValue(rankingScores);
         rankingScoresArray.reverse();
@@ -262,15 +294,26 @@
             lastPoints = gamblerPoints;
         }
         const tableRace = document.getElementById("tableRaceBody");
+        tableRace.innerText = "";
         const yearlyScores = ranking["yearly_scores"];
         const years = Object.keys(yearlyScores).map(x => parseInt(x));
         if (years.length === 0) {
             document.getElementById("tableRace").remove();
+            document.getElementById("tableYear").remove();
             return;
         }
         const lastYear = Math.max(...years);
-        document.getElementById("raceTitle").innerText = "Race " + lastYear;
-        const yearlyScoresArray = orderObjectByValue(yearlyScores[lastYear]);
+        const yearSelect = document.getElementById("yearSelect");
+        const selectedYear = parseInt(yearSelect.value);
+        if (selectedYear === lastYear) {
+            document.getElementById("raceTitle").innerText = "Race " + selectedYear;
+        } else {
+            document.getElementById("raceTitle").innerText = "Ranking " + selectedYear;
+        }
+        if (yearlyScores[selectedYear] === undefined) {
+            return;
+        }
+        const yearlyScoresArray = orderObjectByValue(yearlyScores[selectedYear]);
         yearlyScoresArray.reverse();
         lastPosition = undefined;
         lastPoints = undefined;
@@ -308,6 +351,7 @@
             sendRequest("DELETE", "/leagues/{{ league_index }}/tournaments/" + index)
         ]).then(function (values) {
             delete tournaments[index];
+            updateYearSelect();
             updateTableTournaments();
         }).catch(function (reason) {
             window.alert(reason);
@@ -335,7 +379,17 @@
         const formName = document.createElement("input");
         formName.setAttribute("type", "text");
         formName.setAttribute("size", "15");
+        formName.setAttribute("list", "tournamentList");
+        const tournamentList = document.createElement("datalist");
+        tournamentList.setAttribute("id", "tournamentList");
+        const allNames = getTournamentNames();
+        for (const name of allNames) {
+            const option = document.createElement("option");
+            option.setAttribute("value", name);
+            tournamentList.appendChild(option);
+        }
         nameCell.appendChild(formName);
+        nameCell.appendChild(tournamentList);
         forms["name"] = formName;
         const yearCell = row.insertCell();
         const formYear = document.createElement("input");
@@ -441,6 +495,16 @@
             };
         }
     }
+    function getTournamentNames() {
+        const allNames = Array();
+        for (const key in tournaments) {
+            const name = tournaments[key]["name"];
+            if (allNames.indexOf(name) === -1) {
+                allNames.push(name);
+            }
+        }
+        return allNames;
+    }
     function sendTournamentUpdate(method, url) {
         const requestJson = Object();
         if (!forms["name"].disabled) {
@@ -488,6 +552,7 @@
             for (const key in updatedTournament) {
                 tournaments[key] = updatedTournament[key];
             }
+            updateYearSelect();
             restoreTournaments();
         }).catch(function (reason) {
             window.alert(reason);
@@ -769,6 +834,8 @@
 {% endif %}
 <div id="tournamentDiv">
     <h2>Tornei</h2>
+    <label for="pet-yearSelect">Seleziona l'anno</label>
+    <select id="yearSelect" onchange="changeSelectedYear()"></select>
     <table class="styled-table">
         <thead>
         <tr>
@@ -794,7 +861,7 @@
 </div>
 <div>
     <div class="floatRankings">
-        <h2>Ranking</h2>
+        <h2>Ranking attuale</h2>
         <table class="styled-table">
             <thead>
             <tr>
@@ -808,7 +875,7 @@
         </table>
     </div>
     <div class="floatRankings">
-    <h2 id="raceTitle"></h2>
+        <h2 id="raceTitle"></h2>
         <table id="tableRace" class="styled-table">
             <thead>
             <tr>

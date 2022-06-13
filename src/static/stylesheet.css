@@ -54,8 +54,13 @@ button {
 }
 
 .floatRankings {
-    width: 50%;
+    margin: 10px 10px;
     float: left;
+}
+
+.clearRankings {
+    margin: 10px 10px;
+    clear: both;
 }
 
 .bold {

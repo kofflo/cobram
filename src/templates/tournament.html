@@ -825,25 +825,29 @@
 {% block content %}
 <h1 id="mainHeader"></h1>
 <h2 id="subHeader"></h2>
-<table class="styled-table">
-    <thead>
-    <tr>
-        <td>Nazione</td>
-        <td>Bandiera</td>
-        <td>Set</td>
-        <td>Tie-break al 5° set</td>
-        <td>Categoria</td>
-        <td>Tabellone</td>
-    </tr>
-    </thead>
-    <tbody id="infoTableBody">
-    </tbody>
-</table>
-{% if is_privileged %}
-    <button id="scoresButton" onclick="insertScores()">Cambia i punteggi</button>
-    <button id="closeButton" onclick="closeTournament()">Chiudi il torneo</button>
-{% endif %}
-<div class="floatRankings">
+<div>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+            <td>Set</td>
+            <td>Tie-break al 5° set</td>
+            <td>Categoria</td>
+            <td>Tabellone</td>
+        </tr>
+        </thead>
+        <tbody id="infoTableBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    {% if is_privileged %}
+        <button id="scoresButton" onclick="insertScores()">Cambia i punteggi</button>
+        <button id="closeButton" onclick="closeTournament()">Chiudi il torneo</button>
+    {% endif %}
+</div>
+    <div class="floatRankings">
     <table id="matches" class="styled-table">
         <thead>
         <tr>
@@ -872,20 +876,20 @@
         </tbody>
     </table>
 </div>
-    {% if is_privileged %}
-        <div class="floatRankings">
-            <button id="playersButton" onclick="insertPlayers()">Cambia i tennisti</button>
-            <table id="players" class="styled-table">
-                <thead>
-                <tr>
-                    <td>Posto</td>
-                    <td>Tennista</td>
-                    <td>Seed</td>
-                </tr>
-                </thead>
-                <tbody id="tablePlayersBody">
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
+{% if is_privileged %}
+    <div class="clearRankings">
+        <button id="playersButton" onclick="insertPlayers()">Cambia i tennisti</button>
+        <table id="players" class="styled-table">
+            <thead>
+            <tr>
+                <td>Posto</td>
+                <td>Tennista</td>
+                <td>Seed</td>
+            </tr>
+            </thead>
+            <tbody id="tablePlayersBody">
+            </tbody>
+        </table>
+    </div>
+{% endif %}
 {% endblock %}
