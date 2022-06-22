@@ -1,3 +1,4 @@
+
 from entity import Entity, EntityError
 import class_id_strings
 from bet_tournament import BetTournament
@@ -38,6 +39,7 @@ class League(Entity):
     YEAR_ALREADY_OPEN = "Year already open"
     YEAR_ALREADY_CLOSE = "Year already close"
     CANNOT_CLOSE_YEAR_WITH_AN_OPEN_TOURNAMENT = "Cannot close year with an open tournament"
+    CANNOT_CLOSE_YEAR_WITH_USED_RANKINGS_FROM_PREVIOUS_YEAR = "Cannot close year with used rankings from previous year"
     MUST_PROVIDE_A_NEW_YEAR_VALUE = "Must provide a new year value"
 
     def __init__(self, *, name):
@@ -58,6 +60,7 @@ class League(Entity):
         self._ranking_history = {}
         self._record_tournament = {}
         self._record_category = {}
+        self._used_tournaments = set()
         self._current_year = None
         self._fee = 0
         self._prizes = [0] * League.DIM_PRIZE_ARRAY
@@ -148,7 +151,12 @@ class League(Entity):
         for tournament in self._bet_tournaments.values():
             if tournament.is_open:
                 raise LeagueError(League.CANNOT_CLOSE_YEAR_WITH_AN_OPEN_TOURNAMENT)
-        if self._current_year == self._get_last_tournament_year():
+        if not hasattr(self, '_used_tournaments'):
+            self._compute_league_ranking()
+        if self._current_year == self.get_last_tournament_year():
+            for (name, year) in self._used_tournaments:
+                if year != self.current_year:
+                    raise LeagueError(League.CANNOT_CLOSE_YEAR_WITH_USED_RANKINGS_FROM_PREVIOUS_YEAR)
             for gambler, prize in zip(self._ranking_scores, self.prizes):
                 self._credits[gambler] += prize
         else:
@@ -166,20 +174,20 @@ class League(Entity):
                     raise LeagueError(League.INVALID_NEW_YEAR)
             except ValueError:
                 raise LeagueError(League.INVALID_NEW_YEAR)
-        if self._get_last_tournament_year() is None:
+        if self.get_last_tournament_year() is None:
             if year is None:
                 raise LeagueError(League.MUST_PROVIDE_A_NEW_YEAR_VALUE)
             self._open_new_year(year)
             return
         if year is not None:
-            if year > self._get_last_tournament_year():
+            if year > self.get_last_tournament_year():
                 self._open_new_year(year)
-            elif year == self._get_last_tournament_year():
+            elif year == self.get_last_tournament_year():
                 self._reopen_last_year()
             else:
                 raise LeagueError(League.INVALID_NEW_YEAR)
         else:
-            self._open_new_year(self._get_last_tournament_year() + 1)
+            self._open_new_year(self.get_last_tournament_year() + 1)
 
     def _open_new_year(self, year):
         for gambler in self.get_gamblers(is_active=True):
@@ -189,9 +197,9 @@ class League(Entity):
     def _reopen_last_year(self):
         for gambler, prize in zip(self._ranking_scores, self.prizes):
             self._credits[gambler] -= prize
-        self._current_year = self._get_last_tournament_year()
+        self._current_year = self.get_last_tournament_year()
 
-    def _get_last_tournament_year(self):
+    def get_last_tournament_year(self):
         if self._bet_tournaments:
             last_tournament = list(self._bet_tournaments.values())[-1]
             return last_tournament.year
@@ -526,7 +534,7 @@ class League(Entity):
 
     def _compute_league_ranking(self):
         self._ranking_scores, self._yearly_scores, self._winners, self._last_tournament, self._ranking_history, \
-            _, _, _ = self._compute_ranking()
+            _, _, _, self._used_tournaments = self._compute_ranking()
         self._record_tournament, self._record_category = self._compute_record()
 
     def _compute_ranking(self, up_to=None):
@@ -538,6 +546,7 @@ class League(Entity):
         tournament_ranking_scores = {}
         joker_gambler_seed_points = {}
         ranking_history = {}
+        used_tournaments = set()
         for (tournament_id, bet_tournament) in self._bet_tournaments.items():
             name, year = tournament_id
             if bet_tournament.is_open:
@@ -563,6 +572,9 @@ class League(Entity):
                 else:
                     yearly_scores[year] = {}
                     yearly_scores[year][gambler] = tournament_ranking_scores[gambler]
+            used_tournaments.add(bet_tournament.id)
+            if (name, year - 1) in used_tournaments:
+                used_tournaments.remove((name, year - 1))
 
             if tournament_ranking_scores.keys() and not bet_tournament.is_ghost:
                 winners[tournament_id] = list(tournament_ranking_scores.keys())[0]
@@ -584,14 +596,14 @@ class League(Entity):
                 pass
 
         return ranking_scores, yearly_scores, winners, last_tournament, ranking_history, \
-            tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
+            tournament_scores, tournament_ranking_scores, joker_gambler_seed_points, used_tournaments
 
     def get_tournament_ranking(self, *, tournament_id):
         tournament = self._get_tournament(tournament_id)
         if tournament.is_open:
             return tournament.get_scores()
         else:
-            _, _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points = \
+            _, _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points, _ = \
                 self._compute_ranking(up_to=tournament)
             return tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
 

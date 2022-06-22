@@ -77,6 +77,8 @@ def get_league_info(*, index):
 def update_league(*, index, name=None, fee=None, prizes=None, current_year=None):
     league = _get_league(index)
     league.update_fee_and_prizes(fee=fee, prizes=prizes)
+    was_year = league.current_year
+    last_tournament_year = league.get_last_tournament_year()
     if current_year is None:
         # do nothing
         pass
@@ -84,6 +86,8 @@ def update_league(*, index, name=None, fee=None, prizes=None, current_year=None)
         league.close_year()
     else:
         league.open_year(year=current_year)
+    if was_year is not None and was_year == last_tournament_year and league.current_year is None:
+        send_gmail_close_year(league_index=index, year=was_year)
     return _update_entity('league', index, name=name)
 
 
@@ -934,47 +938,47 @@ il torneo <a href="http://cobram.pythonanywhere.com/web/leagues/{league_index}/t
 La prima posizione del ranking è occupata da <b>{league_leader}</b> mentre al comando della race c'è <b>{race_leader}</b>.<br>
 
 <h2>Classifica del torneo:</h2>
-    <table>
+<table>
     <thead>
-    <tr>
-        <th scope="col">Posizione</th>
-        <th scope="col">Scommettitore</th>
-        <th scope="col">Punti</th>
-        <th scope="col">Punti ranking</th>
-    </tr>
+        <tr>
+            <th scope="col">Posizione</th>
+            <th scope="col">Scommettitore</th>
+            <th scope="col">Punti</th>
+            <th scope="col">Punti ranking</th>
+        </tr>
     </thead>
     <tbody>
 {tournament_ranking_html}
     </tbody>
-    </table>
+</table>
 
 <h2>Classifica della {league}:</h2>
-    <table>
+<table>
     <thead>
-    <tr>
-        <th scope="col">Posizione</th>
-        <th scope="col">Scommettitore</th>
-        <th scope="col">Punti</th>
-    </tr>
+        <tr>
+            <th scope="col">Posizione</th>
+            <th scope="col">Scommettitore</th>
+            <th scope="col">Punti</th>
+        </tr>
     </thead>
     <tbody>
 {league_ranking_html}
     </tbody>
-    </table>
+</table>
 
 <h2>Race dell'anno {year}:</h2>
-    <table>
+<table>
     <thead>
-    <tr>
-        <th scope="col">Posizione</th>
-        <th scope="col">Scommettitore</th>
-        <th scope="col">Punti</th>
-    </tr>
+        <tr>
+            <th scope="col">Posizione</th>
+            <th scope="col">Scommettitore</th>
+            <th scope="col">Punti</th>
+        </tr>
     </thead>
     <tbody>
 {race_ranking_html}
     </tbody>
-    </table>
+</table>
 </body>
 </html>
     """.format(league_index=league_index, tournament_index=tournament_index,
@@ -1005,5 +1009,91 @@ Race dell'anno {year}:
     """.format(league=league.name, name=tournament_info['name'], year=tournament_info['year'], winner=winner.nickname,
            league_leader=league_leader.nickname, race_leader=race_leader.nickname,
            tournament_ranking=tournament_ranking, league_ranking=league_ranking, race_ranking=race_ranking)
+
+    _gmail_bridge_object.send_gmail(to=to, subject=subject, message_text=message_text, message_html=message_html)
+
+
+def send_gmail_close_year(*, league_index, year):
+    league = _get_league(league_index)
+    ranking_scores, _, _, _, _, _, _ = league.get_ranking()
+    league_leader = None
+    for league_leader in ranking_scores:
+        break
+    prizes = (league.prizes + [0] * len(ranking_scores))[:len(ranking_scores)]
+    active_gamblers = league.get_gamblers(is_active=True)
+    to = [gambler.email for gambler in active_gamblers if gambler.is_email_enabled]
+    subject = "Risultati stagione {year}".format(year=year)
+    longest_nickname = max([len(gambler.nickname) for gambler in ranking_scores]) + 3
+    league_ranking_header = [["Posizione  ", "Scommettitore", "    Punti", "   Premio"]]
+    league_ranking_list = [['{:<11d}'.format(index + 1), gambler.nickname.ljust(longest_nickname), '{:9d}'.format(ranking_scores[gambler]), '{:7.1f} €'.format(prizes[index])] for index, gambler in enumerate(ranking_scores)]
+    league_ranking_lines = ["".join(line) for line in league_ranking_header + league_ranking_list]
+    league_ranking = "\n".join(league_ranking_lines)
+
+    league_ranking_html_lines = ["".join(["<td>%s</td>\n" % element for element in line]) for line in league_ranking_list]
+    league_ranking_html = "".join(["<tr>\n%s</tr>\n" % element for element in league_ranking_html_lines])
+
+    credits_header = [["Scommettitore", "Crediti"]]
+    credits_list = [[gambler.nickname.ljust(longest_nickname), '{:7.1f} €'.format(info['credit'])] for gambler, info in active_gamblers.items()]
+    credits_lines = ["".join(line) for line in credits_header + credits_list]
+    credits_table = "\n".join(credits_lines)
+
+    credits_html_lines = ["".join(["<td>%s</td>\n" % element for element in line]) for line in credits_list]
+    credits_html = "".join(["<tr>\n%s</tr>\n" % element for element in credits_html_lines])
+
+    message_html = \
+        """
+    <html>
+    <body>
+    Carissimi tennisti della <a href="http://cobram.pythonanywhere.com/web/leagues/{league_index}">{league}</a>,<br><br>
+    Il vincitore della stagione {year} è <b>{league_leader}</b>.<br>
+    
+    <h2>Classifica della {league}:</h2>
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Posizione</th>
+                <th scope="col">Scommettitore</th>
+                <th scope="col">Punti</th>
+                <th scope="col">Premio</th>
+            </tr>
+        </thead>
+        <tbody>
+    {league_ranking_html}
+        </tbody>
+    </table>
+
+    <h2>Crediti della {league}:</h2>
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Scommettitore</th>
+                <th scope="col">Crediti</th>
+            </tr>
+        </thead>
+        <tbody>
+    {credits_html}
+        </tbody>
+    </table>
+
+    </body>
+    </html>
+        """.format(league_index=league_index, league=league.name, league_leader=league_leader.nickname,
+                   league_ranking_html=league_ranking_html, credits_html=credits_html, year=2022)
+
+    message_text = \
+        """
+    Carissimi tennisti della {league},
+    
+    il vincitore della stagione {year} è {league_leader}.
+    
+    Classifica della {league}:
+    
+    {league_ranking}
+
+    Crediti della {league}:
+    
+    {credits_table}
+        """.format(league=league.name, league_leader=league_leader.nickname,
+                   league_ranking=league_ranking, credits_table=credits_table, year=year)
 
     _gmail_bridge_object.send_gmail(to=to, subject=subject, message_text=message_text, message_html=message_html)
