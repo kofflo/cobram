@@ -15,6 +15,7 @@
     let tournaments;
     let leagueGamblers;
     let leagueGamblerDetails;
+    let allYears;
     function updatePage() {
         Promise.all([
             sendRequest("GET", "/leagues"),
@@ -34,8 +35,14 @@
             leagueGamblers = JSON.parse(values[6]);
             updateTitles();
             updateYearSelect();
+            {% if is_privileged %}
+            updateYearButton();
+            {% endif %}
             updateTableTournaments();
             updateTablesRanking();
+            updateYearLabel();
+            updateFeeLabel();
+            updatePrizeTable();
             updateTableWinnersRecord();
             plotRankingChart();
             leagueGamblerDetails = Object();
@@ -50,19 +57,58 @@
                     const responseObject = values[index];
                     leagueGamblerDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
                 }
+                updateTableCredits();
                 {% if is_privileged %}
-                updateButtons();
+                updateGamblerButtons();
                 {% endif %}
             }).catch(function (reason) {
-                window.alert(reason);
+                window.alert(reason["response"]);
             });
         }).catch(function (reason) {
             window.alert(reason);
         });
     }
+    function updateYearLabel() {
+        const label = document.getElementById("yearLabel");
+        if (leagues[{{ league_index }}]["current_year"] != null) {
+            label.innerText = leagues[{{ league_index }}]["current_year"];
+        } else {
+            label.innerText = "/";
+        }
+    }
+    function updateFeeLabel() {
+        const feeLabel = document.getElementById("feeLabel");
+        feeLabel.innerText = leagues[{{ league_index }}]["fee"] + " €";
+    }
+    function updatePrizeTable() {
+        const prizeTable = document.getElementById("prizeTable");
+        prizeTable.innerText = "";
+        const headerRow = prizeTable.createTHead().insertRow();
+        const row = prizeTable.createTBody().insertRow();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            const HeaderCell = headerRow.insertCell();
+            const cell = row.insertCell();
+            HeaderCell.innerText = (parseInt(index) + 1).toString();
+            cell.innerText = leagues[{{ league_index }}]["prizes"][index] + " €";
+        }
+    }
     function changeSelectedYear() {
         updateTableTournaments();
         updateTablesRanking();
+    }
+    function updateTableCredits() {
+        const tableCredit = document.getElementById("tableCreditsBody");
+        tableCredit.innerText = "";
+        for (const key in leagueGamblers) {
+            const row = tableCredit.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = leagueGamblers[key]["nickname"];
+            const creditCell = row.insertCell();
+            creditCell.innerText = leagueGamblerDetails[key]["credit"];
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                row.className = "inactive";
+            }
+        }
     }
     function updateTableWinnersRecord() {
         const table = document.getElementById("tableWinnersRecord");
@@ -98,13 +144,6 @@
         cell = headerRow.insertCell();
         cell.innerText = "Totale";
         const body = table.createTBody();
-        let currentSeasonYear;
-        if (ranking["last_tournament"] != null) {
-            currentSeasonYear = tournaments[ranking["last_tournament"]]["year"];
-        } else {
-            currentSeasonYear = null;
-        }
-
         let gamblerTotal = Object();
         for (const key in ranking["record_tournament"]) {
             gamblerTotal[key] = 0;
@@ -123,11 +162,12 @@
             nameCell.innerText = gamblers[key]["nickname"];
             let total = 0;
             let totalCurrentSeason = false;
+            const currentYear = leagues["{{ league_index }}"]["current_year"];
             for (const index in tournamentNames) {
                 cell = row.insertCell();
                 if (tournamentNames[index] in ranking["record_tournament"][key]) {
                     cell.innerText = ranking["record_tournament"][key][tournamentNames[index]];
-                    if (currentSeasonYear != null && checkNameCurrentSeason(key, tournamentNames[index], currentSeasonYear)) {
+                    if (currentYear != null && checkNameCurrentSeason(key, tournamentNames[index], currentYear)) {
                         totalCurrentSeason = true;
                         cell.className = 'currentSeason';
                     }
@@ -140,7 +180,7 @@
                 cell = row.insertCell();
                 if (categoryNames[index] in ranking["record_category"][key]) {
                     cell.innerText = ranking["record_category"][key][categoryNames[index]];
-                    if (currentSeasonYear != null && checkCategoryCurrentSeason(key, categoryNames[index], currentSeasonYear)) {
+                    if (currentYear != null && checkCategoryCurrentSeason(key, categoryNames[index], currentYear)) {
                         cell.className = 'currentSeason';
                     }
                 } else {
@@ -178,13 +218,17 @@
         document.title = leagues["{{ league_index }}"]["name"];
     }
     function updateYearSelect() {
-        const allYears = Array();
-        let currentSeasonYear;
+        allYears = Array();
         for (const key in tournaments) {
             const year = tournaments[key]["year"];
-            currentSeasonYear = year;
             if (allYears.indexOf(year) === -1) {
                 allYears.push(year);
+            }
+        }
+        const currentYear = leagues["{{ league_index }}"]["current_year"];
+        if (currentYear != null) {
+            if (allYears.indexOf(currentYear) === -1) {
+                allYears.push(currentYear);
             }
         }
         const yearSelect = document.getElementById("yearSelect");
@@ -196,7 +240,19 @@
             option.innerText = year;
             yearSelect.appendChild(option);
         }
-        yearSelect.value = currentSeasonYear;
+        yearSelect.disabled = false;
+        if (currentYear != null) {
+            yearSelect.value = currentYear;
+        } else {
+            if (allYears[allYears.length - 1] !== undefined) {
+                yearSelect.value = allYears[allYears.length - 1];
+            } else {
+                yearSelect.disabled = true;
+            }
+        }
+        {% if is_privileged %}
+        document.getElementById("tournamentButton").disabled = currentYear == null;
+        {% endif %}
     }
     function updateTableTournaments() {
         const yearSelect = document.getElementById("yearSelect");
@@ -299,7 +355,6 @@
         const years = Object.keys(yearlyScores).map(x => parseInt(x));
         if (years.length === 0) {
             document.getElementById("tableRace").remove();
-            document.getElementById("tableYear").remove();
             return;
         }
         const lastYear = Math.max(...years);
@@ -339,6 +394,94 @@
     {% if is_privileged %}
     let forms;
     let editmode;
+    function updateYearButton() {
+        const button = document.getElementById("yearButton");
+        if (leagues[{{ league_index }}]["current_year"] != null) {
+            button.innerText = "Chiudi l'anno";
+            button.onclick = closeYear;
+        } else {
+            button.innerText = "Apri un nuovo anno";
+            button.onclick = openYear;
+        }
+    }
+    function closeYear() {
+        if (confirm("L'anno attuale verrà chiuso. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"current_year": -1})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            updateYearButton();
+            updateYearLabel();
+            updateYearSelect();
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function openYear() {
+        const yearLabel = document.getElementById("yearLabel");
+        yearLabel.innerText = "";
+        const yearInsert = document.createElement("input");
+        yearInsert.type = "number";
+        yearInsert.id = "yearInsert";
+        yearLabel.appendChild(yearInsert);
+        const button = document.getElementById("yearButton");
+        button.innerText = "Invia";
+        button.onclick = sendOpenYear;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreYear;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        if (allYears[allYears.length - 1] !== undefined) {
+            yearInsert.value = allYears[allYears.length - 1] + 1;
+            yearInsert.min = allYears[allYears.length - 1];
+        } else {
+            yearInsert.value = (new Date()).getFullYear();
+            yearInsert.min = 1900;
+        }
+        yearInsert.max = 2099;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+    }
+    function sendOpenYear() {
+        const yearInsert = document.getElementById("yearInsert");
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"current_year": yearInsert.value})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restoreYear();
+            updateYearSelect();
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restoreYear();
+            updateYearSelect();
+        });
+    }
+    function restoreYear() {
+        updateYearButton();
+        updateYearLabel();
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+        document.getElementById("cancelButton").remove();
+        updateGamblerButtons();
+    }
     function deleteTournament(event) {
         if (editmode) {
             return;
@@ -393,9 +536,11 @@
         forms["name"] = formName;
         const yearCell = row.insertCell();
         const formYear = document.createElement("input");
-        formYear.setAttribute("type", "text");
-        formYear.setAttribute("size", "3");
-        formYear.value = String((new Date()).getFullYear());
+        formYear.setAttribute("type", "number");
+        const currentYear = leagues[{{ league_index }}]["current_year"];
+        formYear.setAttribute("min", currentYear);
+        formYear.setAttribute("max", currentYear);
+        formYear.value = leagues[{{ league_index }}]["current_year"];
         yearCell.appendChild(formYear);
         forms["year"] = formYear;
         const nationCell = row.insertCell();
@@ -468,6 +613,10 @@
         document.getElementById("removeGamblerButton").hidden = true;
         document.getElementById("inactiveGamblerButton").hidden = true;
         document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
         if (event != null) {
             const index = event.target.id;
             const tournament = tournaments[index];
@@ -596,9 +745,16 @@
         const select = document.getElementById("gamblerSelect");
         select.innerHTML = "";
         select.hidden = true;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerHTML = "";
+        selectLabel.hidden = true;
         forms = Object();
         editmode = false;
-        updateButtons();
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+        updateGamblerButtons();
         updateTableTournaments();
     }
     function addOptions(form, array) {
@@ -609,11 +765,12 @@
             form.appendChild(option);
         }
     }
-    function updateButtons() {
+    function updateGamblerButtons() {
         document.getElementById("addGamblerButton").disabled = getNonMemberGamblers().length === 0;
         document.getElementById("removeGamblerButton").disabled = getMemberGamblers().length === 0;
         document.getElementById("inactiveGamblerButton").disabled = getActiveGamblers().length === 0;
         document.getElementById("activeGamblerButton").disabled = getInactiveGamblers().length === 0;
+        document.getElementById("creditButton").disabled = getActiveGamblers().length === 0;
     }
     function getMemberGamblers() {
         return Object.keys(leagueGamblers);
@@ -649,6 +806,9 @@
         const button = document.getElementById("addGamblerButton");
         button.innerText = "Invia";
         button.onclick = sendAddGambler;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Aggiungi";
+        selectLabel.hidden = false;
         addGamblerOptions(getNonMemberGamblers());
         const cancelButton = document.createElement("button");
         cancelButton.id = "cancelButton";
@@ -659,11 +819,18 @@
         document.getElementById("removeGamblerButton").hidden = true;
         document.getElementById("inactiveGamblerButton").hidden = true;
         document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
     }
     function removeGambler() {
         const button = document.getElementById("removeGamblerButton");
         button.innerText = "Invia";
         button.onclick = sendRemoveGambler;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Elimina";
+        selectLabel.hidden = false;
         addGamblerOptions(getMemberGamblers());
         const cancelButton = document.createElement("button");
         cancelButton.id = "cancelButton";
@@ -674,6 +841,10 @@
         document.getElementById("addGamblerButton").hidden = true;
         document.getElementById("inactiveGamblerButton").hidden = true;
         document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
     }
     function inactiveGambler() {
         const button = document.getElementById("inactiveGamblerButton");
@@ -681,6 +852,9 @@
         button.onclick = function() {
             sendActiveGambler(false);
         };
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Disattiva";
+        selectLabel.hidden = false;
         addGamblerOptions(getActiveGamblers());
         const cancelButton = document.createElement("button");
         cancelButton.id = "cancelButton";
@@ -691,6 +865,10 @@
         document.getElementById("addGamblerButton").hidden = true;
         document.getElementById("removeGamblerButton").hidden = true;
         document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
     }
     function activeGambler() {
         const button = document.getElementById("activeGamblerButton");
@@ -698,6 +876,9 @@
         button.onclick = function() {
             sendActiveGambler(true);
         };
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Attiva";
+        selectLabel.hidden = false;
         addGamblerOptions(getInactiveGamblers());
         const cancelButton = document.createElement("button");
         cancelButton.id = "cancelButton";
@@ -708,6 +889,10 @@
         document.getElementById("addGamblerButton").hidden = true;
         document.getElementById("removeGamblerButton").hidden = true;
         document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
     }
     function addGamblerOptions(list) {
         const select = document.getElementById("gamblerSelect");
@@ -756,6 +941,194 @@
             restoreTournaments();
         }).catch(function (reason) {
             window.alert(reason);
+        });
+    }
+    function changeFee() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        const feeLabel = document.getElementById("feeLabel");
+        feeLabel.innerText = "";
+        const feeInsert = document.createElement("input");
+        feeInsert.type = "number";
+        feeInsert.step = "0.5";
+        feeInsert.min = "0";
+        feeInsert.max = "999";
+        feeInsert.id = "feeInsert";
+        feeInsert.value = leagues[{{ league_index }}]["fee"];
+        feeLabel.appendChild(feeInsert);
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        const feeButton = document.getElementById("feeButton");
+        feeButton.innerText = "Invia";
+        feeButton.onclick = sendFee;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreFee;
+        feeButton.parentNode.insertBefore(cancelButton, feeButton.nextSibling);
+    }
+    function sendFee() {
+        const fee = document.getElementById("feeInsert").value;
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"fee": fee})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restoreFee();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restoreFee();
+        });
+    }
+    function restoreFee() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        updateFeeLabel();
+        const feeButton = document.getElementById("feeButton");
+        feeButton.innerText = "Cambia la quota";
+        feeButton.onclick = changeFee;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+    }
+    function changePrizes() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("feeButton").disabled = true;
+        const prizeButton = document.getElementById("prizeButton");
+        prizeButton.innerText = "Invia";
+        prizeButton.onclick = sendPrizes;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restorePrizes;
+        prizeButton.parentNode.insertBefore(cancelButton, prizeButton.nextSibling);
+        const prizeTable = document.getElementById("prizeTable");
+        prizeTable.innerText = "";
+        const headerRow = prizeTable.createTHead().insertRow();
+        const row = prizeTable.createTBody().insertRow();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            const HeaderCell = headerRow.insertCell();
+            HeaderCell.innerText = (parseInt(index) + 1).toString();
+            const cell = row.insertCell();
+            const prizeInsert = document.createElement("input");
+            prizeInsert.type = "number";
+            prizeInsert.value = leagues[{{ league_index }}]["prizes"][index];
+            prizeInsert.min = "0";
+            prizeInsert.max = "999";
+            prizeInsert.step = "0.5";
+            prizeInsert.id = "prizeInsert" + index;
+            cell.appendChild(prizeInsert);
+        }
+    }
+    function sendPrizes() {
+        const allPrizes = Array();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            allPrizes.push(parseFloat(document.getElementById("prizeInsert" + index).value));
+        }
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"prizes": allPrizes})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restorePrizes();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restorePrizes();
+        });
+    }
+    function restorePrizes() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        updatePrizeTable();
+        const prizeButton = document.getElementById("prizeButton");
+        prizeButton.innerText = "Cambia i premi";
+        prizeButton.onclick = changePrizes;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("feeButton").disabled = false;
+    }
+    function restoreCredit() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        const creditButton = document.getElementById("creditButton");
+        creditButton.innerText = "Cambia i crediti";
+        creditButton.onclick = changeCredit;
+        creditButton.hidden = false;
+        document.getElementById("cancelButton").remove();
+        updateTableCredits();
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+    }
+    let creditForms;
+    function changeCredit() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        const creditButton = document.getElementById("creditButton");
+        creditButton.innerText = "Invia";
+        creditButton.onclick = sendChangeCredit;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreCredit;
+        creditButton.parentNode.insertBefore(cancelButton, creditButton.nextSibling);
+        creditForms = Object();
+        const tableCredit = document.getElementById("tableCreditsBody");
+        tableCredit.innerText = "";
+        for (const key in leagueGamblers) {
+            const row = tableCredit.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = leagueGamblers[key]["nickname"];
+            const creditFormCell = row.insertCell();
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                continue;
+            }
+            const creditForm = document.createElement("input");
+            creditForm.setAttribute("type", "number");
+            creditForm.setAttribute("step", "0.5");
+            creditForm.setAttribute("value", "0");
+            creditForm.setAttribute("max", "999");
+            creditForm.setAttribute("min", "-999");
+            creditFormCell.appendChild(creditForm);
+            creditForms[key] = creditForm;
+        }
+    }
+    function sendChangeCredit() {
+        const allPromises = Array();
+        for (const key in creditForms) {
+            const value = creditForms[key].value;
+            allPromises.push(sendRequest("PUT", "/leagues/{{ league_index }}/gamblers/" + key, {"credit_change": value}, key));
+        }
+        Promise.all(allPromises).then(function (values) {
+            for (const index in values) {
+                leagueGamblerDetails[values[index]["key"]] = JSON.parse(values[index]["response"]);
+            }
+            restoreCredit();
+        }).catch(function (reason) {
+            window.alert(reason["response"]);
+            restoreCredit();
         });
     }
     {% endif %}
@@ -829,12 +1202,13 @@
 <button id="removeGamblerButton" onclick="removeGambler()">Elimina uno scommettitore</button>
 <button id="inactiveGamblerButton" onclick="inactiveGambler()">Disattiva uno scommettitore</button>
 <button id="activeGamblerButton" onclick="activeGambler()">Attiva uno scommettitore</button>
+<label id="gamblerSelectLabel" for="gamblerSelect" hidden></label>
 <select id="gamblerSelect" hidden></select>
 <table id="tournamentInsert" hidden></table>
 {% endif %}
 <div id="tournamentDiv">
     <h2>Tornei</h2>
-    <label for="pet-yearSelect">Seleziona l'anno</label>
+    <label for="yearSelect">Seleziona l'anno</label>
     <select id="yearSelect" onchange="changeSelectedYear()"></select>
     <table class="styled-table">
         <thead>
@@ -859,43 +1233,73 @@
         </tbody>
     </table>
 </div>
-<div>
-    <div class="floatRankings">
-        <h2>Ranking attuale</h2>
-        <table class="styled-table">
-            <thead>
-            <tr>
-                <td>Posizione</td>
-                <td>Scommettitore</td>
-                <td>Punti</td>
-            </tr>
-            </thead>
-            <tbody id="tableRankingBody">
-            </tbody>
-        </table>
-    </div>
-    <div class="floatRankings">
-        <h2 id="raceTitle"></h2>
-        <table id="tableRace" class="styled-table">
-            <thead>
-            <tr>
-                <td>Posizione</td>
-                <td>Scommettitore</td>
-                <td>Punti</td>
-            </tr>
-            </thead>
-            <tbody id="tableRaceBody">
-            </tbody>
-        </table>
-    </div>
-    <div class="floatRankings">
-        <h2 id="Palmarès"></h2>
-        <table id="tableWinnersRecord" class="styled-table">
-        </table>
-    </div>
+<div class="floatRankings">
+    <h2>Ranking attuale</h2>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="tableRankingBody">
+        </tbody>
+    </table>
 </div>
-    <div>
-        <canvas id="rankingChart"></canvas>
-    </div>
-    <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+<div class="floatRankings">
+    <h2 id="raceTitle"></h2>
+    <table id="tableRace" class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="tableRaceBody">
+        </tbody>
+    </table>
+</div>
+<div class="clearRankings">
+    <h2>Palmarès</h2>
+    <table id="tableWinnersRecord" class="styled-table">
+    </table>
+</div>
+<div>
+    <h2>Crediti</h2>
+    <h3>Stagione attuale: <span id="yearLabel"></span>
+        {% if is_privileged %}
+        <button id="yearButton"></button>
+        {% endif %}
+    </h3>
+    <h3>Quota: <span id="feeLabel"></span>
+        {% if is_privileged %}
+        <button id="feeButton" onclick="changeFee()">Cambia la quota</button>
+        {% endif %}
+    </h3>
+    <h3>Premi:
+        {% if is_privileged %}
+        <button id="prizeButton" onclick="changePrizes()">Cambia i premi</button>
+        {% endif %}
+    </h3>
+    <table id="prizeTable" class="styled-table"></table>
+    {% if is_privileged %}
+    <button id="creditButton" onclick="changeCredit()">Cambia i crediti</button>
+    {% endif %}
+    <table id="tableCredits" class="styled-table">
+        <thead>
+        <tr>
+            <td>Scommettitore</td>
+            <td>Crediti</td>
+        </tr>
+        </thead>
+        <tbody id="tableCreditsBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    <canvas id="rankingChart"></canvas>
+</div>
+<script src="{{ url_for('static', filename='chart.min.js') }}"></script>
 {% endblock %}

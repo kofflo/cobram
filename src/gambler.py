@@ -26,7 +26,7 @@ class Gambler(Entity, UserMixin):
     CANNOT_RENAME_ADMIN = "Cannot rename admin"
     EMAIL_RE = r"[^@]+@[^@]+\.[^@]+"
 
-    def __init__(self, *, nickname, email, password):
+    def __init__(self, *, nickname, email, is_email_enabled, password):
         super().__init__('nickname', unique_attributes=['email'])
         self._nickname = None
         self._email = None
@@ -35,7 +35,7 @@ class Gambler(Entity, UserMixin):
         self.nickname = nickname
         self.email = email
         self.password = password
-        self.is_email_enabled = False
+        self.is_email_enabled = is_email_enabled
         self._leagues = set()
         self._bet_tournaments = set()
         self._unique_id = None
@@ -156,4 +156,4 @@ class GamblerError(EntityError):
     _reference_class = Gambler
 
 
-ADMIN = Gambler(nickname=ADMIN_NICKNAME, email=ADMIN_EMAIL, password=ADMIN_PASSWORD)
+ADMIN = Gambler(nickname=ADMIN_NICKNAME, email=ADMIN_EMAIL, is_email_enabled=False, password=ADMIN_PASSWORD)

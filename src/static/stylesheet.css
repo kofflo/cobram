@@ -71,3 +71,7 @@ button {
     color: #FF0000;
     font-weight: bold;
 }
+
+.inactive {
+    font-style: italic;
+}

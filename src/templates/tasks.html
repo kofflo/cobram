@@ -28,7 +28,7 @@
                 }
                 updateTasks();
             }).catch(function (reason) {
-                window.alert(reason);
+                window.alert(reason["response"]);
             });
         }).catch(function (reason) {
             window.alert(reason);

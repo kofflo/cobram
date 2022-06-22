@@ -74,7 +74,16 @@ def get_league_info(*, index):
     return _get_entity_info('league', index)
 
 
-def update_league(*, index, name=None):
+def update_league(*, index, name=None, fee=None, prizes=None, current_year=None):
+    league = _get_league(index)
+    league.update_fee_and_prizes(fee=fee, prizes=prizes)
+    if current_year is None:
+        # do nothing
+        pass
+    elif current_year == -1:
+        league.close_year()
+    else:
+        league.open_year(year=current_year)
     return _update_entity('league', index, name=name)
 
 
@@ -126,8 +135,9 @@ def delete_player(*, index):
     return _delete_entity('player', index)
 
 
-def create_gambler(*, nickname, email, password):
-    return _create_entity('gambler', nickname=nickname, email=email, password=generate_password_hash(password, method='sha256'))
+def create_gambler(*, nickname, email, is_email_enabled, password):
+    return _create_entity('gambler', nickname=nickname, email=email, is_email_enabled=is_email_enabled,
+                          password=generate_password_hash(password, method='sha256'))
 
 
 def get_gamblers(*, nickname=None, email=None):

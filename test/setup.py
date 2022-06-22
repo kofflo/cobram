@@ -77,7 +77,7 @@ def create_gambler(initial_credit=0):
     nickname = "Nickname_" + str(random_int(0, 100))
     email = "nick" + str(random_int(0, 100)) + "@cobram.com"
     password = "passw" + str(random_int(0, 100))
-    return Gambler(nickname=nickname, email=email, password=password)
+    return Gambler(nickname=nickname, email=email, is_email_enabled=False, password=password)
 
 
 def create_league():
