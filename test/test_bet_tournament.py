@@ -32,6 +32,11 @@ class TestBetTournament(unittest.TestCase):
         self.assertEqual(bet.number_matches, 15)
         with self.assertRaises(AttributeError):
             bet.not_existing_attribute
+        ghost_bet = BetTournament(name="ATP Tournament", nation=italy, year=2021, n_sets=3,
+                                  category=TournamentCategory.MASTER_1000, draw_type=Draw16, ghost=True)
+        self.assertEqual(ghost_bet.get_matches(), {})
+        with self.assertRaises(BetTournamentError):
+            ghost_bet.get_match(match_id="A1")
 
     def test_change_bet_tournament(self):
         bet_tournament = create_bet_tournament(3)
@@ -48,6 +53,17 @@ class TestBetTournament(unittest.TestCase):
             bet_tournament.add_gambler(first_gambler)
         with self.assertRaises(BetTournamentError):
             bet_tournament.add_gambler("a gambler")
+        another_gambler = create_gambler()
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.remove_gambler(another_gambler)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.remove_gambler("another_gambler")
+        bet_tournament.add_gambler(another_gambler)
+        bet_tournament.remove_gambler(another_gambler)
+        bet_tournament.add_gambler(another_gambler)
+        another_gambler.remove_from_bet_tournament(bet_tournament)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.remove_gambler(another_gambler)
         first_bet = [[4, 6], [4, 6]]
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A1", score=first_bet)
         actual_score = [[6, 2], [6, 2]]
@@ -75,11 +91,25 @@ class TestBetTournament(unittest.TestCase):
         self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A3")['joker'], True)
         bet_tournament.set_match_score(gambler=second_gambler, match_id="A4", score=third_bet, joker=True)
         self.assertEqual(bet_tournament.get_match(gambler=second_gambler, match_id="A4")['joker'], True)
+        bet_tournament.close_bets_on_match(match_id="A4")
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.close_bets_on_match(match_id="C5")
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.set_match_score(gambler=second_gambler, match_id="A3", score=third_bet, joker=True)
+        bet_tournament.open_bets_on_match(match_id="A4")
+        bet_tournament.set_match_score(gambler=second_gambler, match_id="A3", score=third_bet, joker=True)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.open_bets_on_match(match_id="C5")
+        bet_tournament.set_match_score(match_id="A3", score=third_bet, joker=True)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.open_bets_on_match(match_id="A3")
         self.assertTrue(bet_tournament.is_open)
         with self.assertRaises(BetTournamentError):
             bet_tournament.close()
         complete_tournament(bet_tournament)
         bet_tournament.close()
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.remove_gambler(first_gambler)
         self.assertFalse(bet_tournament.is_open)
         with self.assertRaises(BetTournamentError):
             bet_tournament.add_gambler(create_gambler())
@@ -92,11 +122,14 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament = create_bet_tournament(3)
         first_gambler = create_gambler()
         bet_tournament.add_gambler(first_gambler)
+        second_gambler = create_gambler()
+        bet_tournament.add_gambler(second_gambler)
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A1", score=[[6, 4], [6, 4]])
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A2", score=[[6, 4], [4, 6], [6, 4]])
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A3", score=[[6, 4], [4, 6], [6, 4]], joker=True)
         # correct winner, correct set score, 1 correct set = 6 points
         bet_tournament.set_match_score(match_id="A1", score=[[6, 4], [7, 5]])
+        self.assertEqual(bet_tournament.get_matches(gambler=first_gambler)['A1']['points'], 6)
         scores = bet_tournament.get_scores()[0]
         self.assertEqual(scores[first_gambler], 6)
         # wrong winner = 0 points
@@ -162,12 +195,25 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A7", score=[[6, 2], [6, 2]], force=True)
         scores = bet_tournament.get_scores()[0]
         self.assertEqual(scores[first_gambler], 32)
+        tournament_ranking_scores = bet_tournament.get_scores()[1]
+        self.assertEqual(tournament_ranking_scores[first_gambler], 0)
         with self.assertRaises(BetTournamentError):
             bet_tournament.close()
         complete_tournament(bet_tournament)
+        # correct winner, correct set score, 1 correct set = 6 points
+        bet_tournament.set_match_score(gambler=first_gambler, match_id="D1", score=[[6, 4], [6, 2]], force=True)
+        scores = bet_tournament.get_scores()[0]
+        self.assertEqual(scores[first_gambler], 38)
         bet_tournament.close()
         with self.assertRaises(BetTournamentError):
             bet_tournament.set_match_score(gambler=first_gambler, match_id="B1", score=[[2, 6], [2, 6]], force=True)
+        joker = bet_tournament.get_scores(ranking_scores={first_gambler: 10, second_gambler: 5})[2]
+        self.assertEqual(joker, {first_gambler: 0.5, second_gambler: 0})
+        tournament_ranking_scores = bet_tournament.get_scores()[1]
+        self.assertEqual(tournament_ranking_scores[first_gambler], BetTournament.RANKING_POINTS[bet_tournament.category][0])
+        BetTournament.RANKING_POINTS[bet_tournament.category] = []
+        tournament_ranking_scores = bet_tournament.get_scores()[1]
+        self.assertEqual(tournament_ranking_scores[first_gambler], 0)
 
         # 5 sets
         bet_tournament = create_bet_tournament(5)
@@ -207,6 +253,19 @@ class TestBetTournament(unittest.TestCase):
         bet_tournament.set_match_score(gambler=first_gambler, match_id="A7", score=[[6, 2], [6, 4], [6, 2]], force=True)
         scores = bet_tournament.get_scores()[0]
         self.assertEqual(scores[first_gambler], 17)
+        with self.assertRaises(BetTournamentError):
+            bet_tournament.set_match_score(gambler=first_gambler, match_id="A7", score=[[6, 2], [6, 3], [6, 2]])
+        # remove score from match
+        bet_tournament.set_match_score(match_id="A7", score=None, force=True)
+        scores = bet_tournament.get_scores()[0]
+        self.assertEqual(scores[first_gambler], 17)
+        ghost_bet = BetTournament(name="ATP Tournament", nation=create_nation(), year=2021, n_sets=3,
+                                  category=TournamentCategory.MASTER_1000, draw_type=Draw16, ghost=True)
+        with self.assertRaises(BetTournamentError):
+            ghost_bet.set_match_score(match_id="A1", score=[[6, 4], [6, 4]])
+        gambler = create_gambler()
+        ghost_bet.add_gambler(gambler)
+        self.assertEqual(ghost_bet.get_scores(), ({gambler: 0}, {gambler: 0}, {gambler: 0}))
 
 
 def complete_tournament(bet_tournament):
@@ -217,4 +276,5 @@ def complete_tournament(bet_tournament):
     for round in range(bet_tournament.draw.number_rounds):
         for match in range(bet_tournament.draw.number_matches_for_round(round)):
             match_id = bet_tournament.draw._indexes_to_match_id(round, match)
-            bet_tournament.set_match_score(match_id=match_id, score=score, force=True)
+            if bet_tournament.get_match(match_id=match_id)['score'] is None:
+                bet_tournament.set_match_score(match_id=match_id, score=score, force=True)

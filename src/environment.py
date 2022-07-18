@@ -365,20 +365,15 @@ def get_tournament_ranking(*, league_index, tournament_index):
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     tournament_scores, tournament_ranking_scores, joker_gambler_seed_points \
         = league.get_tournament_ranking(tournament_id=tournament_id)
-    previous_year_ranking_scores = league.get_previous_year_scores(tournament_id=tournament_id)
     is_open = league.is_open(tournament_id=tournament_id)
     tournament_scores = {_get_gambler_index(gambler): score for gambler, score in tournament_scores.items()}
     tournament_ranking_scores = {
         _get_gambler_index(gambler): score for gambler, score in tournament_ranking_scores.items()
     }
-    previous_year_ranking_scores = {
-        _get_gambler_index(gambler): score for gambler, score in previous_year_ranking_scores.items()
-    }
     joker_gambler_seed_points = {
         _get_gambler_index(gambler): score for gambler, score in joker_gambler_seed_points.items()
     }
     return {'tournament_scores': tournament_scores, 'tournament_ranking_scores': tournament_ranking_scores,
-            'previous_year_ranking_scores': previous_year_ranking_scores,
             'joker_gambler_seed_points': joker_gambler_seed_points, 'is_open': is_open}
 
 

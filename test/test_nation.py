@@ -1,5 +1,6 @@
 import unittest
 
+from entity import EntityError
 from nation import Nation, NationError
 from setup import create_nation
 
@@ -8,8 +9,9 @@ class TestNation(unittest.TestCase):
 
     def test_create_nation(self):
         # Invalid creation
-        with self.assertRaises(NationError):
+        with self.assertRaises(NationError) as context:
             Nation(name="", code="ITA")  # Empty name
+        self.assertEqual(str(context.exception), "ERROR in class Nation: Invalid name for a nation")
         with self.assertRaises(NationError):
             Nation(name="Italy", code="")  # Empty code
         with self.assertRaises(NationError):
@@ -23,6 +25,13 @@ class TestNation(unittest.TestCase):
         self.assertEqual(italy.name, "Italy")
         self.assertEqual(italy.code, "ITA")
         self.assertEqual(italy.info, {'id': {'code': 'ITA'}, 'name': 'Italy', 'code': 'ITA'})
+        italy.check_unique_attributes(code='ESP')
+        with self.assertRaises(EntityError):
+            italy.check_unique_attributes(name='Spagna')
+        with self.assertRaises(EntityError):
+            italy.check_unique_attributes(code='ITA')
+        with self.assertRaises(EntityError):
+            italy.check_unique_attributes(name='Italy', code='ITL')
 
     def test_change_nation(self):
         italy = create_nation()

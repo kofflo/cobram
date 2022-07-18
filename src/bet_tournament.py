@@ -1,7 +1,8 @@
 import class_id_strings
 from tournament import Tournament, TournamentCategory
-from utils import get_positions_from_scores
+from utils import get_positions_from_scores, to_boolean
 from base_error import BaseError
+from draw import DrawError
 
 
 class BetTournament:
@@ -11,7 +12,6 @@ class BetTournament:
     GAMBLER_ALREADY_IN_BET_TOURNAMENT = "Gambler already in bet tournament"
     INVALID_GAMBLER_FOR_A_BET_TOURNAMENT = "Invalid gambler for a bet tournament"
     UNKNOWN_GAMBLER = "Unknown gambler"
-    CANNOT_CHANGE_BET_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG = "Cannot change bet on a played match without force flag"
     CANNOT_CHANGE_BET_ON_MATCH_WITH_CLOSED_BETS_WITHOUT_FORCE_FLAG = \
         "Cannot change bet on match with closed bets without force flag"
     JOKER_ALREADY_SET_FOR_GAMBLER = "Joker already set for gambler"
@@ -19,7 +19,10 @@ class BetTournament:
     CANNOT_REMOVE_GAMBLER_FROM_A_CLOSED_BET_TOURNAMENT = "Cannot remove gambler from a closed bet tournament"
     CANNOT_SET_MATCH_SCORE_IN_A_CLOSED_BET_TOURNAMENT = "Cannot set match score in a closed bet tournament"
     CANNOT_CLOSE_A_NOT_FINISHED_TOURNAMENT = "Cannot close a not finished tournament"
+    CANNOT_GET_MATCH_FROM_A_GHOST_BET_TOURNAMENT = "Cannot get match from a ghost bet tournament"
+    CANNOT_SET_MATCH_SCORE_IN_A_GHOST_BET_TOURNAMENT = "Cannot set match score in a ghost bet tournament"
     INVALID_MATCH_ID = "Invalid match ID"
+    CANNOT_OPEN_BETS_ON_PLAYED_MATCH = "Cannot open bets on played match"
     POINTS_WINNER = 3
     POINTS_SET_SCORE = 2
     POINTS_CORRECT_SET = 1
@@ -46,9 +49,7 @@ class BetTournament:
         self._points = {}
         self._is_open = None
         self._need_recompute_scores = True
-        if ghost not in [True, False]:
-            raise BetTournamentError(BetTournament.GHOST_MUST_BE_TRUE_OR_FALSE)
-        self._is_ghost = ghost
+        self._is_ghost = to_boolean(ghost)
         self._bets_closed = {match_id: False for match_id in self._tournament.get_matches()}
         self.open()
 
@@ -97,7 +98,7 @@ class BetTournament:
         if not class_id_strings.check_class_id(gambler, class_id_strings.GAMBLER_ID):
             raise BetTournamentError(BetTournament.INVALID_GAMBLER_FOR_A_BET_TOURNAMENT)
         if gambler not in self and not gambler.is_in_bet_tournament(self):
-            raise BetTournamentError(BetTournament.GAMBLER_NOT_IN_BET_TOURNAMENT)
+            raise BetTournamentError(BetTournament.UNKNOWN_GAMBLER)
         del self._bets[gambler]
         del self._joker[gambler]
         if gambler.is_in_bet_tournament(self):
@@ -122,8 +123,6 @@ class BetTournament:
             return
         if not force and self._bets_closed[match_id]:
             raise BetTournamentError(BetTournament.CANNOT_CHANGE_BET_ON_MATCH_WITH_CLOSED_BETS_WITHOUT_FORCE_FLAG)
-        if not force and self.draw.get_match(match_id)[0] is not None:
-            raise BetTournamentError(BetTournament.CANNOT_CHANGE_BET_ON_A_PLAYED_MATCH_WITHOUT_FORCE_FLAG)
         try:
             self._bets[gambler].set_match_score(match_id, score, force=True)
             if joker:
@@ -180,12 +179,12 @@ class BetTournament:
         return matches
 
     def open_bets_on_match(self, match_id):
-        if self._tournament.get_match(match_id=match_id)['score'] is not None:
-            return
-        if match_id in self._bets_closed:
-            self._bets_closed[match_id] = False
-        else:
+        try:
+            if self._tournament.get_match(match_id=match_id)['score'] is not None:
+                raise BetTournamentError(BetTournament.CANNOT_OPEN_BETS_ON_PLAYED_MATCH)
+        except DrawError:
             raise BetTournamentError(BetTournament.INVALID_MATCH_ID)
+        self._bets_closed[match_id] = False
 
     def close_bets_on_match(self, match_id):
         if match_id in self._bets_closed:

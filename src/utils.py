@@ -2,6 +2,7 @@ import distutils.util
 
 INVALID_BOOLEAN_VALUE = "Invalid boolean value [{value}]"
 INVALID_INTEGER_VALUE = "Invalid integer value [{value}]"
+INVALID_FLOAT_VALUE = "Invalid float value [{value}]"
 
 
 def order_dict_by_values(input_dictionary, reverse=False):
@@ -44,3 +45,10 @@ def to_int(value):
         return int(value)
     except (ValueError, TypeError):
         raise ValueError(INVALID_INTEGER_VALUE)
+
+
+def to_float(value):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        raise ValueError(INVALID_FLOAT_VALUE)

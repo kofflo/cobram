@@ -4,7 +4,7 @@ import class_id_strings
 from bet_tournament import BetTournament
 from tournament import Tournament
 from tournament import TournamentError, TieBreaker5th, TournamentCategory
-from utils import order_dict_by_values, to_int
+from utils import order_dict_by_values, to_int, to_boolean, to_float
 from draw import Draw16, DrawRoundRobin
 
 
@@ -25,7 +25,6 @@ class League(Entity):
     INVALID_INITIAL_SCORE_FOR_GAMBLER = "Invalid initial score for gambler"
     INVALID_INITIAL_RECORD_FOR_GAMBLER = "Invalid initial record for gambler"
     CANNOT_OPEN_BETS_ON_MATCH_IN_CLOSED_TOURNAMENT = "Cannot open bets on match in closed tournament"
-    INVALID_CREDIT_VALUE = "Invalid credit value"
     INVALID_TOURNAMENT_CATEGORY = "Invalid tournament category [{category}]"
     INVALID_TOURNAMENT_DRAW_TYPE = "Invalid tournament draw type [{draw_type}]"
     INVALID_TOURNAMENT_TIE_BREAKER_AT_5TH_SET = "Invalid tournament tie breaker at 5th set [{tie_breaker_5th}]"
@@ -120,24 +119,18 @@ class League(Entity):
 
     def update_fee_and_prizes(self, fee=None, prizes=None):
         if fee is not None:
-            try:
-                fee = float(fee)
-            except (ValueError, TypeError):
-                raise LeagueError(League.INVALID_FEE_VALUE)
+            fee = to_float(fee)
             if fee < 0.:
                 raise LeagueError(League.INVALID_FEE_VALUE)
         if prizes is not None:
             float_prizes = []
-            try:
-                for prize in prizes:
-                    if prize < 0.:
-                        raise LeagueError(League.INVALID_PRIZE_VALUE)
-                    float_prizes.append(float(prize))
-            except (ValueError, TypeError):
-                raise LeagueError(League.INVALID_PRIZE_VALUE)
+            for prize in prizes:
+                prize = to_float(prize)
+                if prize < 0.:
+                    raise LeagueError(League.INVALID_PRIZE_VALUE)
+                float_prizes.append(prize)
             if sorted(float_prizes, reverse=True) != float_prizes:
                 raise LeagueError(League.INVALID_PRIZE_VALUE)
-            prizes = float_prizes
             float_prizes += [0] * League.DIM_PRIZE_ARRAY
             prizes = float_prizes[:League.DIM_PRIZE_ARRAY]
         if fee is not None:
@@ -166,7 +159,7 @@ class League(Entity):
 
     def open_year(self, *, year=None):
         if self.current_year is not None:
-            raise League.YEAR_ALREADY_OPEN
+            raise LeagueError(League.YEAR_ALREADY_OPEN)
         if year is not None:
             try:
                 year = int(year)
@@ -303,10 +296,7 @@ class League(Entity):
                 raise LeagueError(League.INVALID_INITIAL_RECORD_FOR_GAMBLER)
         else:
             initial_record_category = {}
-        try:
-            initial_credit = float(initial_credit)
-        except (ValueError, TypeError):
-            raise LeagueError(League.INVALID_CREDIT_VALUE)
+        initial_credit = to_float(initial_credit)
         self._gamblers.append(gambler)
         self._initial_scores[gambler] = initial_score
         self._credits[gambler] = initial_credit
@@ -346,6 +336,8 @@ class League(Entity):
             raise LeagueError(League.INVALID_GAMBLER_FOR_A_LEAGUE)
         if gambler not in self and not gambler.is_in_league(self):
             raise LeagueError(League.GAMBLER_NOT_IN_LEAGUE)
+        if is_active is not None:
+            is_active = to_boolean(is_active)
         if is_active is True:
             if gambler in self._inactive_gamblers:
                 self._inactive_gamblers.remove(gambler)
@@ -355,11 +347,8 @@ class League(Entity):
                 self._inactive_gamblers.append(gambler)
                 self._compute_league_ranking()
         if credit_change is not None:
-            try:
-                credit_change = float(credit_change)
-                self._credits[gambler] += credit_change
-            except (ValueError, TypeError):
-                raise LeagueError(League.INVALID_CREDIT_VALUE)
+            credit_change = to_float(credit_change)
+            self._credits[gambler] += credit_change
         if initial_score is not None:
             try:
                 self._initial_scores[gambler] = to_int(initial_score)
@@ -500,13 +489,13 @@ class League(Entity):
             except TournamentError:
                 tournament.nation = old_nation
                 raise
-        if is_open is True:
+        if is_open is True and not self.is_open(tournament_id=tournament_id):
             if self._is_last_closed(tournament_id):
                 tournament.open()
                 self._compute_league_ranking()
             else:
                 raise LeagueError(League.A_CLOSED_TOURNAMENT_CANNOT_FOLLOW_OPEN_TOURNAMENTS)
-        elif is_open is False:
+        elif is_open is False and self.is_open(tournament_id=tournament_id):
             if self._is_first_open(tournament_id):
                 tournament.close()
                 self._compute_league_ranking()
@@ -590,10 +579,7 @@ class League(Entity):
         yearly_scores = {k: yearly_scores[k] for k in sorted(yearly_scores.keys())}
 
         for inactive_gambler in self._inactive_gamblers:
-            try:
-                del ranking_scores[inactive_gambler]
-            except KeyError:
-                pass
+            del ranking_scores[inactive_gambler]
 
         return ranking_scores, yearly_scores, winners, last_tournament, ranking_history, \
             tournament_scores, tournament_ranking_scores, joker_gambler_seed_points, used_tournaments
@@ -606,13 +592,6 @@ class League(Entity):
             _, _, _, _, _, tournament_scores, tournament_ranking_scores, joker_gambler_seed_points, _ = \
                 self._compute_ranking(up_to=tournament)
             return tournament_scores, tournament_ranking_scores, joker_gambler_seed_points
-
-    def get_previous_year_scores(self, tournament_id):
-        if tournament_id in self._bet_tournaments:
-            name, year = tournament_id
-            return self._previous_year_scores[year - 1][name]
-        else:
-            raise LeagueError(League.NO_SUCH_TOURNAMENT_IN_LEAGUE)
 
     def restore(self, old_league):
         self.name = old_league.name

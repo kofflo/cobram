@@ -330,7 +330,7 @@ class DrawRoundRobin(Draw):
         reset_later_rounds = False
         for round_index in range(self.number_rounds):
             for match_index in range(self.number_matches_for_round(round_index)):
-                if place in self._players[round_index, match_index]:
+                if place in self._players[round_index][match_index]:
                     match_id = self._indexes_to_match_id(round_index, match_index)
                     self.set_match_score(match_id, None, force=True)
                     reset_later_rounds = True

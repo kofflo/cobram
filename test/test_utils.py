@@ -1,6 +1,6 @@
 import unittest
 
-from utils import order_dict_by_keys, order_dict_by_values, get_positions_from_scores
+from utils import order_dict_by_keys, order_dict_by_values, get_positions_from_scores, to_boolean, to_int
 from collections import OrderedDict
 
 
@@ -78,3 +78,20 @@ class TestUtils(unittest.TestCase):
         }
         ranking_positions = get_positions_from_scores(ranking_scores)
         self.assertEqual(ranking_positions, expected_ranking_positions)
+
+    def test_convert(self):
+        self.assertEqual(True, to_boolean(True))
+        self.assertEqual(False, to_boolean(0))
+        self.assertEqual(True, to_boolean("true"))
+        self.assertEqual(False, to_boolean("0"))
+        with self.assertRaises(ValueError):
+            to_boolean(34)
+        with self.assertRaises(ValueError):
+            to_boolean("another")
+        self.assertEqual(34, to_int(34))
+        self.assertEqual(45, to_int("45"))
+        self.assertEqual(67, to_int(67.5))
+        with self.assertRaises(ValueError):
+            to_int("44.3")
+        with self.assertRaises(ValueError):
+            to_int("wrong")

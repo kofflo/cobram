@@ -131,6 +131,11 @@ class TestTournament(unittest.TestCase):
         self.assertEqual(atp.get_seed(fifth_player), 0)
         atp.set_player(place=5, player=fifth_player, seed=2)
         self.assertEqual(atp.get_seed(fifth_player), 2)
+        self.assertEqual(atp.get_seed(None), 0)
+        # Test conversion from old way of managing seeds
+        del atp._new_seed
+        atp._seed = {player: atp._seed[atp.get_player_place(player)] for player in atp._players}
+        self.assertEqual(atp.get_seed(fifth_player), 2)
         place = 0
         for _ in range(atp.number_players - 4):
             while atp.get_player(place) is not None:
