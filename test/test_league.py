@@ -205,9 +205,11 @@ class TestLeague(unittest.TestCase):
         with self.assertRaises(LeagueError):
             a_league.update_gambler(a_gambler, initial_score="hundert")
         league_complete_tournament(a_league, ("Milano", 2023))
+        a_league.get_tournament_ranking(tournament_id=("Milano", 2023))
         ranking, _, _, _, _, _, _ = a_league.get_ranking()
         self.assertEqual(ranking[a_gambler], 100)
         a_league.update_tournament(tournament_id=("Milano", 2023), is_open=False)
+        a_league.get_tournament_ranking(tournament_id=("Milano", 2023))
         ranking, _, _, _, _, _, _ = a_league.get_ranking()
         self.assertEqual(ranking[a_gambler], 0)
         with self.assertRaises(LeagueError):
