@@ -1,9 +1,5 @@
-from entity import Entity
+from entity import Entity, EntityError
 import class_id_strings
-
-
-class PlayerException(Exception):
-    pass
 
 
 class Player(Entity):
@@ -28,7 +24,7 @@ class Player(Entity):
     @name.setter
     def name(self, input_name):
         if not isinstance(input_name, str) or len(input_name) == 0:
-            raise PlayerException(Player.INVALID_NAME_FOR_A_PLAYER)
+            raise PlayerError(Player.INVALID_NAME_FOR_A_PLAYER)
         self._name = input_name
 
     @property
@@ -38,7 +34,7 @@ class Player(Entity):
     @surname.setter
     def surname(self, input_surname):
         if not isinstance(input_surname, str) or len(input_surname) == 0:
-            raise PlayerException(Player.INVALID_SURNAME_FOR_A_PLAYER)
+            raise PlayerError(Player.INVALID_SURNAME_FOR_A_PLAYER)
         self._surname = input_surname
 
     @property
@@ -48,5 +44,20 @@ class Player(Entity):
     @nation.setter
     def nation(self, input_nation):
         if not class_id_strings.check_class_id(input_nation, class_id_strings.NATION_ID):
-            raise PlayerException(Player.INVALID_NATION_FOR_A_PLAYER)
+            raise PlayerError(Player.INVALID_NATION_FOR_A_PLAYER)
         self._nation = input_nation
+
+    @property
+    def info(self):
+        info = super().info
+        info.update({'name': self.name, 'surname': self.surname, 'nation': self.nation})
+        return info
+
+    def restore(self, old_player):
+        self.name = old_player.name
+        self.surname = old_player.surname
+        self.nation = old_player.nation
+
+
+class PlayerError(EntityError):
+    _reference_class = Player

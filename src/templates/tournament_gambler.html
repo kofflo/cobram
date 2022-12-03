@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title></title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let gamblers;
+    let players;
+    let nations;
+    let ranking;
+    let tournaments;
+    let tournamentPlayers;
+    let matches;
+    let bets;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers"),
+            sendRequest("GET", "/players"),
+            sendRequest("GET", "/nations"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches")
+        ]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            players = JSON.parse(values[2]);
+            nations = JSON.parse(values[3]);
+            ranking = JSON.parse(values[4]);
+            tournaments = JSON.parse(values[5]);
+            tournamentPlayers = JSON.parse(values[6]);
+            matches = JSON.parse(values[7]);
+            bets = JSON.parse(values[8]);
+            updateTitles();
+            updateMatches();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTitles() {
+        document.getElementById("mainHeader").innerText = gamblers[{{ gambler_index }}]["nickname"];
+        const subHeaderLink = document.createElement("a");
+        subHeaderLink.innerText = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"];
+        subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}");
+        const subHeader = document.getElementById("subHeader");
+        subHeader.innerHTML = "";
+        subHeader.appendChild(subHeaderLink);
+        document.getElementById("pointsHeader").innerText = "Punti: " + ranking["tournament_scores"][{{ gambler_index }}] + "   (Jolly finale: " + ranking["joker_gambler_seed_points"][{{ gambler_index }}] + ")";
+        document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"] + " - scommesse";
+    }
+    function updateMatches() {
+        const table = document.getElementById("matches");
+        table.innerText = "";
+        let anyOpenMatch = false;
+        for (const key in matches) {
+            const row = table.insertRow();
+            const idCell = row.insertCell();
+            idCell.innerText = key;
+            if (matches[key]["bets_closed"]) {
+                const lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                idCell.innerText += "   ";
+                idCell.appendChild(lock);
+            } else {
+                anyOpenMatch = true;
+            }
+            const player1Cell = row.insertCell();
+            const player2Cell = row.insertCell();
+            const scoreCell = row.insertCell();
+            const jokerCell = row.insertCell();
+            const pointsCell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
+            const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
+            let seedString;
+            if (seedPlayer1 !== 0) {
+                seedString = " [" + seedPlayer1 + "]";
+            } else {
+                seedString = "";
+            }
+            player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
+            const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seedPlayer2 !== 0) {
+                seedString = " [" + seedPlayer2 + "]";
+            } else {
+                seedString = "";
+            }
+            player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
+            scoreCell.innerText = formatScore(bets[key]["score"]);
+            if (bets["joker"] === key) {
+                const jokerImage = document.createElement("img");
+                jokerImage.src = '/static/star.png';
+                jokerCell.appendChild(jokerImage);
+            }
+            if (matches[key]["score"] != null) {
+                pointsCell.innerText = bets[key]["points"];
+            }
+        }
+        {% if is_privileged %}
+        if (!anyOpenMatch) {
+            const button = document.getElementById("betsButton");
+            button.hidden = true;
+        }
+        {% endif %}
+    }
+    function getSeed(player) {
+        for (const key in tournamentPlayers) {
+            if (tournamentPlayers[key] == null) {
+                continue;
+            }
+            const index = tournamentPlayers[key]["index"];
+            if (index === player) {
+                return tournamentPlayers[key]["seed"];
+            }
+        }
+    }
+    function formatScore(score) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
+                formatted += "A- " + " / ";
+            } else if (score[set][1] === -1) {
+                formatted += " -A" + " / ";
+            } else {
+                formatted += score[set][0] + "-" + score[set][1] + " / ";
+            }
+        }
+        return formatted.slice(0, -3);
+    }
+    function formatScoreForm(score) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
+                formatted += "A- ";
+            } else if (score[set][1] === -1) {
+                formatted += "-A ";
+            } else if (score[set][0] < 10 && score[set][1] < 10) {
+                formatted += String(score[set][0]) + String(score[set][1]) + " ";
+            } else {
+                formatted += score[set][0] + "-" + score[set][1] + " ";
+            }
+        }
+        return formatted;
+    }
+    {% if is_privileged %}
+    let forms = Object();
+    let checkboxes = Object();
+    function insertBets() {
+        const button = document.getElementById("betsButton");
+        button.innerText = "Manda i punteggi";
+        button.onclick = sendBets;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreMatches;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        const table = document.getElementById("matches");
+        table.innerText = "";
+        for (const key in matches) {
+            const row = table.insertRow();
+            const idCell = row.insertCell();
+            idCell.innerText = key;
+            if (matches[key]["bets_closed"]) {
+                const lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                idCell.innerText += "   ";
+                idCell.appendChild(lock);
+            }
+            const player1Cell = row.insertCell();
+            const player2Cell = row.insertCell();
+            const scoreCell = row.insertCell();
+            const jokerCell = row.insertCell();
+            const pointsCell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
+            const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
+            let seedString;
+            if (seedPlayer1 !== 0) {
+                seedString = " [" + seedPlayer1 + "]";
+            } else {
+                seedString = "";
+            }
+            player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
+            const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seedPlayer2 !== 0) {
+                seedString = " [" + seedPlayer2 + "]";
+            } else {
+                seedString = "";
+            }
+            player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
+            if (matches[key]["bets_closed"]) {
+                scoreCell.innerText = formatScore(bets[key]["score"]);
+                if (bets["joker"] === key) {
+                    const jokerImage = document.createElement("img");
+                    jokerImage.src = '/static/star.png';
+                    jokerCell.appendChild(jokerImage);
+                }
+                pointsCell.innerText = bets[key]["points"];
+            } else {
+                const innerTable = document.createElement("table");
+                innerTable.setAttribute("class", "forms-table");
+                const innerRow = innerTable.insertRow();
+                forms[key] = Object();
+                if (!window.mobileCheck()) {
+                    // desktop
+                    for (let set = 0; set < tournaments[{{ tournament_index }}]["n_sets"]; set++) {
+                        const setCell = innerRow.insertCell();
+                        const form = document.createElement("input");
+                        form.setAttribute("type", "text");
+                        form.setAttribute("size", "1");
+                        const score = bets[key]["score"];
+                        if (score != null && score[set] !== undefined) {
+                            if (score[set][0] === -1) {
+                                form.value = "A-";
+                            } else if (score[set][1] === -1) {
+                                form.value += "-A";
+                            } else if (score[set][0] < 10 && score[set][1] < 10) {
+                                form.value = String(score[set][0]) + String(score[set][1]);
+                            } else {
+                                form.value = String(score[set][0]) + "-" + String(score[set][1]);
+                            }
+                        }
+                        forms[key][set] = form;
+                        setCell.appendChild(form);
+                    }
+                    scoreCell.appendChild(innerTable);
+                } else {
+                    // mobile
+                    const form = document.createElement("input");
+                    form.setAttribute("type", "text");
+                    form.setAttribute("size", String(3 * tournaments[{{ tournament_index }}]["n_sets"]));
+                    const score = bets[key]["score"];
+                    if (score != null) {
+                        form.value = formatScoreForm(score);
+                    }
+                    forms[key] = form;
+                    scoreCell.appendChild(form);
+                }
+                if (bets["joker"] == null || !matches[bets["joker"]]["bets_closed"]) {
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkboxes[key] = checkbox;
+                    checkbox.setAttribute("id", key);
+                    checkbox.onchange = checkboxChange;
+                    jokerCell.appendChild(checkbox);
+                    if (bets["joker"] === key) {
+                        checkbox.checked = true;
+                    }
+                }
+            }
+        }
+    }
+    function checkboxChange(event) {
+        const id = event.target['id'];
+        if (checkboxes[id].checked) {
+            for (const key in checkboxes) {
+                if (key !== id) {
+                    checkboxes[key].checked = false;
+                }
+            }
+        }
+    }
+    function sendBets() {
+        const reScoreMinus = /^([0-9]*)-([0-9]*)$/;
+        const reScoreSimple = /^([0-9])([0-9])$/;
+        const allBets = Object();
+        for (const key in forms) {
+            let setScores;
+            if (!window.mobileCheck()) {
+                // desktop
+                setScores = Array();
+                for (const set in forms[key]) {
+                    setScores.push(forms[key][set].value.trim());
+                }
+            } else {
+                // mobile
+                setScores = forms[key].value.trim().split(/\s+/);
+            }
+            let lastSet = false;
+            const matchScore = Array();
+            for (const set in setScores) {
+                let setScore = setScores[set];
+                let setScoreArray;
+                if (setScore !== "" && lastSet) {
+                    window.alert("Punteggio non valido nel match " + key + ": set dopo un set vuoto");
+                    return;
+                }
+                if (setScore === "") {
+                    lastSet = true;
+                    continue;
+                } else if (setScore === "-A") {
+                    setScore = Array(0, -1);
+                    matchScore.push(setScore);
+                    lastSet = true;
+                    continue;
+                } else if (setScore === "A-") {
+                    setScore = Array(-1, 0);
+                    matchScore.push(setScore);
+                    lastSet = true;
+                    continue;
+                } else if (reScoreMinus.test(setScore)) {
+                    setScoreArray = setScore.match(reScoreMinus).slice(1, 3);
+                } else if (reScoreSimple.test(setScore)) {
+                    setScoreArray = setScore.match(reScoreSimple).slice(1, 3);
+                } else {
+                    window.alert("Punteggio non valido nel match " + key + ": " + setScore);
+                    return;
+                }
+                setScoreArray[0] = parseInt(setScoreArray[0]);
+                setScoreArray[1] = parseInt(setScoreArray[1]);
+                matchScore.push(setScoreArray);
+            }
+            const joker = key in checkboxes && checkboxes[key].checked;
+            allBets[key] = Object();
+            allBets[key]["bet"] = Object();
+            allBets[key]["bet"]["score"] = matchScore;
+            allBets[key]["bet"]["joker"] = joker;
+        }
+        const allPromises = Array();
+        for (const key in allBets) {
+            if (!equalScores(allBets[key]['bet']["score"], bets[key]["score"]) || allBets[key]['bet']['joker'] !== (bets["joker"] === key)) {
+                allPromises.push(
+                    sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches/" + key, allBets[key], key)
+                );
+            }
+        }
+        Promise.allSettled(allPromises).then(function (results) {
+            let restore = true;
+            const successful = [];
+            const failed = [];
+            for (const index in results) {
+                if (results[index]["status"] === "fulfilled") {
+                    const matchId = results[index]["value"]["key"];
+                    const bet = JSON.parse(results[index]["value"]["response"]);
+                    bets[matchId]["score"] = bet["score"];
+                    if (bet["joker"]) {
+                        bets["joker"] = matchId;
+                    }
+                    let successfulString = "Match " + matchId + " aggiornato: [ " + formatScore(bet["score"]) + " ]";
+                    if (bet["joker"]) {
+                        successfulString += " con joker";
+                    } else {
+                        successfulString += " senza joker";
+                    }
+                    successful.push(successfulString);
+                } else {
+                    const matchId = results[index]["reason"]["key"];
+                    const message = results[index]["reason"]["response"];
+                    failed.push("Attenzione! Match " + matchId + ": " + message);
+                    restore = false;
+                }
+            }
+            if (successful.length > 0) {
+                window.alert(successful.join("\n"));
+            }
+            if (failed.length > 0) {
+                window.alert(failed.join("\n"));
+            }
+            if (restore) {
+                restoreMatches();
+            }
+        });
+    }
+    function restoreMatches() {
+        const button = document.getElementById("betsButton");
+        button.innerText = "Cambia i punteggi";
+        button.onclick = insertBets;
+        document.getElementById("cancelButton").remove();
+        forms = Object();
+        checkboxes = Object();
+        updateMatches();
+    }
+    {% endif %}
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 id="mainHeader"></h1>
+<h2 id="subHeader"></h2>
+{% if is_privileged %}
+<button id="betsButton" onclick="insertBets()">Cambia i punteggi</button>
+{% endif %}
+<h2 id="pointsHeader"></h2>
+<div>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Match</td>
+            <td>Giocatore 1</td>
+            <td>Giocatore 2</td>
+            <td>Pronostico</td>
+            <td>Jolly</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="matches">
+        </tbody>
+    </table>
+</div>
+{% endblock %}

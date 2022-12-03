@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Profilo</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let profile;
+    {% if is_privileged %}
+    let gmailBridge;
+    {% endif %}
+    function updatePage() {
+        const allPromises = [
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/profile"),
+        ];
+        {% if is_privileged %}
+        allPromises.push(
+            sendRequest("GET", "/load")
+        );
+        allPromises.push(
+            sendRequest("GET", "/gmail")
+        );
+        {% endif %}
+        Promise.all(allPromises).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            profile = JSON.parse(values[1]);
+            updateTable();
+            {% if is_privileged %}
+            timestamps = JSON.parse(values[2]);
+            gmailBridge = JSON.parse(values[3]);
+            updateChoice();
+            updateGmailTable();
+            {% endif %}
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        const table = document.getElementById("tableBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        const nameCell = row.insertCell();
+        nameCell.innerText = profile["nickname"];
+        const emailCell = row.insertCell();
+        emailCell.innerText = profile["email"];
+        const statusCell = row.insertCell();
+        if (profile["is_email_enabled"]) {
+            statusCell.innerText = "ATTIVA";
+        } else {
+            statusCell.innerText = "NON ATTIVA";
+        }
+        const leaguesCell = row.insertCell();
+        const innerTable = document.createElement('table');
+        for (const leagueKey of profile["leagues"]) {
+            const innerRow = innerTable.insertRow();
+            const innerCell = innerRow.insertCell();
+            const leagueLink = document.createElement("a");
+            leagueLink.innerText = leagues[leagueKey].name;
+            leagueLink.setAttribute("href", "/web/leagues/" + leagueKey);
+            innerCell.appendChild(leagueLink);
+        }
+        leaguesCell.appendChild(innerTable);
+    }
+    function editProfile() {
+        {% if is_privileged %}
+        document.getElementById("GmailButton").disabled = true;
+        {% endif %}
+        document.getElementById("profileInsert").hidden = false;
+        const table = document.getElementById("profileInsertBody");
+        table.innerText = "";
+        let row = table.insertRow();
+        forms = Object();
+        const nicknameCell = row.insertCell();
+        let formNickname = document.createElement("input");
+        formNickname.setAttribute("type", "text");
+        formNickname.setAttribute("size", "15");
+        nicknameCell.appendChild(formNickname);
+        forms["nickname"] = formNickname;
+        const emailCell = row.insertCell();
+        let formEmail = document.createElement("input");
+        formEmail.setAttribute("type", "email");
+        formEmail.setAttribute("size", "20");
+        emailCell.appendChild(formEmail);
+        forms["email"] = formEmail;
+        const statusCell = row.insertCell();
+        const formStatusCheckbox = document.createElement("input");
+        formStatusCheckbox.type = "checkbox";
+        formStatusCheckbox.checked = false;
+        statusCell.appendChild(formStatusCheckbox);
+        forms["status_checkbox"] = formStatusCheckbox;
+        const checkboxCell = row.insertCell();
+        let formPasswordCheckbox = document.createElement("input");
+        formPasswordCheckbox.type = "checkbox";
+        formPasswordCheckbox.checked = false;
+        checkboxCell.appendChild(formPasswordCheckbox);
+        forms["password_checkbox"] = formPasswordCheckbox;
+        const passwordCell = row.insertCell();
+        let formPassword = document.createElement("input");
+        formPassword.setAttribute("type", "text");
+        formPassword.setAttribute("size", "15");
+        formPassword.disabled = true;
+        passwordCell.appendChild(formPassword);
+        forms["password"] = formPassword;
+        formPasswordCheckbox.onchange = function() {
+            if (formPasswordCheckbox.checked) {
+                formPassword.disabled = false;
+            } else {
+                formPassword.value = "";
+                formPassword.disabled = true;
+            }
+        };
+        formNickname.value = profile["nickname"];
+        formEmail.value = profile["email"];
+        formStatusCheckbox.checked = profile["is_email_enabled"];
+        const button = document.getElementById("profileButton");
+        button.innerText = "Invia";
+        button.onclick = sendProfileUpdate;
+        document.getElementById("cancelButton").hidden = false;
+    }
+    function sendProfileUpdate() {
+        let newPassword;
+        if (forms["password_checkbox"].checked) {
+            newPassword = forms["password"].value;
+        } else {
+            newPassword = null;
+        }
+        if (newPassword != null && newPassword.length < 8) {
+            alert("La password deve avere almeno 8 caratteri");
+            return;
+        }
+        const requestJson = Object();
+        requestJson["nickname"] = forms["nickname"].value.trim();
+        requestJson["email"] = forms["email"].value.trim();
+        requestJson["password"] = newPassword;
+        requestJson["is_email_enabled"] = forms["status_checkbox"].checked;
+        Promise.all([
+            sendRequest("PUT", "/profile", requestJson)
+        ]).then(function (values) {
+            profile = JSON.parse(values[0]);
+            restoreProfile();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function restoreProfile() {
+        const button = document.getElementById("profileButton");
+        button.innerText = "Cambia il profilo";
+        button.onclick = editProfile;
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("profileInsertBody").innerText = "";
+        document.getElementById("profileInsert").hidden = true;
+        {% if is_privileged %}
+        document.getElementById("GmailButton").disabled = false;
+        {% endif %}
+        updateTable();
+    }
+    {% if is_privileged %}
+        let timestamps;
+        function updateChoice() {
+            const choice = document.getElementById("saved");
+            choice.options.length = 0;
+            let last_key;
+            for (const key in timestamps) {
+                const option = document.createElement("option");
+                option.value = key;
+                option.innerText = timestamps[key];
+                choice.appendChild(option);
+                last_key = key;
+            }
+            if (last_key !== undefined) {
+                choice.value = last_key;
+            }
+        }
+        function updateGmailTable() {
+            const table = document.getElementById("tableGmailBody");
+            table.innerText = "";
+            let row = table.insertRow();
+            const usernameCell = row.insertCell();
+            if (gmailBridge["username"] != null) {
+                usernameCell.innerText = gmailBridge["username"];
+            } else {
+                usernameCell.innerText = "*** non definito ***";
+            }
+            const activeCell = row.insertCell();
+            if (gmailBridge["is_active"]) {
+                activeCell.innerText = "ATTIVO"
+            } else {
+                activeCell.innerText = "NON ATTIVO"
+            }
+        }
+        function pickleSave() {
+            Promise.all([
+                sendRequest("POST", "/save")
+            ]).then(function (values) {
+                const timestamp = JSON.parse(values[0]);
+                timestamps = {...timestamps, ...timestamp};
+                updateChoice();
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+        function pickleLoad() {
+            const index = document.getElementById("saved").value;
+            const requestJson = Object();
+            requestJson['timestamp'] = timestamps[index];
+            Promise.all([
+                sendRequest("POST", "/load", requestJson)
+            ]).then(function (values) {
+                window.alert("Loading successful");
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+        function pickleDownload() {
+            const index = document.getElementById("saved").value;
+            const requestJson = Object();
+            requestJson['timestamp'] = timestamps[index];
+            Promise.all([
+                sendRequest("POST", "/download", requestJson, null, "blob")
+            ]).then(function (values) {
+                const blob = new Blob([values[0]], {type: "application/octet-stream"});
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                document.body.appendChild(link);
+                link.style.cssText = "display:none";
+                link.href = url;
+                link.download = 'save_' + timestamps[index] + '.dat';
+                link.click();
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    link.remove();
+                }, 100);
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+        function editGmail() {
+            document.getElementById("profileButton").disabled = true;
+            document.getElementById("GmailInsert").hidden = false;
+            const table = document.getElementById("GmailInsertBody");
+            table.innerText = "";
+            let row = table.insertRow();
+            forms = Object();
+            const usernameCell = row.insertCell();
+            let formUsername = document.createElement("input");
+            formUsername.setAttribute("type", "text");
+            formUsername.setAttribute("size", "15");
+            if (gmailBridge["username"] != null) {
+                formUsername.value = gmailBridge["username"];
+            }
+            usernameCell.appendChild(formUsername);
+            forms["Gmail_username"] = formUsername;
+            const checkboxCell = row.insertCell();
+            let formPasswordCheckbox = document.createElement("input");
+            formPasswordCheckbox.type = "checkbox";
+            formPasswordCheckbox.checked = false;
+            checkboxCell.appendChild(formPasswordCheckbox);
+            forms["Gmail_password_checkbox"] = formPasswordCheckbox;
+            const passwordCell = row.insertCell();
+            let formPassword = document.createElement("input");
+            formPassword.setAttribute("type", "text");
+            formPassword.setAttribute("size", "15");
+            formPassword.disabled = true;
+            passwordCell.appendChild(formPassword);
+            forms["Gmail_password"] = formPassword;
+            formPasswordCheckbox.onchange = function() {
+                if (formPasswordCheckbox.checked) {
+                    formPassword.disabled = false;
+                } else {
+                    formPassword.value = "";
+                    formPassword.disabled = true;
+                }
+            };
+            const statusCheckboxCell = row.insertCell();
+            let formStatusCheckbox = document.createElement("input");
+            formStatusCheckbox.type = "checkbox";
+            formStatusCheckbox.checked = gmailBridge["is_active"];
+            statusCheckboxCell.appendChild(formStatusCheckbox);
+            forms["Gmail_status_checkbox"] = formStatusCheckbox;
+            const button = document.getElementById("GmailButton");
+            button.innerText = "Invia";
+            button.onclick = sendGmailUpdate;
+            document.getElementById("GmailCancelButton").hidden = false;
+        }
+        function sendGmailUpdate() {
+            let newPassword;
+            if (forms["Gmail_password_checkbox"].checked) {
+                newPassword = forms["Gmail_password"].value;
+            } else {
+                newPassword = null;
+            }
+            const requestJson = Object();
+            requestJson["username"] = forms["Gmail_username"].value.trim();
+            requestJson["password"] = newPassword;
+            requestJson["is_active"] = forms["Gmail_status_checkbox"].checked;
+            Promise.all([
+                sendRequest("PUT", "/gmail", requestJson)
+            ]).then(function (values) {
+                gmailBridge = JSON.parse(values[0]);
+                restoreGmail();
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+        function restoreGmail() {
+            const button = document.getElementById("GmailButton");
+            button.innerText = "Modifica";
+            button.onclick = editGmail;
+            document.getElementById("GmailCancelButton").hidden = true;
+            document.getElementById("GmailInsertBody").innerText = "";
+            document.getElementById("GmailInsert").hidden = true;
+            document.getElementById("profileButton").disabled = false;
+            updateGmailTable();
+        }
+    {% endif %}
+</script>
+{% endblock %}
+
+{% block content %}
+    <h1 class="title">
+        {{ nickname }}
+    </h1>
+    <button id="profileButton" onclick="editProfile()">Cambia il profilo</button>
+    <button id="cancelButton" hidden onclick="restoreProfile()">Annulla</button>
+    <table id="profileInsert" hidden>
+        <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Attiva</th>
+            <th scope="col"></th>
+            <th scope="col">Password</th>
+        </tr>
+        </thead>
+        <tbody id="profileInsertBody">
+        </tbody>
+    </table>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Stato</th>
+            <th scope="col">Leghe</th>
+        </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+    {% if is_privileged %}
+    <a href="/web/leagues">Leghe</a><br><br>
+    <a href="/web/nations">Nazioni</a><br><br>
+    <a href="/web/players">Tennisti</a><br><br>
+    <a href="/web/gamblers">Scomettitori</a><br><br>
+    <a href="/web/tasks">Task</a><br><br>
+    <button type="button" onclick="pickleSave()">Salva</button>
+    <select name="saved" id="saved"></select>
+    <button type="button" onclick="pickleLoad()">Recupera</button>
+    <button type="button" onclick="pickleDownload()">Download</button>
+    <br><br>
+    <h3>Gmail</h3>
+    <button id="GmailButton" onclick="editGmail()">Modifica</button>
+    <button id="GmailCancelButton" hidden onclick="restoreGmail()">Annulla</button>
+    <table id="GmailInsert" hidden>
+        <thead>
+        <tr>
+            <th scope="col">Username</th>
+            <th scope="col"></th>
+            <th scope="col">Password</th>
+            <th scope="col">Attivo</th>
+        </tr>
+        </thead>
+        <tbody id="GmailInsertBody">
+        </tbody>
+    </table>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Stato</th>
+        </tr>
+        </thead>
+        <tbody id="tableGmailBody">
+        </tbody>
+    </table>
+    {% endif %}
+{% endblock %}

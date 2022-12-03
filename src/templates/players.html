@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Tennisti</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let players;
+    let nations;
+    let forms;
+    let editMode = false;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/players", null),
+            sendRequest("GET", "/nations", null)
+        ]).then(function (values) {
+            players = JSON.parse(values[0]);
+            nations = JSON.parse(values[1]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        const table = document.getElementById("tableBody");
+        table.innerText = "";
+        for (const [key, player] of Object.entries(players)) {
+            if (player["name"] === "BYE") {
+                continue;
+            }
+            const row = table.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = player["name"];
+            const surnameCell = row.insertCell();
+            surnameCell.innerText = player["surname"];
+            const nationCodeCell = row.insertCell();
+            nationCodeCell.innerText = nations[player["nation"]].code;
+            const flagCell = row.insertCell();
+            const flagImg = document.createElement('img');
+            flagImg.src = '/static/flags/' + nations[player["nation"]].code + '.png';
+            flagImg.setAttribute("class", "bordered");
+            flagCell.appendChild(flagImg);
+            addToolsCell(row, key, playerUpdate, deletePlayer);
+        }
+    }
+    function playerUpdate(event) {
+        if (editMode) {
+            return;
+        }
+        editMode = true;
+        document.getElementById("playerInsert").hidden = false;
+        const table = document.getElementById("playerInsertBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        forms = Object();
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
+        const surnameCell = row.insertCell();
+        const formSurname = document.createElement("input");
+        formSurname.setAttribute("type", "text");
+        formSurname.setAttribute("size", "15");
+        surnameCell.appendChild(formSurname);
+        forms["surname"] = formSurname;
+        const nationCell = row.insertCell();
+        const formNation = document.createElement("select");
+        for (const [key, nation] of Object.entries(nations)) {
+            if (nation["name"] === "BYE") {
+                continue;
+            }
+            const option = document.createElement("option");
+            option.value = key;
+            option.innerText = nation["name"];
+            formNation.appendChild(option);
+        }
+        nationCell.appendChild(formNation);
+        forms["nation"] = formNation;
+        const button = document.getElementById("playersButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const player = players[index];
+            formName.value = player["name"];
+            formSurname.value = player["surname"];
+            formNation.value = player["nation"];
+            button.onclick = function () {
+                sendPlayerUpdate("PUT", "/players/" + index);
+            };
+        } else {
+            button.onclick = function () {
+                sendPlayerUpdate("POST", "/players");
+            };
+        }
+    }
+    function deletePlayer(event) {
+        if (editMode) {
+            return;
+        }
+        const index = event.target.id;
+        if (confirm("Il tennista " + players[index]["name"] + " " + players[index]["surname"] + " verrà eliminato. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/players/" + index)
+        ]).then(function (values) {
+            delete players[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendPlayerUpdate(method, url) {
+        const requestJson = Object();
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["surname"] = forms["surname"].value.trim();
+        requestJson["nation_index"] = forms["nation"].value;
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const player = JSON.parse(values[0]);
+            for (const key in player) {
+                players[key] = player[key];
+            }
+            restorePlayers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function restorePlayers() {
+        const button = document.getElementById("playersButton");
+        button.innerText = "Crea un tennista";
+        button.onclick = function () {
+            playerUpdate(null);
+        };
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("playerInsertBody").innerText = "";
+        document.getElementById("playerInsert").hidden = true;
+        forms = Object();
+        editMode = false;
+        updateTable();
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1>Tennisti</h1>
+<button id="playersButton" onclick="playerUpdate(null)">Crea un tennista</button>
+<button id="cancelButton" hidden onclick="restorePlayers()">Annulla</button>
+<table id="playerInsert" hidden>
+    <thead>
+    <tr>
+        <th scope="col">Nome</th>
+        <th scope="col">Cognome</th>
+        <th scope="col">Nazione</th>
+    </tr>
+    </thead>
+    <tbody id="playerInsertBody">
+    </tbody>
+</table>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Cognome</th>
+            <th scope="col">Nazione</th>
+            <th scope="col">Bandiera</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+{% endblock %}

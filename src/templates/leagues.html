@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+<title>Leghe</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let forms;
+    let editMode = false;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/leagues")
+        ]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        const table = document.getElementById("tableBody");
+        table.innerText = "";
+        for (const [key, league] of Object.entries(leagues)) {
+            const row = table.insertRow();
+            const nameCell = row.insertCell();
+            const leagueLink = document.createElement("a");
+            leagueLink.innerText = league["name"];
+            leagueLink.setAttribute("href", "/web/leagues/" + key);
+            nameCell.appendChild(leagueLink);
+            addToolsCell(row, key, leagueUpdate, deleteLeague);
+        }
+    }
+    function leagueUpdate(event) {
+        if (editMode) {
+            return;
+        }
+        editMode = true;
+        document.getElementById("leagueInsert").hidden = false;
+        const table = document.getElementById("leagueInsertBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        forms = Object();
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
+        const button = document.getElementById("leaguesButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const league = leagues[index];
+            formName.value = league["name"];
+            button.onclick = function () {
+                sendLeagueUpdate("PUT", "/leagues/" + index);
+            };
+        } else {
+            button.onclick = function () {
+                sendLeagueUpdate("POST", "/leagues");
+            };
+        }
+    }
+    function deleteLeague(event) {
+        if (editMode) {
+            return;
+        }
+        const index = event.target.id;
+        if (confirm("La lega " + leagues[index]["name"] + " verrà eliminata. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/leagues/" + index)
+        ]).then(function (values) {
+            delete leagues[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendLeagueUpdate(method, url) {
+        const requestJson = Object();
+        requestJson["name"] = forms["name"].value.trim();
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restoreLeagues();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function restoreLeagues() {
+        const button = document.getElementById("leaguesButton");
+        button.innerText = "Crea una lega";
+        button.onclick = function () {
+            leagueUpdate(null);
+        };
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("leagueInsertBody").innerText = "";
+        document.getElementById("leagueInsert").hidden = true;
+        forms = Object();
+        editMode = false;
+        updateTable();
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1>Leghe</h1>
+<button id="leaguesButton" onclick="leagueUpdate(null)">Crea una lega</button>
+<button id="cancelButton" hidden onclick="restoreLeagues()">Annulla</button>
+<table id="leagueInsert" hidden>
+    <thead>
+    <tr>
+        <th scope="col">Nome</th>
+    </tr>
+    </thead>
+    <tbody id="leagueInsertBody">
+    </tbody>
+</table>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+{% endblock %}

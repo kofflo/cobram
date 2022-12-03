@@ -1,0 +1,1305 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title></title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let gamblers;
+    let players;
+    let nations;
+    let ranking;
+    let tournaments;
+    let leagueGamblers;
+    let leagueGamblerDetails;
+    let allYears;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers"),
+            sendRequest("GET", "/players"),
+            sendRequest("GET", "/nations"),
+            sendRequest("GET", "/leagues/{{ league_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments"),
+            sendRequest("GET", "/leagues/{{ league_index }}/gamblers")
+        ]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            players = JSON.parse(values[2]);
+            nations = JSON.parse(values[3]);
+            ranking = JSON.parse(values[4]);
+            tournaments = JSON.parse(values[5]);
+            leagueGamblers = JSON.parse(values[6]);
+            updateTitles();
+            updateYearSelect();
+            {% if is_privileged %}
+            updateYearButton();
+            {% endif %}
+            updateTableTournaments();
+            updateTablesRanking();
+            updateYearLabel();
+            updateFeeLabel();
+            updatePrizeTable();
+            updateTableWinnersRecord();
+            plotRankingChart();
+            leagueGamblerDetails = Object();
+            const allDetailsPromises = Array();
+            for (const key in leagueGamblers) {
+                allDetailsPromises.push(
+                    sendRequest("GET", "/leagues/{{ league_index }}/gamblers/" + key, null, key)
+                );
+            }
+            Promise.all(allDetailsPromises).then(function (values) {
+                for (const index in values) {
+                    const responseObject = values[index];
+                    leagueGamblerDetails[responseObject["key"]] = JSON.parse(responseObject["response"]);
+                }
+                updateTableCredits();
+                {% if is_privileged %}
+                updateGamblerButtons();
+                {% endif %}
+            }).catch(function (reason) {
+                window.alert(reason["response"]);
+            });
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateYearLabel() {
+        const label = document.getElementById("yearLabel");
+        if (leagues[{{ league_index }}]["current_year"] != null) {
+            label.innerText = leagues[{{ league_index }}]["current_year"];
+        } else {
+            label.innerText = "/";
+        }
+    }
+    function updateFeeLabel() {
+        const feeLabel = document.getElementById("feeLabel");
+        feeLabel.innerText = leagues[{{ league_index }}]["fee"] + " €";
+    }
+    function updatePrizeTable() {
+        const prizeTable = document.getElementById("prizeTable");
+        prizeTable.innerText = "";
+        const headerRow = prizeTable.createTHead().insertRow();
+        const row = prizeTable.createTBody().insertRow();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            const HeaderCell = headerRow.insertCell();
+            const cell = row.insertCell();
+            HeaderCell.innerText = (parseInt(index) + 1).toString();
+            cell.innerText = leagues[{{ league_index }}]["prizes"][index] + " €";
+        }
+    }
+    function changeSelectedYear() {
+        updateTableTournaments();
+        updateTablesRanking();
+    }
+    function updateTableCredits() {
+        const tableCredit = document.getElementById("tableCreditsBody");
+        tableCredit.innerText = "";
+        for (const key in leagueGamblers) {
+            const row = tableCredit.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = leagueGamblers[key]["nickname"];
+            const creditCell = row.insertCell();
+            creditCell.innerText = leagueGamblerDetails[key]["credit"];
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                row.className = "inactive";
+            }
+        }
+    }
+    function updateTableWinnersRecord() {
+        const table = document.getElementById("tableWinnersRecord");
+        const header = table.createTHead();
+        const headerRow = header.insertRow(0);
+        let cell = headerRow.insertCell();
+        const tournamentNames = Array();
+        for (const key in ranking["record_tournament"]) {
+            const tournamentObject = ranking["record_tournament"][key];
+            for (const tournamentName in tournamentObject) {
+                if (!tournamentNames.includes(tournamentName)) {
+                    tournamentNames.push(tournamentName);
+                }
+            }
+        }
+        const categoryNames = Array();
+        for (const key in ranking["record_category"]) {
+            const categoryObject = ranking["record_category"][key];
+            for (const categoryName in categoryObject) {
+                if (!categoryNames.includes(categoryName)) {
+                    categoryNames.push(categoryName);
+                }
+            }
+        }
+        for (const index in tournamentNames) {
+            cell = headerRow.insertCell();
+            cell.innerText = tournamentNames[index];
+        }
+        for (const index in categoryNames) {
+            cell = headerRow.insertCell();
+            cell.innerText = category2text(categoryNames[index]);
+        }
+        cell = headerRow.insertCell();
+        cell.innerText = "Totale";
+        const body = table.createTBody();
+        let gamblerTotal = Object();
+        for (const key in ranking["record_tournament"]) {
+            gamblerTotal[key] = 0;
+            for (const index in tournamentNames) {
+                if (tournamentNames[index] in ranking["record_tournament"][key]) {
+                    gamblerTotal[key] += ranking["record_tournament"][key][tournamentNames[index]];
+                }
+            }
+        }
+        const sortedGamblers = orderObjectByValue(gamblerTotal);
+        sortedGamblers.reverse();
+        for (const index in sortedGamblers) {
+            const key = sortedGamblers[index][0];
+            const row = body.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = gamblers[key]["nickname"];
+            let total = 0;
+            let totalCurrentSeason = false;
+            const currentYear = leagues["{{ league_index }}"]["current_year"];
+            for (const index in tournamentNames) {
+                cell = row.insertCell();
+                if (tournamentNames[index] in ranking["record_tournament"][key]) {
+                    cell.innerText = ranking["record_tournament"][key][tournamentNames[index]];
+                    if (currentYear != null && checkNameCurrentSeason(key, tournamentNames[index], currentYear)) {
+                        totalCurrentSeason = true;
+                        cell.className = 'currentSeason';
+                    }
+                    total += ranking["record_tournament"][key][tournamentNames[index]];
+                } else {
+                    cell.innerText = "0";
+                }
+            }
+            for (const index in categoryNames) {
+                cell = row.insertCell();
+                if (categoryNames[index] in ranking["record_category"][key]) {
+                    cell.innerText = ranking["record_category"][key][categoryNames[index]];
+                    if (currentYear != null && checkCategoryCurrentSeason(key, categoryNames[index], currentYear)) {
+                        cell.className = 'currentSeason';
+                    }
+                } else {
+                    cell.innerText = "0";
+                }
+            }
+            cell = row.insertCell();
+            cell.innerText = String(total);
+            if (totalCurrentSeason) {
+                cell.className = 'currentSeason';
+            }
+        }
+    }
+    function checkNameCurrentSeason(gambler, name, year) {
+        for (const index in tournaments) {
+            const tournament = tournaments[index];
+            if (tournament["name"] === name && tournament["year"] === year && String(ranking["winners"][index]) === gambler) {
+                return true;
+            }
+        }
+        return false;
+    }
+    function checkCategoryCurrentSeason(gambler, category, year) {
+        for (const index in tournaments) {
+            const tournament = tournaments[index];
+            if (tournament["category"] === category && tournament["year"] === year && String(ranking["winners"][index]) === gambler) {
+                return true;
+            }
+        }
+        return false;
+    }
+    function updateTitles() {
+        document.getElementById("mainHeader").innerText = leagues["{{ league_index }}"]["name"];
+        document.getElementById("winnerLeague").innerText = "Vincitore\n" + leagues["{{ league_index }}"]["name"];
+        document.title = leagues["{{ league_index }}"]["name"];
+    }
+    function updateYearSelect() {
+        allYears = Array();
+        for (const key in tournaments) {
+            const year = tournaments[key]["year"];
+            if (allYears.indexOf(year) === -1) {
+                allYears.push(year);
+            }
+        }
+        const currentYear = leagues["{{ league_index }}"]["current_year"];
+        if (currentYear != null) {
+            if (allYears.indexOf(currentYear) === -1) {
+                allYears.push(currentYear);
+            }
+        }
+        const yearSelect = document.getElementById("yearSelect");
+        yearSelect.innerText = "";
+        for (const index in allYears) {
+            const year = allYears[index];
+            const option = document.createElement("option");
+            option.value = year;
+            option.innerText = year;
+            yearSelect.appendChild(option);
+        }
+        yearSelect.disabled = false;
+        if (currentYear != null) {
+            yearSelect.value = currentYear;
+        } else {
+            if (allYears[allYears.length - 1] !== undefined) {
+                yearSelect.value = allYears[allYears.length - 1];
+            } else {
+                yearSelect.disabled = true;
+            }
+        }
+        {% if is_privileged %}
+        document.getElementById("tournamentButton").disabled = currentYear == null;
+        {% endif %}
+    }
+    function updateTableTournaments() {
+        const yearSelect = document.getElementById("yearSelect");
+        const selectedYear = parseInt(yearSelect.value);
+        const table = document.getElementById("tableTournamentsBody");
+        table.innerText = "";
+        for (const key in tournaments) {
+            if (tournaments[key]["year"] !== selectedYear) {
+                continue;
+            }
+            {% if not is_privileged %}
+            if (tournaments[key]["is_ghost"]) {
+                continue;
+            }
+            {% endif %}
+            const row = table.insertRow();
+            const nameCell = row.insertCell();
+            const nameLink = document.createElement("a");
+            nameLink.innerText = tournaments[key]["name"];
+            nameLink.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/" + key);
+            nameCell.appendChild(nameLink);
+            if (!tournaments[key]["is_open"]) {
+                const lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                nameLink.innerText += "   ";
+                nameLink.appendChild(lock);
+            }
+            const yearCell = row.insertCell();
+            yearCell.innerText = tournaments[key]["year"];
+            const nationCodeCell = row.insertCell();
+            nationCodeCell.innerText = nations[tournaments[key]["nation"]].code;
+            const flagCell = row.insertCell();
+            const img = document.createElement('img');
+            img.src = '/static/flags/' + nations[tournaments[key]["nation"]].code + '.png';
+            img.setAttribute("class", "bordered");
+            flagCell.appendChild(img);
+            const nSetsCell = row.insertCell();
+            nSetsCell.innerText = tournaments[key]["n_sets"];
+            const tieBreakerCell = row.insertCell();
+            const tieBreaker = tournaments[key]["tie_breaker_5th"];
+            tieBreakerCell.innerText = tieBreaker2text(tieBreaker);
+            const categoryCell = row.insertCell();
+            const category = tournaments[key]["category"];
+            categoryCell.innerText = category2text(category);
+            const drawCell = row.insertCell();
+            const draw = tournaments[key]["draw_type"];
+            drawCell.innerText = draw2text(draw);
+            const playerWinnerCell = row.insertCell();
+            const playerWinner = tournaments[key]["winner"] != null ? players[tournaments[key]["winner"]] : null;
+            if (playerWinner != null) {
+                playerWinnerCell.innerText = playerWinner["name"] + " " + playerWinner["surname"];
+            } else {
+                playerWinnerCell.innerText = "/";
+            }
+            const gamblerWinnerCell = row.insertCell();
+            const gamblerWinner = key in ranking["winners"] ? gamblers[ranking["winners"][key]] : null;
+            if (gamblerWinner != null) {
+                gamblerWinnerCell.innerText = gamblerWinner["nickname"];
+            } else {
+                gamblerWinnerCell.innerText = "/";
+            }
+            {% if is_privileged %}
+                const ghostCell = row.insertCell();
+                if (tournaments[key]["is_ghost"]) {
+                    ghostCell.innerText = "GHOST";
+                }
+                addToolsCell(row, key, tournamentUpdate, deleteTournament);
+            {% endif %}
+        }
+    }
+    function updateTablesRanking() {
+        const tableRanking = document.getElementById("tableRankingBody");
+        tableRanking.innerText = "";
+        const rankingScores = ranking["ranking_scores"];
+        const rankingScoresArray = orderObjectByValue(rankingScores);
+        rankingScoresArray.reverse();
+        let lastPosition = undefined;
+        let lastPoints = undefined;
+        for (let index = 0; index < rankingScoresArray.length; index++) {
+            const pair = rankingScoresArray[index];
+            const gamblerIndex = pair[0];
+            const gamblerPoints = pair[1];
+            const row = tableRanking.insertRow();
+            const positionCell = row.insertCell();
+            if (gamblerPoints === lastPoints) {
+                positionCell.innerText = lastPosition;
+            } else {
+                positionCell.innerText = String(index + 1);
+                lastPosition = index + 1;
+            }
+            const gamblerCell = row.insertCell();
+            gamblerCell.innerText = gamblers[gamblerIndex]["nickname"];
+            const pointsCell = row.insertCell();
+            pointsCell.innerText = String(gamblerPoints);
+            lastPoints = gamblerPoints;
+        }
+        const tableRace = document.getElementById("tableRaceBody");
+        tableRace.innerText = "";
+        const yearlyScores = ranking["yearly_scores"];
+        const years = Object.keys(yearlyScores).map(x => parseInt(x));
+        if (years.length === 0) {
+            document.getElementById("tableRace").remove();
+            return;
+        }
+        const lastYear = Math.max(...years);
+        const yearSelect = document.getElementById("yearSelect");
+        const selectedYear = parseInt(yearSelect.value);
+        if (selectedYear === lastYear) {
+            document.getElementById("raceTitle").innerText = "Race " + selectedYear;
+        } else {
+            document.getElementById("raceTitle").innerText = "Ranking " + selectedYear;
+        }
+        if (yearlyScores[selectedYear] === undefined) {
+            return;
+        }
+        const yearlyScoresArray = orderObjectByValue(yearlyScores[selectedYear]);
+        yearlyScoresArray.reverse();
+        lastPosition = undefined;
+        lastPoints = undefined;
+        for (let index = 0; index < yearlyScoresArray.length; index++) {
+            const pair = yearlyScoresArray[index];
+            const gamblerIndex = pair[0];
+            const gamblerPoints = pair[1];
+            const row = tableRace.insertRow();
+            const positionCell = row.insertCell();
+            if (gamblerPoints === lastPoints) {
+                positionCell.innerText = String(lastPosition);
+            } else {
+                positionCell.innerText = String(index + 1);
+                lastPosition = index + 1;
+            }
+            const gamblerCell = row.insertCell();
+            gamblerCell.innerText = gamblers[gamblerIndex]["nickname"];
+            const pointsCell = row.insertCell();
+            pointsCell.innerText = String(gamblerPoints);
+            lastPoints = gamblerPoints;
+        }
+    }
+    {% if is_privileged %}
+    let forms;
+    let editmode;
+    function updateYearButton() {
+        const button = document.getElementById("yearButton");
+        if (leagues[{{ league_index }}]["current_year"] != null) {
+            button.innerText = "Chiudi l'anno";
+            button.onclick = closeYear;
+        } else {
+            button.innerText = "Apri un nuovo anno";
+            button.onclick = openYear;
+        }
+    }
+    function closeYear() {
+        if (confirm("L'anno attuale verrà chiuso. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"current_year": -1})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            updateYearButton();
+            updateYearLabel();
+            updateYearSelect();
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function openYear() {
+        const yearLabel = document.getElementById("yearLabel");
+        yearLabel.innerText = "";
+        const yearInsert = document.createElement("input");
+        yearInsert.type = "number";
+        yearInsert.id = "yearInsert";
+        yearLabel.appendChild(yearInsert);
+        const button = document.getElementById("yearButton");
+        button.innerText = "Invia";
+        button.onclick = sendOpenYear;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreYear;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        if (allYears[allYears.length - 1] !== undefined) {
+            yearInsert.value = allYears[allYears.length - 1] + 1;
+            yearInsert.min = allYears[allYears.length - 1];
+        } else {
+            yearInsert.value = (new Date()).getFullYear();
+            yearInsert.min = 1900;
+        }
+        yearInsert.max = 2099;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+    }
+    function sendOpenYear() {
+        const yearInsert = document.getElementById("yearInsert");
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"current_year": yearInsert.value})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restoreYear();
+            updateYearSelect();
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restoreYear();
+            updateYearSelect();
+        });
+    }
+    function restoreYear() {
+        updateYearButton();
+        updateYearLabel();
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+        document.getElementById("cancelButton").remove();
+        updateGamblerButtons();
+    }
+    function deleteTournament(event) {
+        if (editmode) {
+            return;
+        }
+        const index = event.target.id;
+        if (confirm("Il torneo " + tournaments[index]["name"] + " " + tournaments[index]["year"] + " verrà eliminato dalla lega. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/leagues/{{ league_index }}/tournaments/" + index)
+        ]).then(function (values) {
+            delete tournaments[index];
+            updateYearSelect();
+            updateTableTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function tournamentUpdate(event) {
+        if (editmode) {
+            return;
+        }
+        editmode = true;
+        const table = document.getElementById("tournamentInsert");
+        table.hidden = false;
+        let row = table.insertRow();
+        row.insertCell().innerText = "Nome";
+        row.insertCell().innerText = "Anno";
+        row.insertCell().innerText = "Nazione";
+        row.insertCell().innerText = "Set";
+        row.insertCell().innerText = "Tie-break al 5° set";
+        row.insertCell().innerText = "Categoria";
+        row.insertCell().innerText = "Tabellone";
+        row.insertCell().innerText = "Ghost";
+        row = table.insertRow();
+        forms = Object();
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        formName.setAttribute("list", "tournamentList");
+        const tournamentList = document.createElement("datalist");
+        tournamentList.setAttribute("id", "tournamentList");
+        const allNames = getTournamentNames();
+        for (const name of allNames) {
+            const option = document.createElement("option");
+            option.setAttribute("value", name);
+            tournamentList.appendChild(option);
+        }
+        nameCell.appendChild(formName);
+        nameCell.appendChild(tournamentList);
+        forms["name"] = formName;
+        const yearCell = row.insertCell();
+        const formYear = document.createElement("input");
+        formYear.setAttribute("type", "number");
+        const currentYear = leagues[{{ league_index }}]["current_year"];
+        formYear.setAttribute("min", currentYear);
+        formYear.setAttribute("max", currentYear);
+        formYear.value = leagues[{{ league_index }}]["current_year"];
+        yearCell.appendChild(formYear);
+        forms["year"] = formYear;
+        const nationCell = row.insertCell();
+        const formNation = document.createElement("select");
+        for (const key in nations) {
+            if (nations[key]["name"] === "BYE") {
+                continue;
+            }
+            const option = document.createElement("option");
+            option.value = key;
+            option.innerText = nations[key]["name"];
+            formNation.appendChild(option);
+        }
+        nationCell.appendChild(formNation);
+        forms["nation"] = formNation;
+        const setCell = row.insertCell();
+        const formSet = document.createElement("select");
+        addOptions(formSet, [3, 5]);
+        setCell.appendChild(formSet);
+        forms["n_sets"] = formSet;
+        const tieBreakCell = row.insertCell();
+        const formTieBreak = document.createElement("select");
+        formTieBreak.disabled = true;
+        function setChange() {
+            formTieBreak.disabled = formSet.value === "3";
+        }
+        formSet.onchange = setChange;
+        addOptions(formTieBreak, ["Tie-break sul 6-6", "Tie-break sul 12-12", "Senza tie-break"]);
+        tieBreakCell.appendChild(formTieBreak);
+        forms["tie_breaker_5th"] = formTieBreak;
+        const categoryCell = row.insertCell();
+        const formCategory = document.createElement("select");
+        addOptions(formCategory, ["GRAND SLAM", "MASTER 1000", "ATP FINALS", "OLIMPIADI", "ATP 500", "ATP 250"]);
+        categoryCell.appendChild(formCategory);
+        forms["category"] = formCategory;
+        const drawCell = row.insertCell();
+        const formDraw = document.createElement("select");
+        addOptions(formDraw, ["Eliminazione-16", "Round Robin"]);
+        drawCell.appendChild(formDraw);
+        forms["draw_type"] = formDraw;
+        const ghostCell = row.insertCell();
+        const formGhost = document.createElement("input");
+        formGhost.type = "checkbox";
+        function ghostChange() {
+            if (formGhost.checked === true) {
+                formNation.disabled = true;
+                formSet.disabled = true;
+                formTieBreak.disabled = true;
+                formCategory.disabled = true;
+                formDraw.disabled = true;
+            } else {
+                formNation.disabled = false;
+                formSet.disabled = false;
+                formTieBreak.disabled = formSet.value === "3";
+                formCategory.disabled = false;
+                formDraw.disabled = false;
+            }
+        }
+        formGhost.onchange = ghostChange;
+        ghostCell.appendChild(formGhost);
+        forms["ghost"] = formGhost;
+        const button = document.getElementById("tournamentButton");
+        button.innerText = "Invia";
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        if (event != null) {
+            const index = event.target.id;
+            const tournament = tournaments[index];
+            formName.value = tournament["name"];
+            formName.disabled = true;
+            formYear.value = tournament["year"];
+            formYear.disabled = true;
+            formNation.value = tournament["nation"];
+            formSet.value = tournament["n_sets"];
+            formSet.disabled = true;
+            formTieBreak.value = tieBreaker2text(tournament["tie_breaker_5th"]);
+            formTieBreak.disabled = true;
+            formCategory.value = category2text(tournament["category"]);
+            formCategory.disabled = true;
+            formDraw.value = draw2text(tournament["draw_type"]);
+            formDraw.disabled = true;
+            formGhost.checked = tournament["is_ghost"];
+            formGhost.disabled = true;
+            button.onclick = function () {
+                sendTournamentUpdate("PUT", "/leagues/{{ league_index }}/tournaments/" + index);
+            };
+        } else {
+            button.onclick = function () {
+                sendTournamentUpdate("POST", "/leagues/{{ league_index }}/tournaments");
+            };
+        }
+    }
+    function getTournamentNames() {
+        const allNames = Array();
+        for (const key in tournaments) {
+            const name = tournaments[key]["name"];
+            if (allNames.indexOf(name) === -1) {
+                allNames.push(name);
+            }
+        }
+        return allNames;
+    }
+    function sendTournamentUpdate(method, url) {
+        const requestJson = Object();
+        if (!forms["name"].disabled) {
+            requestJson["name"] = forms["name"].value.trim();
+        }
+        if (!forms["year"].disabled) {
+            requestJson["year"] = forms["year"].value.trim();
+        }
+        if (!forms["nation"].disabled) {
+            requestJson["nation_index"] = forms["nation"].value;
+        }
+        if (!forms["n_sets"].disabled) {
+            requestJson["n_sets"] = forms["n_sets"].value;
+            if (forms["n_sets"].value === "3") {
+                requestJson["tie_breaker_5th"] = null;
+            } else {
+                requestJson["tie_breaker_5th"] = text2tieBreaker(forms["tie_breaker_5th"].value);
+            }
+        }
+        if (!forms["category"].disabled) {
+            requestJson["category"] = text2category(forms["category"].value);
+        }
+        if (!forms["draw_type"].disabled) {
+            requestJson["draw_type"] = text2draw(forms["draw_type"].value);
+        }
+        if (!forms["ghost"].disabled) {
+            requestJson["ghost"] = forms["ghost"].checked;
+            if (requestJson["ghost"]) {
+                const lastYearTournament = findLastYearTournament(requestJson["name"], parseInt(requestJson['year']));
+                if (lastYearTournament == null) {
+                    window.alert("Un torneo ghost deve avere un corrispondente torneo nell'anno precedente");
+                    return;
+                }
+                requestJson["nation_index"] = lastYearTournament["nation"];
+                requestJson["n_sets"] = lastYearTournament["n_sets"];
+                requestJson["tie_breaker_5th"] = lastYearTournament["tie_breaker_5th"];
+                requestJson["category"] = lastYearTournament["category"];
+                requestJson["draw_type"] = lastYearTournament["draw_type"];
+            }
+        }
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const updatedTournament = JSON.parse(values[0]);
+            for (const key in updatedTournament) {
+                tournaments[key] = updatedTournament[key];
+            }
+            updateYearSelect();
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function findLastYearTournament(name, year) {
+        for (const key in tournaments) {
+            const tournament = tournaments[key];
+            if (tournament["name"] === name && tournament["year"] === (year - 1)) {
+                return tournament;
+            }
+        }
+        return null;
+    }
+    function restoreTournaments() {
+        const button = document.getElementById("tournamentButton");
+        button.hidden = false;
+        button.innerText = "Crea un torneo";
+        button.onclick = function() {
+            tournamentUpdate(null);
+        };
+        document.getElementById("cancelButton").remove();
+        document.getElementById("tournamentInsert").innerText = "";
+        document.getElementById("tournamentInsert").hidden = true;
+        const addButton = document.getElementById("addGamblerButton");
+        addButton.hidden = false;
+        addButton.innerText = "Aggiungi uno scommettitore";
+        addButton.onclick = addGambler;
+        const removeButton = document.getElementById("removeGamblerButton");
+        removeButton.hidden = false;
+        removeButton.innerText = "Elimina uno scommettitore";
+        removeButton.onclick = removeGambler;
+        const inactiveButton = document.getElementById("inactiveGamblerButton");
+        inactiveButton.hidden = false;
+        inactiveButton.innerText = "Disattiva uno scommettitore";
+        inactiveButton.onclick = inactiveGambler;
+        const activeButton = document.getElementById("activeGamblerButton");
+        activeButton.hidden = false;
+        activeButton.innerText = "Attiva uno scommettitore";
+        activeButton.onclick = activeGambler;
+        const select = document.getElementById("gamblerSelect");
+        select.innerHTML = "";
+        select.hidden = true;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerHTML = "";
+        selectLabel.hidden = true;
+        forms = Object();
+        editmode = false;
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+        updateGamblerButtons();
+        updateTableTournaments();
+    }
+    function addOptions(form, array) {
+        for (const index in array) {
+            const option = document.createElement("option");
+            option.value = array[index];
+            option.innerText = array[index];
+            form.appendChild(option);
+        }
+    }
+    function updateGamblerButtons() {
+        document.getElementById("addGamblerButton").disabled = getNonMemberGamblers().length === 0;
+        document.getElementById("removeGamblerButton").disabled = getMemberGamblers().length === 0;
+        document.getElementById("inactiveGamblerButton").disabled = getActiveGamblers().length === 0;
+        document.getElementById("activeGamblerButton").disabled = getInactiveGamblers().length === 0;
+        document.getElementById("creditButton").disabled = getActiveGamblers().length === 0;
+    }
+    function getMemberGamblers() {
+        return Object.keys(leagueGamblers);
+    }
+    function getNonMemberGamblers() {
+        const nonMemberGamblers = Array();
+        for (const key in gamblers) {
+            if (!(key in leagueGamblers)) {
+                nonMemberGamblers.push(key);
+            }
+        }
+        return nonMemberGamblers;
+    }
+    function getActiveGamblers() {
+        const activeGamblers = Array();
+        for (const key in leagueGamblerDetails) {
+            if (leagueGamblerDetails[key]["is_active"]) {
+                activeGamblers.push(key);
+            }
+        }
+        return activeGamblers;
+    }
+    function getInactiveGamblers() {
+        const inactiveGamblers = Array();
+        for (const key in leagueGamblerDetails) {
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                inactiveGamblers.push(key);
+            }
+        }
+        return inactiveGamblers;
+    }
+    function addGambler() {
+        const button = document.getElementById("addGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendAddGambler;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Aggiungi";
+        selectLabel.hidden = false;
+        addGamblerOptions(getNonMemberGamblers());
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+    }
+    function removeGambler() {
+        const button = document.getElementById("removeGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = sendRemoveGambler;
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Elimina";
+        selectLabel.hidden = false;
+        addGamblerOptions(getMemberGamblers());
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+    }
+    function inactiveGambler() {
+        const button = document.getElementById("inactiveGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = function() {
+            sendActiveGambler(false);
+        };
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Disattiva";
+        selectLabel.hidden = false;
+        addGamblerOptions(getActiveGamblers());
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("activeGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+    }
+    function activeGambler() {
+        const button = document.getElementById("activeGamblerButton");
+        button.innerText = "Invia";
+        button.onclick = function() {
+            sendActiveGambler(true);
+        };
+        const selectLabel = document.getElementById("gamblerSelectLabel");
+        selectLabel.innerText = "Attiva";
+        selectLabel.hidden = false;
+        addGamblerOptions(getInactiveGamblers());
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreTournaments;
+        button.parentNode.insertBefore(cancelButton, button.nextSibling);
+        document.getElementById("tournamentButton").hidden = true;
+        document.getElementById("addGamblerButton").hidden = true;
+        document.getElementById("removeGamblerButton").hidden = true;
+        document.getElementById("inactiveGamblerButton").hidden = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+    }
+    function addGamblerOptions(list) {
+        const select = document.getElementById("gamblerSelect");
+        for (const index in list) {
+            const key = list[index];
+            const option = document.createElement("option");
+            option.value = key;
+            option.innerText = gamblers[key]["nickname"];
+            select.appendChild(option);
+        }
+        select.hidden = false;
+    }
+    function sendAddGambler() {
+        const index = document.getElementById("gamblerSelect").value;
+        Promise.all([
+            sendRequest("POST", "/leagues/{{ league_index }}/gamblers/" + index, {"initial_score": 0, "initial_credit": 0})
+        ]).then(function (values) {
+            leagueGamblers[index] = gamblers[index]["id"];
+            leagueGamblerDetails[index] = JSON.parse(values[0]);
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendRemoveGambler() {
+        const index = document.getElementById("gamblerSelect").value;
+        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato dalla lega. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/leagues/{{ league_index }}/gamblers/" + index)
+        ]).then(function (values) {
+            delete leagueGamblers[index];
+            delete leagueGamblerDetails[index];
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendActiveGambler(isActive) {
+        const index = document.getElementById("gamblerSelect").value;
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}/gamblers/" + index, {"is_active": isActive})
+        ]).then(function (values) {
+            leagueGamblerDetails[index] = JSON.parse(values[0]);
+            restoreTournaments();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function changeFee() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        const feeLabel = document.getElementById("feeLabel");
+        feeLabel.innerText = "";
+        const feeInsert = document.createElement("input");
+        feeInsert.type = "number";
+        feeInsert.step = "0.5";
+        feeInsert.min = "0";
+        feeInsert.max = "999";
+        feeInsert.id = "feeInsert";
+        feeInsert.value = leagues[{{ league_index }}]["fee"];
+        feeLabel.appendChild(feeInsert);
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        const feeButton = document.getElementById("feeButton");
+        feeButton.innerText = "Invia";
+        feeButton.onclick = sendFee;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreFee;
+        feeButton.parentNode.insertBefore(cancelButton, feeButton.nextSibling);
+    }
+    function sendFee() {
+        const fee = document.getElementById("feeInsert").value;
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"fee": fee})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restoreFee();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restoreFee();
+        });
+    }
+    function restoreFee() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        updateFeeLabel();
+        const feeButton = document.getElementById("feeButton");
+        feeButton.innerText = "Cambia la quota";
+        feeButton.onclick = changeFee;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+    }
+    function changePrizes() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        document.getElementById("creditButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        document.getElementById("feeButton").disabled = true;
+        const prizeButton = document.getElementById("prizeButton");
+        prizeButton.innerText = "Invia";
+        prizeButton.onclick = sendPrizes;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restorePrizes;
+        prizeButton.parentNode.insertBefore(cancelButton, prizeButton.nextSibling);
+        const prizeTable = document.getElementById("prizeTable");
+        prizeTable.innerText = "";
+        const headerRow = prizeTable.createTHead().insertRow();
+        const row = prizeTable.createTBody().insertRow();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            const HeaderCell = headerRow.insertCell();
+            HeaderCell.innerText = (parseInt(index) + 1).toString();
+            const cell = row.insertCell();
+            const prizeInsert = document.createElement("input");
+            prizeInsert.type = "number";
+            prizeInsert.value = leagues[{{ league_index }}]["prizes"][index];
+            prizeInsert.min = "0";
+            prizeInsert.max = "999";
+            prizeInsert.step = "0.5";
+            prizeInsert.id = "prizeInsert" + index;
+            cell.appendChild(prizeInsert);
+        }
+    }
+    function sendPrizes() {
+        const allPrizes = Array();
+        for (const index in leagues[{{ league_index }}]["prizes"]) {
+            allPrizes.push(parseFloat(document.getElementById("prizeInsert" + index).value));
+        }
+        Promise.all([
+            sendRequest("PUT", "/leagues/{{ league_index }}", {"prizes": allPrizes})
+        ]).then(function (values) {
+            const league = JSON.parse(values[0]);
+            for (const key in league) {
+                leagues[key] = league[key];
+            }
+            restorePrizes();
+        }).catch(function (reason) {
+            window.alert(reason);
+            restorePrizes();
+        });
+    }
+    function restorePrizes() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        updatePrizeTable();
+        const prizeButton = document.getElementById("prizeButton");
+        prizeButton.innerText = "Cambia i premi";
+        prizeButton.onclick = changePrizes;
+        document.getElementById("cancelButton").remove();
+        document.getElementById("creditButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("feeButton").disabled = false;
+    }
+    function restoreCredit() {
+        document.getElementById("tournamentButton").disabled = false;
+        updateGamblerButtons();
+        const creditButton = document.getElementById("creditButton");
+        creditButton.innerText = "Cambia i crediti";
+        creditButton.onclick = changeCredit;
+        creditButton.hidden = false;
+        document.getElementById("cancelButton").remove();
+        updateTableCredits();
+        document.getElementById("feeButton").disabled = false;
+        document.getElementById("yearButton").disabled = false;
+        document.getElementById("prizeButton").disabled = false;
+    }
+    let creditForms;
+    function changeCredit() {
+        document.getElementById("tournamentButton").disabled = true;
+        document.getElementById("addGamblerButton").disabled = true;
+        document.getElementById("removeGamblerButton").disabled = true;
+        document.getElementById("inactiveGamblerButton").disabled = true;
+        document.getElementById("activeGamblerButton").disabled = true;
+        document.getElementById("prizeButton").disabled = true;
+        document.getElementById("feeButton").disabled = true;
+        document.getElementById("yearButton").disabled = true;
+        const creditButton = document.getElementById("creditButton");
+        creditButton.innerText = "Invia";
+        creditButton.onclick = sendChangeCredit;
+        const cancelButton = document.createElement("button");
+        cancelButton.id = "cancelButton";
+        cancelButton.innerText = "Annulla";
+        cancelButton.onclick = restoreCredit;
+        creditButton.parentNode.insertBefore(cancelButton, creditButton.nextSibling);
+        creditForms = Object();
+        const tableCredit = document.getElementById("tableCreditsBody");
+        tableCredit.innerText = "";
+        for (const key in leagueGamblers) {
+            const row = tableCredit.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = leagueGamblers[key]["nickname"];
+            const creditFormCell = row.insertCell();
+            if (!leagueGamblerDetails[key]["is_active"]) {
+                continue;
+            }
+            const creditForm = document.createElement("input");
+            creditForm.setAttribute("type", "number");
+            creditForm.setAttribute("step", "0.5");
+            creditForm.setAttribute("value", "0");
+            creditForm.setAttribute("max", "999");
+            creditForm.setAttribute("min", "-999");
+            creditFormCell.appendChild(creditForm);
+            creditForms[key] = creditForm;
+        }
+    }
+    function sendChangeCredit() {
+        const allPromises = Array();
+        for (const key in creditForms) {
+            const value = creditForms[key].value;
+            allPromises.push(sendRequest("PUT", "/leagues/{{ league_index }}/gamblers/" + key, {"credit_change": value}, key));
+        }
+        Promise.all(allPromises).then(function (values) {
+            for (const index in values) {
+                leagueGamblerDetails[values[index]["key"]] = JSON.parse(values[index]["response"]);
+            }
+            restoreCredit();
+        }).catch(function (reason) {
+            window.alert(reason["response"]);
+            restoreCredit();
+        });
+    }
+    {% endif %}
+    function randomColorGenerator() {
+        return '#' + (Math.random().toString(16) + '0000000').slice(2, 8);
+    }
+    function plotRankingChart() {
+        const labels = Array();
+        for (const key in ranking["ranking_history"]) {
+            labels.push(tournaments[key]["name"] + " " + tournaments[key]["year"]);
+        }
+        const data = {
+            labels: labels
+        };
+        const datasets = Array();
+        for (const gamblerKey in gamblers) {
+            const gamblerColor = randomColorGenerator();
+            const dataset = {
+                label: gamblers[gamblerKey]["nickname"],
+                backgroundColor: gamblerColor,
+                borderColor: gamblerColor
+            };
+            const gamblerData = Array();
+            let addGambler = false;
+            for (const tournamentKey in ranking["ranking_history"]) {
+                const currentRanking = ranking["ranking_history"][tournamentKey];
+                const gamblerIndex = currentRanking.indexOf(parseInt(gamblerKey));
+                if (gamblerIndex !== -1) {
+                    addGambler = true;
+                    gamblerData.push(gamblerIndex + 1);
+                } else {
+                    gamblerData.push(undefined);
+                }
+            }
+            if (addGambler) {
+                dataset["data"] = gamblerData;
+                datasets.push(dataset);
+            }
+        }
+        data['datasets'] = datasets;
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                scales: {
+                    y: {
+                        min: 1,
+                        max: datasets.length,
+                        reverse: true,
+                        ticks: {
+                            autoSkip: false,
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        };
+        new Chart(
+            document.getElementById('rankingChart'),
+            config
+        );
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 id="mainHeader"></h1>
+{% if is_privileged %}
+<button id="tournamentButton" onclick="tournamentUpdate(null)">Crea un torneo</button>
+<button id="addGamblerButton" onclick="addGambler()">Aggiungi uno scommettitore</button>
+<button id="removeGamblerButton" onclick="removeGambler()">Elimina uno scommettitore</button>
+<button id="inactiveGamblerButton" onclick="inactiveGambler()">Disattiva uno scommettitore</button>
+<button id="activeGamblerButton" onclick="activeGambler()">Attiva uno scommettitore</button>
+<label id="gamblerSelectLabel" for="gamblerSelect" hidden></label>
+<select id="gamblerSelect" hidden></select>
+<table id="tournamentInsert" hidden></table>
+{% endif %}
+<div id="tournamentDiv">
+    <h2>Tornei</h2>
+    <label for="yearSelect">Seleziona l'anno</label>
+    <select id="yearSelect" onchange="changeSelectedYear()"></select>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nome</td>
+            <td>Anno</td>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+            <td>Set</td>
+            <td>Tie-break al 5° set</td>
+            <td>Categoria</td>
+            <td>Tabellone</td>
+            <td>Vincitore</td>
+            <td id="winnerLeague"></td>
+            {% if is_privileged %}
+                <td>Ghost</td>
+                <td></td>
+            {% endif %}
+        </tr>
+        </thead>
+        <tbody id="tableTournamentsBody">
+        </tbody>
+    </table>
+</div>
+<div class="floatRankings">
+    <h2>Ranking attuale</h2>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="tableRankingBody">
+        </tbody>
+    </table>
+</div>
+<div class="floatRankings">
+    <h2 id="raceTitle"></h2>
+    <table id="tableRace" class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+        </tr>
+        </thead>
+        <tbody id="tableRaceBody">
+        </tbody>
+    </table>
+</div>
+<div class="clearRankings">
+    <h2>Palmarès</h2>
+    <table id="tableWinnersRecord" class="styled-table">
+    </table>
+</div>
+<div>
+    <h2>Crediti</h2>
+    <h3>Stagione attuale: <span id="yearLabel"></span>
+        {% if is_privileged %}
+        <button id="yearButton"></button>
+        {% endif %}
+    </h3>
+    <h3>Quota: <span id="feeLabel"></span>
+        {% if is_privileged %}
+        <button id="feeButton" onclick="changeFee()">Cambia la quota</button>
+        {% endif %}
+    </h3>
+    <h3>Premi:
+        {% if is_privileged %}
+        <button id="prizeButton" onclick="changePrizes()">Cambia i premi</button>
+        {% endif %}
+    </h3>
+    <table id="prizeTable" class="styled-table"></table>
+    {% if is_privileged %}
+    <button id="creditButton" onclick="changeCredit()">Cambia i crediti</button>
+    {% endif %}
+    <table id="tableCredits" class="styled-table">
+        <thead>
+        <tr>
+            <td>Scommettitore</td>
+            <td>Crediti</td>
+        </tr>
+        </thead>
+        <tbody id="tableCreditsBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    <canvas id="rankingChart"></canvas>
+</div>
+<script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+{% endblock %}

@@ -68,14 +68,16 @@ def create_bet_tournament(n_sets=None):
     bet = BetTournament(name=name, nation=nation, year=year, n_sets=n_sets, tie_breaker_5th=tie_breaker_5th,
                         category=TournamentCategory.MASTER_1000, draw_type=Draw16)
     for i in range(16):
-        seed = i + 1 if i < 14 else None
-        bet.add_player(create_player(), seed=seed)
+        seed = i + 1 if i < 14 else 0
+        bet.set_player(place=i, player=create_player(), seed=seed)
     return bet
 
 
-def create_gambler():
+def create_gambler(initial_credit=0):
     nickname = "Nickname_" + str(random_int(0, 100))
-    return Gambler(nickname=nickname)
+    email = "nick" + str(random_int(0, 100)) + "@cobram.com"
+    password = "passw" + str(random_int(0, 100))
+    return Gambler(nickname=nickname, email=email, is_email_enabled=False, password=password)
 
 
 def create_league():

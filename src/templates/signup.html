@@ -1,0 +1,54 @@
+<!-- templates/signup.html -->
+
+{% extends "base.html" %}
+
+{% block script_content %}
+    <script>
+        function sendSignUp() {
+            const password = document.getElementById("password").value;
+            if (password.length < 8) {
+                alert("La password deve avere almeno 8 caratteri");
+                return;
+            }
+            const requestJson = Object();
+            requestJson["nickname"] = document.getElementById("nickname").value.trim();
+            requestJson["email"] = document.getElementById("email").value.trim();
+            requestJson["password"] = password;
+            Promise.all([
+                sendRequest("POST", "/signup", requestJson)
+            ]).then(function (values) {
+                redirectToPage();
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="column is-4 is-offset-4">
+    <h3 class="title">Registrazione</h3>
+    <div class="box">
+        <form>
+            <div class="field">
+                <div class="control">
+                    <input id="email" class="input is-large" placeholder="Email" autofocus="">
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="control">
+                    <input id="nickname" class="input is-large" placeholder="Nome">
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="control">
+                    <input id="password" class="input is-large" placeholder="Password">
+                </div>
+            </div>
+        </form>
+        <button class="button is-block is-info is-large is-fullwidth" onclick="sendSignUp()">Sign Up</button>
+    </div>
+</div>
+{% endblock %}

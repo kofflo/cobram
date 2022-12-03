@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Nazioni</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let nations;
+    let forms;
+    let editMode = false;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/nations")
+        ]).then(function (values) {
+            nations = JSON.parse(values[0]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        const table = document.getElementById("tableBody");
+        table.innerText = "";
+        for (const [key, nation] of Object.entries(nations)) {
+            if (nation["name"] === "BYE") {
+                continue;
+            }
+            const row = table.insertRow();
+            const name = row.insertCell();
+            name.innerText = nation["name"];
+            const code = row.insertCell();
+            code.innerText = nation["code"];
+            const flag = row.insertCell();
+            const img = document.createElement('img');
+            img.src = '/static/flags/' + nation["code"] + '.png';
+            img.setAttribute("class", "bordered");
+            flag.appendChild(img);
+            addToolsCell(row, key, nationUpdate, deleteNation);
+        }
+    }
+    function nationUpdate(event) {
+        if (editMode) {
+            return;
+        }
+        editMode = true;
+        document.getElementById("nationInsert").hidden = false;
+        const table = document.getElementById("nationInsertBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        forms = Object();
+        const nameCell = row.insertCell();
+        const formName = document.createElement("input");
+        formName.setAttribute("type", "text");
+        formName.setAttribute("size", "15");
+        nameCell.appendChild(formName);
+        forms["name"] = formName;
+        const codeCell = row.insertCell();
+        const formCode = document.createElement("input");
+        formCode.setAttribute("type", "text");
+        formCode.setAttribute("size", "3");
+        codeCell.appendChild(formCode);
+        forms["code"] = formCode;
+        const button = document.getElementById("nationsButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const nation = nations[index];
+            formName.value = nation["name"];
+            formCode.value = nation["code"];
+            button.onclick = function() {
+                sendNationUpdate("PUT", "/nations/" + index);
+            };
+        } else {
+            button.onclick = function() {
+                sendNationUpdate("POST", "/nations");
+            }
+        }
+    }
+    function deleteNation(event) {
+        if (editMode) {
+            return;
+        }
+        const index = event.target.id;
+        if (confirm("La nazione " + nations[index]["name"] + " verrà eliminata. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/nations/" + index)
+        ]).then(function (values) {
+            delete nations[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendNationUpdate(method, url) {
+        const requestJson = Object();
+        requestJson["name"] = forms["name"].value.trim();
+        requestJson["code"] = forms["code"].value.trim();
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const nation = JSON.parse(values[0]);
+            for (const key in nation) {
+                nations[key] = nation[key];
+            }
+            restoreNations();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function restoreNations() {
+        const button = document.getElementById("nationsButton");
+        button.innerText = "Crea una nazione";
+        button.onclick = function() {
+            nationUpdate(null);
+        };
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("nationInsertBody").innerText = "";
+        document.getElementById("nationInsert").hidden = true;
+        forms = Object();
+        editMode = false;
+        updateTable();
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1>Nazioni</h1>
+<button id="nationsButton" onclick="nationUpdate(null)">Crea una nazione</button>
+<button id="cancelButton" hidden onclick="restoreNations()">Annulla</button>
+<table id="nationInsert" hidden>
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Codice</>
+        </tr>
+    </thead>
+    <tbody id="nationInsertBody">
+    </tbody>
+</table>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Codice</>
+            <th scope="col">Bandiera</>
+            <th scope="col"></>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+{% endblock %}

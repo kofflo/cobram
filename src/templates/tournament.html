@@ -1,0 +1,895 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title></title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let gamblers;
+    let players;
+    let nations;
+    let ranking;
+    let tournamentInfo;
+    let tournamentPlayers;
+    let matches;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers"),
+            sendRequest("GET", "/players"),
+            sendRequest("GET", "/nations"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches")
+        ]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            players = JSON.parse(values[2]);
+            nations = JSON.parse(values[3]);
+            ranking = JSON.parse(values[4]);
+            tournamentInfo = JSON.parse(values[5]);
+            tournamentPlayers = JSON.parse(values[6]);
+            matches = JSON.parse(values[7]);
+            updateTitles();
+            updateInfo();
+            updateMatches();
+            updateTableRanking();
+            {% if is_privileged %}
+                updateTablePlayers();
+            {% endif %}
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTitles() {
+        const mainHeader = document.getElementById("mainHeader");
+        mainHeader.innerText = tournamentInfo["name"] + "  " + tournamentInfo["year"];
+        if (tournamentInfo["is_ghost"]) {
+            mainHeader.innerText += " [ GHOST ]";
+        }
+        const subHeader = document.getElementById("subHeader");
+        subHeader.innerHTML = "";
+        const subHeaderLink = document.createElement("a");
+        subHeaderLink.innerText = leagues[{{ league_index }}]["name"];
+        subHeaderLink.setAttribute("href", "/web/leagues/{{ league_index }}");
+        subHeader.appendChild(subHeaderLink);
+        document.title = tournamentInfo["name"] + "  " + tournamentInfo["year"] + " - risultati";
+        const table = document.getElementById("infoTableBody");
+        const row = table.insertRow();
+        const nationCell = row.insertCell();
+        nationCell.innerText = nations[tournamentInfo["nation"]]["name"];
+        const flagCell = row.insertCell();
+        const img = document.createElement('img');
+        img.src = '/static/flags/' + nations[tournamentInfo["nation"]].code + '.png';
+        img.setAttribute("class", "bordered");
+        flagCell.appendChild(img);
+        const nSetsCell = row.insertCell();
+        nSetsCell.innerText = tournamentInfo["n_sets"];
+        const tieBreakerCell = row.insertCell();
+        const tieBreaker = tournamentInfo["tie_breaker_5th"];
+        tieBreakerCell.innerText = tieBreaker2text(tieBreaker);
+        const categoryCell = row.insertCell();
+        const category = tournamentInfo["category"];
+        categoryCell.innerText = category2text(category);
+        const drawCell = row.insertCell();
+        const draw = tournamentInfo["draw_type"];
+        drawCell.innerText = draw2text(draw);
+    }
+    function updateInfo() {
+        {% if is_privileged %}
+            const closeButton = document.getElementById("closeButton");
+            const playersButton = document.getElementById("playersButton");
+            const scoresButton = document.getElementById("scoresButton");
+            if (!tournamentInfo["is_open"]) {
+                closeButton.innerText = "Apri il torneo";
+                closeButton.onclick = openTournament;
+                playersButton.disabled = true;
+                scoresButton.disabled = true;
+            } else {
+                closeButton.innerText = "Chiudi il torneo";
+                closeButton.onclick = closeTournament;
+                playersButton.disabled = false;
+                scoresButton.disabled = false;
+            }
+        {% endif %}
+    }
+    function updateMatches() {
+        if (tournamentInfo["is_ghost"]) {
+            const table = document.getElementById("matches");
+            table.innerText = "";
+            const scoresButton = document.getElementById("scoresButton");
+            scoresButton.hidden = true;
+            return;
+        }
+        const table = document.getElementById("tableMatchesBody");
+        table.innerText = "";
+        for (const key in matches) {
+            const row = table.insertRow();
+            const idCell = row.insertCell();
+            idCell.innerText = key;
+            if (matches[key]["bets_closed"]) {
+                let lock = document.createElement("img");
+                lock.src = "/static/lock.png";
+                idCell.innerText += "   ";
+                idCell.appendChild(lock);
+            }
+            if (matches[key]["timestamp"] != null) {
+                const clock = document.createElement("img");
+                clock.src = "/static/clock.png";
+                idCell.innerText += "   ";
+                idCell.appendChild(clock);
+            }
+            const player1Cell = row.insertCell();
+            const player2Cell = row.insertCell();
+            const scoreCell = row.insertCell();
+            const timeCell = row.insertCell();
+            if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                continue;
+            }
+            let winner;
+            if (matches[key]["winner"] === matches[key]["players"]["player_1"]) {
+                winner = 1;
+            } else if (matches[key]["winner"] === matches[key]["players"]["player_2"]) {
+                winner = 2;
+            } else {
+                winner = null;
+            }
+            if (winner === 1) {
+                player1Cell.className = "bold";
+            }
+            const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
+            let seedString;
+            if (seedPlayer1 !== 0) {
+                seedString = " [" + seedPlayer1 + "]";
+            } else {
+                seedString = "";
+            }
+            player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
+            if (winner === 2) {
+                player2Cell.className = "bold";
+            }
+            const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
+            if (seedPlayer2 !== 0) {
+                seedString = " [" + seedPlayer2 + "]";
+            } else {
+                seedString = "";
+            }
+            player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
+            scoreCell.innerText = formatScore(matches[key]["score"]);
+            if (matches[key]["timestamp"] != null) {
+                timeCell.innerText = timestamp2localtime(matches[key]["timestamp"]);
+            } else {
+                timeCell.innerText = "";
+            }
+        }
+    }
+    function getSeed(player) {
+        for (const key in tournamentPlayers) {
+            if (tournamentPlayers[key] == null) {
+                continue;
+            }
+            const index = tournamentPlayers[key]["index"];
+            if (index === player) {
+                return tournamentPlayers[key]["seed"];
+            }
+        }
+    }
+    function formatScore(score) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
+                formatted += "A- " + " / ";
+            } else if (score[set][1] === -1) {
+                formatted += " -A" + " / ";
+            }
+            else {
+                formatted += score[set][0] + "-" + score[set][1] + " / ";
+            }
+        }
+        return formatted.slice(0, -2);
+    }
+    function formatScoreForm(score) {
+        let formatted = "";
+        for (const set in score) {
+            if (score[set][0] === -1) {
+                formatted += "A- ";
+            } else if (score[set][1] === -1) {
+                formatted += "-A ";
+            } else if (score[set][0] < 10 && score[set][1] < 10) {
+                formatted += String(score[set][0]) + String(score[set][1]) + " ";
+            } else {
+                formatted += score[set][0] + "-" + score[set][1] + " ";
+            }
+        }
+        return formatted;
+    }
+    function updateTableRanking() {
+        if (tournamentInfo["is_ghost"]) {
+            const table = document.getElementById("ranking");
+            table.innerText = "";
+            return;
+        }
+        const table = document.getElementById("tableRankingBody");
+        table.innerText = "";
+        const scores = ranking["tournament_scores"];
+        const rankingScores = ranking["tournament_ranking_scores"];
+        const scoresArray = orderObjectByValue(scores);
+        scoresArray.reverse();
+        let lastPosition = undefined;
+        let lastPoints = undefined;
+        for (let index = 0; index < scoresArray.length; index++) {
+            const pair = scoresArray[index];
+            const gamblerIndex = pair[0];
+            const gambler_points = pair[1];
+            const row = table.insertRow();
+            const position_cell = row.insertCell();
+            if (gambler_points === lastPoints) {
+                position_cell.innerText = lastPosition;
+            } else {
+                position_cell.innerText = String(index + 1);
+                lastPosition = index + 1;
+            }
+            const gambler_cell = row.insertCell();
+            const gambler_link = document.createElement("a");
+            gambler_link.innerText = gamblers[gamblerIndex]["nickname"];
+            gambler_link.setAttribute("href", "/web/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/" + pair[0]);
+            gambler_cell.appendChild(gambler_link);
+            const points_cell = row.insertCell();
+            points_cell.innerText = String(gambler_points);
+            const ranking_points_cell = row.insertCell();
+            ranking_points_cell.innerText = rankingScores[gamblerIndex];
+            lastPoints = gambler_points;
+        }
+    }
+    function timestamp2localtime(timestamp) {
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
+        return (new Date(timestamp * 1000 - tzOffset)).toISOString().slice(11, 16);
+    }
+    {% if is_privileged %}
+        let seedForms = Object();
+        let playerForms = Object();
+        function insertPlayers() {
+            const playersButton = document.getElementById("playersButton");
+            playersButton.innerText = "Manda i tennisti";
+            playersButton.onclick = sendPlayers;
+            const scoresButton = document.getElementById("scoresButton");
+            scoresButton.disabled = true;
+            const closeButton = document.getElementById("closeButton");
+            closeButton.disabled = true;
+            const cancelButton = document.createElement("button");
+            cancelButton.id = "cancelButton";
+            cancelButton.innerText = "Annulla";
+            cancelButton.onclick = restorePlayers;
+            playersButton.parentNode.insertBefore(cancelButton, playersButton.nextSibling);
+            const table = document.getElementById("tablePlayersBody");
+            table.innerText = "";
+            let playersNumber;
+            if (tournamentInfo["draw_type"] === "Draw16") {
+                playersNumber = 16;
+            } else if (tournamentInfo["draw_type"] === "DrawRoundRobin") {
+                playersNumber = 12;
+            }
+            for (let index = 0; index < playersNumber; index++) {
+                const playerObject = tournamentPlayers[index];
+                const playerIndex = playerObject["index"];
+                let playerSurname;
+                if (playerIndex === -1) {
+                    playerSurname = "/";
+                } else {
+                    playerSurname = players[playerIndex]["surname"];
+                }
+                const seed = playerObject["seed"];
+                const row = table.insertRow();
+                const positionCell = row.insertCell();
+                positionCell.innerText = String(index + 1);
+                const playerCell = row.insertCell();
+                let formPlayer = document.createElement("select");
+                formPlayer.onchange = playerChange;
+                let option = document.createElement("option");
+                option.value = String(-1);
+                option.innerText = "";
+                formPlayer.appendChild(option);
+                for (const key in players) {
+                    option = document.createElement("option");
+                    option.value = key;
+                    option.innerText = players[key]["surname"];
+                    formPlayer.appendChild(option);
+                }
+                playerCell.appendChild(formPlayer);
+                playerForms[index] = formPlayer;
+                formPlayer.value = playerIndex;
+                const seedCell = row.insertCell();
+                const seedForm = document.createElement("input");
+                seedForm.setAttribute("type", "text");
+                seedForm.setAttribute("size", "1");
+                if (seed !== 0) {
+                    seedForm.value = seed;
+                } else {
+                    seedForm.value = "";
+                }
+                if (playerIndex === 0 || playerIndex === -1) {
+                    seedForm.disabled = true;
+                }
+                seedCell.appendChild(seedForm);
+                seedForms[index] = seedForm;
+            }
+        }
+        function playerChange(event) {
+            const changedForm = event.target;
+            let newPlayer = changedForm.value;
+            if (newPlayer === 0 || newPlayer === -1) {
+                for (const index in playerForms) {
+                    const playerForm = playerForms[index];
+                    if (changedForm === playerForm) {
+                        seedForms[index].value = "";
+                        seedForms[index].disabled = true;
+                        break;
+                    }
+                }
+                return;
+            }
+            for (const index in playerForms) {
+                const playerForm = playerForms[index];
+                if (changedForm === playerForm) {
+                    seedForms[index].disabled = false;
+                    continue;
+                }
+                if (playerForm.value === newPlayer) {
+                    playerForm.value = -1;
+                    seedForms[index].value = "";
+                    seedForms[index].disabled = true;
+                }
+            }
+        }
+        function sendPlayers() {
+            const allPlayers = Object();
+            const allSeeds = Array();
+            for (const index in playerForms) {
+                const playerIndex = parseInt(playerForms[index].value);
+                const reSeed = /^([0-9]*)$/;
+                const seedValue = seedForms[index].value;
+                let seed;
+                if (reSeed.test(seedValue)) {
+                    seed = seedValue.match(reSeed).slice(1, 3).join("");
+                    if (seed === "") {
+                        seed = 0;
+                    } else {
+                        seed = parseInt(seed);
+                    }
+                    if (seed !== 0 && allSeeds.includes(seed)) {
+                        window.alert("Seed duplicato nel posto " + index + ": " + seedValue);
+                        return;
+                    }
+                    allSeeds.push(seed);
+                } else {
+                    window.alert("Seed non valido nel posto " + index + ": " + seedValue);
+                    return;
+                }
+                if (playerIndex === tournamentPlayers[index]["index"] && seed === tournamentPlayers[index]["seed"]) {
+                    continue;
+                }
+                const playerSeed = Object();
+                playerSeed["player_seed"] = Object();
+                playerSeed["player_seed"]["player_index"] = playerIndex;
+                playerSeed["player_seed"]["seed"] = seed;
+                allPlayers[index] = playerSeed;
+            }
+            const allResetPromises = Array();
+            const resetPlayerSeed = Object();
+            resetPlayerSeed["player_seed"] = Object();
+            resetPlayerSeed["player_seed"]["player_index"] = -1;
+            resetPlayerSeed["player_seed"]["seed"] = 0;
+            for (const place in allPlayers) {
+                allResetPromises.push(
+                    sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, resetPlayerSeed, place)
+                );
+            }
+            Promise.allSettled(allResetPromises).then(function (results) {
+                for (const index in results) {
+                    if (results[index]["status"] !== "fulfilled") {
+                        const message = results[index]["reason"]["response"];
+                        window.alert("Attenzione: " + message);
+                        return;
+                    }
+                }
+            });
+            const allPromises = Array();
+            for (const place in allPlayers) {
+                allPromises.push(
+                    sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players/" + place, allPlayers[place], place)
+                );
+            }
+            Promise.allSettled(allPromises).then(function (results) {
+                let restore = true;
+                for (const index in results) {
+                    if (results[index]["status"] === "fulfilled") {
+                        const place = results[index]["value"]["key"];
+                        tournamentPlayers[place] = JSON.parse(results[index]["value"]["response"]);
+                    } else {
+                        const message = results[index]["reason"]["response"];
+                        window.alert("Attenzione: " + message);
+                        restore = false;
+                    }
+                }
+                if (restore) {
+                    restorePlayers();
+                }
+            });
+        }
+        function restorePlayers() {
+            const playersButton = document.getElementById("playersButton");
+            playersButton.innerText = "Cambia i tennisti";
+            playersButton.onclick = insertPlayers;
+            const scoresButton = document.getElementById("scoresButton");
+            scoresButton.disabled = false;
+            const closeButton = document.getElementById("closeButton");
+            closeButton.disabled = false;
+            document.getElementById("cancelButton").remove();
+            playerForms = Array();
+            seedForms = Array();
+            updateTablePlayers();
+        }
+        function updateTablePlayers() {
+            if (tournamentInfo["is_ghost"]) {
+                const table = document.getElementById("players");
+                table.innerText = "";
+                const playersButton = document.getElementById("playersButton");
+                playersButton.hidden = true;
+                return;
+            }
+            const table = document.getElementById("tablePlayersBody");
+            table.innerText = "";
+            let playersNumber;
+            if (tournamentInfo["draw_type"] === "Draw16") {
+                playersNumber = 16;
+            } else if (tournamentInfo["draw_type"] === "DrawRoundRobin") {
+                playersNumber = 12;
+            }
+            for (let index = 0; index < playersNumber; index++) {
+                const playerObject = tournamentPlayers[index];
+                const playerIndex = playerObject["index"];
+                let playerSurname;
+                if (playerIndex === -1) {
+                    playerSurname = "/";
+                } else {
+                    playerSurname = players[tournamentPlayers[index]["index"]]["surname"];
+                }
+                const seed = tournamentPlayers[index]["seed"];
+                const row = table.insertRow();
+                const positionCell = row.insertCell();
+                positionCell.innerText = String(index + 1);
+                const playerCell = row.insertCell();
+                playerCell.innerText = playerSurname;
+                const seedCell = row.insertCell();
+                if (seed !== 0) {
+                    seedCell.innerText = seed;
+                } else {
+                    seedCell.innerText = "";
+                }
+            }
+        }
+        let forms = Object();
+        let checkboxes = Object();
+        let datetimes = Object();
+        let clearButtons = Object();
+        function insertScores() {
+            const scoresButton = document.getElementById("scoresButton");
+            scoresButton.innerText = "Manda i punteggi";
+            scoresButton.onclick = sendScores;
+            const playersButton = document.getElementById("playersButton");
+            playersButton.disabled = true;
+            const closeButton = document.getElementById("closeButton");
+            closeButton.disabled = true;
+            const cancelButton = document.createElement("button");
+            cancelButton.id = "cancelButton";
+            cancelButton.innerText = "Annulla";
+            cancelButton.onclick = restoreMatches;
+            scoresButton.parentNode.insertBefore(cancelButton, scoresButton.nextSibling);
+            const table = document.getElementById("tableMatchesBody");
+            table.innerText = "";
+            for (const key in matches) {
+                const row = table.insertRow();
+                const idCell = row.insertCell();
+                idCell.innerText = key;
+                if (matches[key]["bets_closed"]) {
+                    const lock = document.createElement("img");
+                    lock.src = "/static/lock.png";
+                    idCell.innerText += "   ";
+                    idCell.appendChild(lock);
+                }
+                if (matches[key]["timestamp"] != null) {
+                    const clock = document.createElement("img");
+                    clock.src = "/static/clock.png";
+                    idCell.innerText += "   ";
+                    idCell.appendChild(clock);
+                }
+                const player1Cell = row.insertCell();
+                const player2Cell = row.insertCell();
+                const scoreCell = row.insertCell();
+                const betsClosedCell = row.insertCell();
+                if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                    continue;
+                }
+                const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
+                let seedString;
+                if (seedPlayer1 !== 0) {
+                    seedString = " [" + seedPlayer1 + "]";
+                } else {
+                    seedString = "";
+                }
+                player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
+                const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
+                if (seedPlayer2 !== 0) {
+                    seedString = " [" + seedPlayer2 + "]";
+                } else {
+                    seedString = "";
+                }
+                player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
+                if (matches[key]["players"]["player_1"] === 0 || matches[key]["players"]["player_2"] === 0) {
+                    continue;
+                }
+                const innerTable = document.createElement("table");
+                innerTable.setAttribute("class", "forms-table");
+                const innerRow = innerTable.insertRow();
+                forms[key] = Object();
+                let score;
+                if (!window.mobileCheck()) {
+                    // desktop
+                    score = matches[key]["score"];
+                    for (let set = 0; set < tournamentInfo["n_sets"]; set++) {
+                        const setCell = innerRow.insertCell();
+                        let form = document.createElement("input");
+                        form.setAttribute("type", "text");
+                        form.setAttribute("size", "1");
+                        if (score != null && score[set] !== undefined) {
+                            if (score[set][0] === -1) {
+                                form.value = "A-";
+                            } else if (score[set][1] === -1) {
+                                form.value += "-A";
+                            } else if (score[set][0] < 10 && score[set][1] < 10) {
+                                form.value = String(score[set][0]) + String(score[set][1]);
+                            } else {
+                                form.value = String(score[set][0]) + "-" + String(score[set][1]);
+                            }
+                        }
+                        forms[key][set] = form;
+                        setCell.appendChild(form);
+                    }
+                    scoreCell.appendChild(innerTable);
+                } else {
+                    // mobile
+                    let form = document.createElement("input");
+                    form.setAttribute("type", "text");
+                    form.setAttribute("size", String(3 * tournamentInfo["n_sets"]));
+                    score = matches[key]["score"];
+                    if (score != null) {
+                        form.value = formatScoreForm(score);
+                    }
+                    forms[key] = form;
+                    scoreCell.appendChild(form);
+                }
+                if (score == null) {
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.onclick = showDatetime;
+                    checkboxes[key] = checkbox;
+                    betsClosedCell.appendChild(checkbox);
+                    const datetime = document.createElement("input");
+                    datetime.required = true;
+                    datetime.type = "time";
+                    betsClosedCell.appendChild(datetime);
+                    if (matches[key]["timestamp"] != null) {
+                        datetime.value = timestamp2localtime(matches[key]["timestamp"]);
+                    }
+                    datetimes[key] = datetime;
+                    const clearButton = document.createElement("button");
+                    clearButton.innerText = "X";
+                    clearButton.onclick = function(event) {
+                        datetime.value = "";
+                    };
+                    clearButtons[key] = clearButton;
+                    betsClosedCell.appendChild(clearButton);
+                    if (matches[key]["bets_closed"]) {
+                        checkbox.checked = true;
+                        datetime.hidden = true;
+                        clearButton.hidden = true;
+                    }
+                }
+            }
+        }
+        function getKeyByValue(obj, value) {
+            for (const prop in obj) {
+                if(obj.hasOwnProperty(prop)) {
+                    if(obj[prop] === value)
+                        return prop;
+                }
+            }
+        }
+        function showDatetime(event) {
+            const key = getKeyByValue(checkboxes, event.target);
+            if (event.target.checked) {
+                datetimes[key].hidden = true;
+                clearButtons[key].hidden = true;
+            } else {
+                datetimes[key].hidden = false;
+                clearButtons[key].hidden = false;
+            }
+        }
+        function getTimeStamp(valueString) {
+            if (valueString === "") {
+                return null;
+            }
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const day = currentDate.getDate();
+            const currentHour = currentDate.getHours();
+            const currentMinute = currentDate.getMinutes();
+            const hour = parseInt(valueString.slice(0, 2));
+            const minute = parseInt(valueString.slice(3, 5));
+            let delta;
+            if ((hour < currentHour) || (hour === currentHour && minute < currentMinute)) {
+                delta = 24*60*60;
+            } else {
+                delta = 0;
+            }
+            return new Date(year, month, day, hour, minute, '00').getTime() / 1000 + delta;
+        }
+        function sendScores() {
+            const reScoreMinus = /^([0-9]*)-([0-9]*)$/;
+            const reScoreSimple = /^([0-9])([0-9])$/;
+            const allScores = Object();
+            for (const key in forms) {
+                let setScores;
+                if (!window.mobileCheck()) {
+                    // desktop
+                    setScores = Array();
+                    for (const set in forms[key]) {
+                        setScores.push(forms[key][set].value.trim());
+                    }
+                } else {
+                    // mobile
+                    setScores = forms[key].value.trim().split(/\s+/);
+                }
+                let lastSet = false;
+                const matchScore = Array();
+                for (const set in setScores) {
+                    let setScore = setScores[set];
+                    let setScoreArray;
+                    if (setScore !== "" && lastSet) {
+                        window.alert("Punteggio non valido nel match " + key + ": set dopo un set vuoto");
+                        return;
+                    }
+                    if (setScore === "") {
+                        lastSet = true;
+                        continue;
+                    } else if (setScore === "-A") {
+                        setScore = Array(0, -1);
+                        matchScore.push(setScore);
+                        lastSet = true;
+                        continue;
+                    } else if (setScore === "A-") {
+                        setScore = Array(-1, 0);
+                        matchScore.push(setScore);
+                        lastSet = true;
+                        continue;
+                    } else if (reScoreMinus.test(setScore)) {
+                        setScoreArray = setScore.match(reScoreMinus).slice(1, 3);
+                    } else if (reScoreSimple.test(setScore)) {
+                        setScoreArray = setScore.match(reScoreSimple).slice(1, 3);
+                    } else {
+                        window.alert("Punteggio non valido nel match " + key + ": " + setScore);
+                        return;
+                    }
+                    setScoreArray[0] = parseInt(setScoreArray[0]);
+                    setScoreArray[1] = parseInt(setScoreArray[1]);
+                    matchScore.push(setScoreArray);
+                }
+                allScores[key] = Object();
+                allScores[key]["score"] = matchScore;
+                if (key in checkboxes) {
+                    let timestamp;
+                    if (key in datetimes) {
+                        timestamp = getTimeStamp(datetimes[key].value);
+                    } else {
+                        timestamp = null;
+                    }
+                    if (timestamp == null) {
+                        allScores[key]["bets_closed"] = checkboxes[key].checked;
+                    } else {
+                        allScores[key]["bets_closed"] = false;
+                    }
+                    allScores[key]["timestamp"] = timestamp;
+                } else {
+                    allScores[key]["bets_closed"] = true;
+                    allScores[key]["timestamp"] = null;
+                }
+            }
+            const allPromises = Array();
+            for (const key in allScores) {
+                if (!equalScores(allScores[key]["score"], matches[key]["score"]) || allScores[key]["bets_closed"] !== matches[key]["bets_closed"]
+                    || allScores[key]["timestamp"] !== matches[key]["timestamp"]) {
+                    allPromises.push(
+                        sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + key, allScores[key], key)
+                    );
+                }
+            }
+            if (allPromises.length === 0) {
+                restoreMatches();
+            }
+            Promise.allSettled(allPromises).then(function (results) {
+                let restore = true;
+                const successful = [];
+                const failed = [];
+                for (const index in results) {
+                    if (results[index]["status"] === "fulfilled") {
+                        const matchId = results[index]["value"]["key"];
+                        const match = JSON.parse(results[index]["value"]["response"]);
+                        matches[matchId] = match;
+                        let successfulString = "Match " + matchId + " aggiornato: [ " + formatScore(match['score']) + " ]";
+                        if (match['bets_closed']) {
+                            successfulString += " con scommesse chiuse";
+                        } else {
+                            successfulString += " con scommesse aperte";
+                        }
+                        if (match['timestamp'] != null) {
+                            successfulString += " con chiusura programmata per " + timestamp2localtime(match["timestamp"]);
+                        }
+                        successful.push(successfulString);
+                    } else {
+                        const matchId = results[index]["reason"]["key"];
+                        const message = results[index]["reason"]["response"];
+                        failed.push("Attenzione! Match " + matchId + ": " + message);
+                        restore = false;
+                    }
+                }
+                if (successful.length > 0) {
+                    window.alert(successful.join("\n"));
+                }
+                if (failed.length > 0) {
+                    window.alert(failed.join("\n"));
+                }
+                if (restore) {
+                    restoreMatches();
+                }
+            });
+        }
+        function restoreMatches() {
+            const scoresButton = document.getElementById("scoresButton");
+            scoresButton.innerText = "Cambia i punteggi";
+            scoresButton.onclick = insertScores;
+            const playersButton = document.getElementById("playersButton");
+            playersButton.disabled = false;
+            const closeButton = document.getElementById("closeButton");
+            closeButton.disabled = false;
+            document.getElementById("cancelButton").remove();
+            forms = Object();
+            checkboxes = Object();
+            updateMatches();
+        }
+        function closeTournament() {
+            if (!changeTournamentStatus(false)) {
+                return;
+            }
+            for (const key in matches) {
+                matches[key]["bets_closed"] = true;
+            }
+            updateMatches();
+        }
+        function openTournament() {
+            changeTournamentStatus(true);
+        }
+        function changeTournamentStatus(isOpen) {
+            let text;
+            if (isOpen) {
+                text = "Il torneo verrà aperto. Continuare?";
+            } else {
+                text = "Il torneo verrà chiuso. Continuare?";
+            }
+            if (confirm(text) !== true) {
+                return false;
+            }
+            const requestJson = Object();
+            requestJson["is_open"] = isOpen;
+            let returnValue = false;
+            Promise.all([
+                sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}", requestJson)
+            ]).then(function (values) {
+                const updatedTournament = JSON.parse(values[0]);
+                for (const key in updatedTournament) {
+                    tournamentInfo = updatedTournament[key];
+                }
+                updateInfo();
+                Promise.all([
+                    sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking")
+                ]).then(function (values) {
+                    ranking = JSON.parse(values[0]);
+                    updateTableRanking();
+                    returnValue = true;
+                }).catch(function (reason) {
+                    window.alert(reason);
+                });
+            }).catch(function (reason) {
+                window.alert(reason);
+            });
+            return returnValue;
+        }
+    {% endif %}
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 id="mainHeader"></h1>
+<h2 id="subHeader"></h2>
+<div>
+    <table class="styled-table">
+        <thead>
+        <tr>
+            <td>Nazione</td>
+            <td>Bandiera</td>
+            <td>Set</td>
+            <td>Tie-break al 5° set</td>
+            <td>Categoria</td>
+            <td>Tabellone</td>
+        </tr>
+        </thead>
+        <tbody id="infoTableBody">
+        </tbody>
+    </table>
+</div>
+<div>
+    {% if is_privileged %}
+        <button id="scoresButton" onclick="insertScores()">Cambia i punteggi</button>
+        <button id="closeButton" onclick="closeTournament()">Chiudi il torneo</button>
+    {% endif %}
+</div>
+    <div class="floatRankings">
+    <table id="matches" class="styled-table">
+        <thead>
+        <tr>
+            <td>Match</td>
+            <td>Giocatore 1</td>
+            <td>Giocatore 2</td>
+            <td>Risultato</td>
+            <td></td>
+        </tr>
+        </thead>
+        <tbody id="tableMatchesBody">
+        </tbody>
+    </table>
+</div>
+<div class="floatRankings">
+    <table id="ranking" class="styled-table">
+        <thead>
+        <tr>
+            <td>Posizione</td>
+            <td>Scommettitore</td>
+            <td>Punti</td>
+            <td>Punti ranking</td>
+        </tr>
+        </thead>
+        <tbody id="tableRankingBody">
+        </tbody>
+    </table>
+</div>
+{% if is_privileged %}
+    <div class="clearRankings">
+        <button id="playersButton" onclick="insertPlayers()">Cambia i tennisti</button>
+        <table id="players" class="styled-table">
+            <thead>
+            <tr>
+                <td>Posto</td>
+                <td>Tennista</td>
+                <td>Seed</td>
+            </tr>
+            </thead>
+            <tbody id="tablePlayersBody">
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}

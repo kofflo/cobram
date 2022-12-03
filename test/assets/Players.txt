@@ -1,207 +1,207 @@
 Novak	Djokovic	1
 Milos	Raonic	14
-Dusan	Lajovic	
+Dusan	Lajovic
 Alexander	Zverev	6
 Dominic	Thiem	3
-Grigor	Dimitrov	
-Felix	Auger-Aliassime	
-Aslan	Karatsev	
+Grigor	Dimitrov
+Felix	Auger-Aliassime
+Aslan	Karatsev
 Andrey	Rublev	7
-Casper	Ruud	
-Mackenzie	McDonald	
+Casper	Ruud
+Mackenzie	McDonald
 Daniil	Medvedev	4
 Stefanos	Tsitsipas	5
 Matteo	Berrettini	9
 Fabio	Fognini	16
 Rafael	Nadal	2
-		
+
 Daniil	Medvedev	1
-Frances	Tiafoe	
-John	Isner	
-Roberto	Bautista Agut	
-Emil	Ruusuvuori	
-Jannik	Sinner	
-Taylor	Fritz	
-Alexander	Bublik	
+Frances	Tiafoe
+John	Isner
+Roberto	Bautista Agut
+Emil	Ruusuvuori
+Jannik	Sinner
+Taylor	Fritz
+Alexander	Bublik
 Diego	Schwartzman	5
-Sebastian	Korda	
-Marin	Cilic	
+Sebastian	Korda
+Marin	Cilic
 Andrey	Rublev	4
-Hubert	Hurkacz	
+Hubert	Hurkacz
 Milos	Raonic	12
-Lorenzo	Sonego	
+Lorenzo	Sonego
 Stefanos	Tsitsipas	2
-		
+
 Rafael	Nadal	1
-Alexei	Popyrin	
-Daniel	Evans	
+Alexei	Popyrin
+Daniel	Evans
 Alexander	Zverev	5
 Dominic	Thiem	3
-Alex	De Minaur	
-John	Isner	
+Alex	De Minaur
+John	Isner
 Andrey	Rublev	6
-Aslan	Karatsev	
-Alexander	Bublik	
-Casper	Ruud	
+Aslan	Karatsev
+Alexander	Bublik
+Casper	Ruud
 Stefanos	Tsitsipas	4
 Matteo	Berrettini	8
-Federico	Delbonis	
+Federico	Delbonis
 Cristian	Garin	16
 Daniil	Medvedev	2
-		
+
 Novak	Djokovic	1
-Alejandro	Davidovich Fokina	
+Alejandro	Davidovich Fokina
 Matteo	Berrettini	9
 Stefanos	Tsitsipas	5
 Dominic	Thiem	4
-Lorenzo	Sonego	
+Lorenzo	Sonego
 Roberto	Bautista Agut	10
 Andrey	Rublev	7
-Felix	Auger-Aliassime	
-Federico	Delbonis	
-Reilly	Opelka	
-Aslan	Karatsev	
+Felix	Auger-Aliassime
+Federico	Delbonis
+Reilly	Opelka
+Aslan	Karatsev
 Alexander	Zverev	6
-Kei	Nishikori	
+Kei	Nishikori
 Denis	Shapovalov	13
 Rafael	Nadal	2
-		
+
 Novak	Djokovic	1
-Lorenzo	Musetti	
+Lorenzo	Musetti
 Matteo	Berrettini	9
 Roger	Federer	8
 Rafael	Nadal	3
-Jannik	Sinner	
+Jannik	Sinner
 Diego	Schwartzman	10
-Jan Lennard	Struff	
+Jan Lennard	Struff
 Alexander	Zverev	6
-Kei	Nishikori	
-Alejandro	Davidovich Fokina	
-Federico	Delbonis	
+Kei	Nishikori
+Alejandro	Davidovich Fokina
+Federico	Delbonis
 Stefanos	Tsitsipas	5
 Pablo	Carreno Busta	12
-Cristian	Garin	
+Cristian	Garin
 Daniil	Medvedev	2
-		
+
 Novak	Djokovic	1
-Cristian	Garin	
-Marton	Fucsovics	
+Cristian	Garin
+Marton	Fucsovics
 Andrey	Rublev	5
-Karen	Khachanov	
-Sebastian	Korda	
+Karen	Khachanov
+Sebastian	Korda
 Denis	Shapovalov	10
 Roberto	Bautista Agut	8
 Matteo	Berrettini	7
-Ilya	Ivashka	
+Ilya	Ivashka
 Felix	Auger-Aliassime	16
 Alexander	Zverev	4
 Roger	Federer	6
-Lorenzo	Sonego	
+Lorenzo	Sonego
 Hubert	Hurkacz	14
 Daniil	Medvedev	2
-		
+
 Novak	Djokovic	1
 Alejandro	Davidovich Fokina	16
-Ilya	Ivashka	
-Kei	Nishikori	
+Ilya	Ivashka
+Kei	Nishikori
 Alexander	Zverev	4
-Nikoloz	Basilashvili	
-Jeremy	Chardy	
-Liam	Broady	
+Nikoloz	Basilashvili
+Jeremy	Chardy
+Liam	Broady
 Diego	Schwartzman	8
 Karen	Khachanov	12
 Ugo	Humbert	14
 Stefanos	Tsitsipas	3
 Pablo	Carreno Busta	6
-Dominik	Koepfer	
+Dominik	Koepfer
 Fabio	Fognini	15
 Daniil	Medvedev	2
-		
+
 Daniil	Medvedev	1
-James	Duckworth	
-Nikoloz	Basilashvili	
+James	Duckworth
+Nikoloz	Basilashvili
 Hubert	Hurkacz	7
 Andrey	Rublev	4
-John	Isner	
+John	Isner
 Gael	Monfils	11
-Frances	Tiafoe	
+Frances	Tiafoe
 Casper	Ruud	6
-Dusan	Lajovic	
-Karen	Khachanov	
+Dusan	Lajovic
+Karen	Khachanov
 Stefanos	Tsitsipas	3
 Diego	Schwartzman	8
 Roberto	Bautista Agut	10
-Reilly	Opelka	
-Lloyd	Harris	
-		
+Reilly	Opelka
+Lloyd	Harris
+
 Daniil	Medvedev	1
-Grigor	Dimitrov	
+Grigor	Dimitrov
 Hubert	Hurkacz	9
 Pablo	Carreno Busta	7
 Andrey	Rublev	4
-Gael	Monfils	
-John	Isner	
-Benoit	Paire	
+Gael	Monfils
+John	Isner
+Benoit	Paire
 Casper	Ruud	8
 Diego	Schwartzman	10
-Guido	Pella	
+Guido	Pella
 Alexander	Zverev	3
 Matteo	Berrettini	5
 Felix	Auger-Aliassime	12
-Lorenzo	Sonego	
+Lorenzo	Sonego
 Stefanos	Tsitsipas	2
-		
+
 Novak	Djokovic	1
-Jenson	Brooksby	
-Oscar	Otte	
+Jenson	Brooksby
+Oscar	Otte
 Matteo	Berrettini	6
 Alexander	Zverev	4
 Jannik	Sinner	13
-Reilly	Opelka	
-Lloyd	Harris	
-Frances	Tiafoe	
+Reilly	Opelka
+Lloyd	Harris
+Frances	Tiafoe
 Felix	Auger-Aliassime	12
-Peter	Gojowczyk	
-Carlos	Alcaraz	
-Botic	van de Zandschulp	
+Peter	Gojowczyk
+Carlos	Alcaraz
+Botic	van de Zandschulp
 Diego	Schwartzman	11
-Daniel	Evans	
+Daniel	Evans
 Daniil	Medvedev	2
-		
+
 Daniil	Medvedev	1
-Grigor	Dimitrov	
-Aslan	Karatsev	
+Grigor	Dimitrov
+Aslan	Karatsev
 Hubert	Hurkacz	8
-Tommy	Paul	
-Cameron	Norrie	
+Tommy	Paul
+Cameron	Norrie
 Diego	Schwartzman	11
 Casper	Ruud	6
-Taylor	Fritz	
+Taylor	Fritz
 Jannik	Sinner	10
 Gael	Monfils	14
 Alexander	Zverev	3
-Nikoloz	Basilashvili	
-Karen	Khachanov	
-Alex	De Minaur	
+Nikoloz	Basilashvili
+Karen	Khachanov
+Alex	De Minaur
 Stefanos	Tsitsipas	2
-		
+
 Novak	Djokovic	1
 Gael	Monfils	15
 Cameron	Norrie	10
-Taylor	Fritz	
-Alexei	Popyrin	
-James	Duckworth	
-Dominik	Koepfer	
+Taylor	Fritz
+Alexei	Popyrin
+James	Duckworth
+Dominik	Koepfer
 Hubert	Hurkacz	7
 Casper	Ruud	6
-Marcos	Giron	
+Marcos	Giron
 Grigor	Dimitrov	16
 Alexander	Zverev	4
-Carlos	Alcaraz	
-Hugo	Gaston	
-Sebastian	Korda	
+Carlos	Alcaraz
+Hugo	Gaston
+Sebastian	Korda
 Daniil	Medvedev	2
-		
+
 Daniil	Medvedev	2
 Alexander	Zverev	3
 Matteo	Berrettini	6
@@ -211,4 +211,23 @@ Stefanos	Tsitsipas	4
 Andrey	Rublev	5
 Casper	Ruud	8
 Jannik	Sinner	9
+None	None
 Cameron	Norrie	10
+None	None
+
+Miomir	Kecmanovic
+Gael	Monfils	17
+Pablo	Carreno Busta	19
+Matteo	Berrettini	7
+Alexander	Zverev	3
+Denis	Shapovalov	14
+Adrian	Mannarino
+Rafael	Nadal	6
+Alex	De Minaur	32
+Jannik	Sinner	11
+Taylor	Fritz	20
+Stefanos	Tsitsipas	4
+Marin	Cilic	27
+Felix	Auger-Aliassime	9
+Maxime	Cressy
+Daniil	Medvedev	2

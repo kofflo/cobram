@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title_content %}
+    <title>Scommettitori</title>
+{% endblock %}
+
+{% block script_content %}
+<script>
+    window.onload = updatePage;
+    let leagues;
+    let gamblers;
+    let forms;
+    let editMode = false;
+    function updatePage() {
+        Promise.all([
+            sendRequest("GET", "/leagues"),
+            sendRequest("GET", "/gamblers")
+        ]).then(function (values) {
+            leagues = JSON.parse(values[0]);
+            gamblers = JSON.parse(values[1]);
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function updateTable() {
+        const table = document.getElementById("tableBody");
+        table.innerText = "";
+        for (const [key, gambler] of Object.entries(gamblers)) {
+            const row = table.insertRow();
+            const nameCell = row.insertCell();
+            nameCell.innerText = gambler["nickname"];
+            const codeCell = row.insertCell();
+            codeCell.innerText = gambler["email"];
+            const statusCell = row.insertCell();
+            if (gambler["is_email_enabled"]) {
+                statusCell.innerText = "ATTIVA";
+            } else {
+                statusCell.innerText = "NON ATTIVA";
+            }
+            const leaguesCell = row.insertCell();
+            const innerTable = document.createElement('table');
+            for (const leagueKey of gambler["leagues"]) {
+                const innerRow = innerTable.insertRow();
+                const innerCell = innerRow.insertCell();
+                const leagueLink = document.createElement("a");
+                leagueLink.innerText = leagues[leagueKey].name;
+                leagueLink.setAttribute("href", "/web/leagues/" + leagueKey);
+                innerCell.appendChild(leagueLink);
+            }
+            leaguesCell.appendChild(innerTable);
+            addToolsCell(row, key, gamblerUpdate, deleteGambler);
+        }
+    }
+    function gamblerUpdate(event) {
+        if (editMode) {
+            return;
+        }
+        editMode = true;
+        document.getElementById("gamblerInsert").hidden = false;
+        const table = document.getElementById("gamblerInsertBody");
+        table.innerText = "";
+        const row = table.insertRow();
+        forms = Object();
+        const nicknameCell = row.insertCell();
+        const formNickname = document.createElement("input");
+        formNickname.setAttribute("type", "text");
+        formNickname.setAttribute("size", "15");
+        nicknameCell.appendChild(formNickname);
+        forms["nickname"] = formNickname;
+        const emailCell = row.insertCell();
+        const formEmail = document.createElement("input");
+        formEmail.setAttribute("type", "email");
+        formEmail.setAttribute("size", "20");
+        emailCell.appendChild(formEmail);
+        forms["email"] = formEmail;
+        const statusCell = row.insertCell();
+        const formStatusCheckbox = document.createElement("input");
+        formStatusCheckbox.type = "checkbox";
+        formStatusCheckbox.checked = false;
+        statusCell.appendChild(formStatusCheckbox);
+        forms["status_checkbox"] = formStatusCheckbox;
+        const checkboxCell = row.insertCell();
+        const formPasswordCheckbox = document.createElement("input");
+        formPasswordCheckbox.type = "checkbox";
+        formPasswordCheckbox.checked = false;
+        checkboxCell.appendChild(formPasswordCheckbox);
+        forms["password_checkbox"] = formPasswordCheckbox;
+        const passwordCell = row.insertCell();
+        const formPassword = document.createElement("input");
+        formPassword.setAttribute("type", "text");
+        formPassword.setAttribute("size", "15");
+        passwordCell.appendChild(formPassword);
+        forms["password"] = formPassword;
+        const button = document.getElementById("gamblersButton");
+        button.innerText = "Invia";
+        document.getElementById("cancelButton").hidden = false;
+        if (event != null) {
+            const index = event.target.id;
+            const gambler = gamblers[index];
+            formNickname.value = gambler["nickname"];
+            formEmail.value = gambler["email"];
+            formStatusCheckbox.checked = gambler["is_email_enabled"];
+            formPasswordCheckbox.onchange = function() {
+                if (formPasswordCheckbox.checked) {
+                    formPassword.disabled = false;
+                } else {
+                    formPassword.value = "";
+                    formPassword.disabled = true;
+                }
+            };
+            formPassword.disabled = true;
+            button.onclick = function() {
+                sendGamblerUpdate("PUT", "/gamblers/" + index);
+            };
+        } else {
+            button.onclick = function() {
+                sendGamblerUpdate("POST", "/gamblers");
+            };
+            formPasswordCheckbox.checked = true;
+            formPasswordCheckbox.disabled = true;
+        }
+    }
+    function deleteGambler(event) {
+        if (editMode) {
+            return;
+        }
+        const index = event.target.id;
+        if (confirm("Lo scommettitore " + gamblers[index]["nickname"] + " verrà eliminato. Continuare ?") !== true) {
+            return;
+        }
+        Promise.all([
+            sendRequest("DELETE", "/gamblers/" + index)
+        ]).then(function (values) {
+            delete gamblers[index];
+            updateTable();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function sendGamblerUpdate(method, url) {
+        let password;
+        if (forms["password_checkbox"].checked) {
+            password = forms["password"].value;
+        } else {
+            password = null;
+        }
+        if (password != null && password.length < 8) {
+            alert("La password deve avere almeno 8 caratteri");
+            return;
+        }
+        const requestJson = Object();
+        requestJson["nickname"] = forms["nickname"].value.trim();
+        requestJson["email"] = forms["email"].value.trim();
+        requestJson["is_email_enabled"] = forms["status_checkbox"].checked;
+        requestJson["password"] = password;
+        Promise.all([
+            sendRequest(method, url, requestJson)
+        ]).then(function (values) {
+            const gambler = JSON.parse(values[0]);
+            for (const key in gambler) {
+                gamblers[key] = gambler[key];
+            }
+            restoreGamblers();
+        }).catch(function (reason) {
+            window.alert(reason);
+        });
+    }
+    function restoreGamblers() {
+        const button = document.getElementById("gamblersButton");
+        button.innerText = "Crea uno scommettitore";
+        button.onclick = function() {
+            gamblerUpdate(null);
+        };
+        document.getElementById("cancelButton").hidden = true;
+        document.getElementById("gamblerInsertBody").innerText = "";
+        document.getElementById("gamblerInsert").hidden = true;
+        forms = Object();
+        editMode = false;
+        updateTable();
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1>Scommettitori</h1>
+<button id="gamblersButton" onclick="gamblerUpdate(null)">Crea uno scommettitore</button>
+<button id="cancelButton" hidden onclick="restoreGamblers()">Annulla</button>
+<table id="gamblerInsert" hidden>
+    <thead>
+    <tr>
+        <th scope="col">Nome</th>
+        <th scope="col">E-mail</th>
+        <th scope="col">Attiva</th>
+        <th scope="col"></th>
+        <th scope="col">Password</th>
+    </tr>
+    </thead>
+    <tbody id="gamblerInsertBody">
+    </tbody>
+</table>
+<table class="styled-table">
+    <thead>
+        <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Stato</th>
+            <th scope="col">Leghe</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+{% endblock %}
