@@ -473,6 +473,7 @@
             }
         }
         let forms = Object();
+        let playerMatchForms = Object();
         let checkboxes = Object();
         let datetimes = Object();
         let clearButtons = Object();
@@ -511,35 +512,40 @@
                 const player2Cell = row.insertCell();
                 const scoreCell = row.insertCell();
                 const betsClosedCell = row.insertCell();
-                if (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null) {
+                if ((tournamentInfo["draw_type"] === "DrawRoundRobin") &&
+                    (matches[key]["players"]["player_1"] == null || matches[key]["players"]["player_2"] == null)) {
+                    manageRoundRobin(key, player1Cell, player2Cell);
                     continue;
                 }
-                const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
-                let seedString;
-                if (seedPlayer1 !== 0) {
-                    seedString = " [" + seedPlayer1 + "]";
+                let score = matches[key]["score"];
+                if ((tournamentInfo["draw_type"] === "DrawRoundRobin") && (score == null)) {
+                    manageRoundRobin(key, player1Cell, player2Cell);
                 } else {
-                    seedString = "";
-                }
-                player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
-                const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
-                if (seedPlayer2 !== 0) {
-                    seedString = " [" + seedPlayer2 + "]";
-                } else {
-                    seedString = "";
-                }
-                player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
-                if (matches[key]["players"]["player_1"] === 0 || matches[key]["players"]["player_2"] === 0) {
-                    continue;
+                    const seedPlayer1 = getSeed(matches[key]["players"]["player_1"]);
+                    let seedString;
+                    if (seedPlayer1 !== 0) {
+                        seedString = " [" + seedPlayer1 + "]";
+                    } else {
+                        seedString = "";
+                    }
+                    player1Cell.innerText = players[matches[key]["players"]["player_1"]]["surname"] + seedString;
+                    const seedPlayer2 = getSeed(matches[key]["players"]["player_2"]);
+                    if (seedPlayer2 !== 0) {
+                        seedString = " [" + seedPlayer2 + "]";
+                    } else {
+                        seedString = "";
+                    }
+                    player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
+                    if (matches[key]["players"]["player_1"] === 0 || matches[key]["players"]["player_2"] === 0) {
+                        continue;
+                    }
                 }
                 const innerTable = document.createElement("table");
                 innerTable.setAttribute("class", "forms-table");
                 const innerRow = innerTable.insertRow();
                 forms[key] = Object();
-                let score;
                 if (!window.mobileCheck()) {
                     // desktop
-                    score = matches[key]["score"];
                     for (let set = 0; set < tournamentInfo["n_sets"]; set++) {
                         const setCell = innerRow.insertCell();
                         let form = document.createElement("input");
@@ -565,7 +571,6 @@
                     let form = document.createElement("input");
                     form.setAttribute("type", "text");
                     form.setAttribute("size", String(3 * tournamentInfo["n_sets"]));
-                    score = matches[key]["score"];
                     if (score != null) {
                         form.value = formatScoreForm(score);
                     }
@@ -608,6 +613,68 @@
                         return prop;
                 }
             }
+        }
+        function manageRoundRobin(key, player1Cell, player2Cell) {
+            if (key[0] === "D" || (key[0] === "C" && !checkGroupsComplete())) {
+                return;
+            }
+            if (key[0] == "A") {
+                group1 = "A";
+                group2 = "A";
+            } else if (key[0] == "B") {
+                group1 = "B";
+                group2 = "B";
+            } else if (key == "C1") {
+                group1 = "A";
+                group2 = "B";
+            } else {
+                group1 = "B";
+                group2 = "A";
+            }
+            const form1 = createForm(group1);
+            player1Cell.appendChild(form1);
+            const form2 = createForm(group2);
+            player2Cell.appendChild(form2);
+            playerMatchForms[key] = Array();
+            playerMatchForms[key].push(form1);
+            playerMatchForms[key].push(form2);
+            if (matches[key]["players"]["player_1"] !== null) {
+                form1.value = matches[key]["players"]["player_1"];
+            }
+            if (matches[key]["players"]["player_2"] !== null) {
+                form2.value = matches[key]["players"]["player_2"];
+            }
+        }
+        function createForm(group) {
+            let formPlayer = document.createElement("select");
+            let option = document.createElement("option");
+            option.value = String(-1);
+            option.innerText = "";
+            formPlayer.appendChild(option);
+            let groupKeys;
+            if (group == "A") {
+                groupKeys = [0, 1, 2, 3, 8, 9];
+            } else {
+                groupKeys = [4, 5, 6, 7, 10, 11];
+            }
+            for (const key of groupKeys) {
+                index = tournamentPlayers[key]["index"];
+                if (index !== -1) {
+                   option = document.createElement("option");
+                   option.value = index;
+                   option.innerText = players[index]["surname"];
+                   formPlayer.appendChild(option);
+                }
+            }
+            return formPlayer;
+        }
+        function checkGroupsComplete() {
+            for (const key in matches) {
+                if ((key[0] === "A" || key[0] === "B") && (matches[key]["score"] === null)) {
+                        return false;
+                }
+            }
+            return true;
         }
         function showDatetime(event) {
             const key = getKeyByValue(checkboxes, event.target);
@@ -691,7 +758,7 @@
                 }
                 allScores[key] = Object();
                 allScores[key]["score"] = matchScore;
-                if (key in checkboxes) {
+                if (key in checkboxes && matchScore.length === 0) {
                     let timestamp;
                     if (key in datetimes) {
                         timestamp = getTimeStamp(datetimes[key].value);
@@ -709,6 +776,27 @@
                     allScores[key]["timestamp"] = null;
                 }
             }
+            const allPlayerMatches = Object();
+            for (const key in playerMatchForms) {
+                player_1 = playerMatchForms[key][0].value;
+                player_2 = playerMatchForms[key][1].value;
+                if (((player_1 !== "-1") && (player_2 !== "-1") && (player_1 === player_2)) ||
+                    ((player_1 === "-1") && (player_2 !== "-1")) ||
+                    ((player_1 !== "-1") && (player_2 === "-1"))) {
+                    window.alert("Match non valido " + key);
+                    return;
+                }
+                allPlayerMatches[key] = Object();
+                allPlayerMatches[key]["players"] = Object();
+                if (player_1 === "-1") {
+                    player_1 = null;
+                    player_2 = null;
+                }
+                allPlayerMatches[key]["players"]["player_1_index"] = player_1;
+                allPlayerMatches[key]["players"]["player_2_index"] = player_2;
+                allPlayerMatches[key]["bets_closed"] = false;
+                allPlayerMatches[key]["timestamp"] = null;
+            }
             const allPromises = Array();
             for (const key in allScores) {
                 if (!equalScores(allScores[key]["score"], matches[key]["score"]) || allScores[key]["bets_closed"] !== matches[key]["bets_closed"]
@@ -718,8 +806,13 @@
                     );
                 }
             }
-            if (allPromises.length === 0) {
-                restoreMatches();
+            for (const key in allPlayerMatches) {
+                if ((allPlayerMatches[key]["players"]["player_1_index"] != matches[key]["players"]["player_1"]) ||
+                    (allPlayerMatches[key]["players"]["player_2_index"] != matches[key]["players"]["player_2"])) {
+                    allPromises.push(
+                        sendRequest("PUT", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches/" + key, allPlayerMatches[key], key)
+                    );
+                }
             }
             Promise.allSettled(allPromises).then(function (results) {
                 let restore = true;
@@ -730,7 +823,19 @@
                         const matchId = results[index]["value"]["key"];
                         const match = JSON.parse(results[index]["value"]["response"]);
                         matches[matchId] = match;
-                        let successfulString = "Match " + matchId + " aggiornato: [ " + formatScore(match['score']) + " ]";
+                        player_1_index = match["players"]["player_1"];
+                        player_2_index = match["players"]["player_2"];
+                        if (player_1_index != null) {
+                            player_1 = players[player_1_index]["surname"];
+                        } else {
+                            player_1 = "TBD";
+                        }
+                        if (player_2_index != null) {
+                            player_2 = players[player_2_index]["surname"];
+                        } else {
+                            player_2 = "TBD";
+                        }
+                        let successfulString = "Match " + matchId + " (" + player_1 + "/" + player_2 + ") aggiornato: [ " + formatScore(match['score']) + " ]";
                         if (match['bets_closed']) {
                             successfulString += " con scommesse chiuse";
                         } else {
