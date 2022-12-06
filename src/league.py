@@ -609,8 +609,14 @@ class League(Entity):
 
     def add_players_to_match(self, *, tournament_id, match_id, player_1, player_2, force=False):
         tournament = self._get_tournament(tournament_id)
-        player_1_place = tournament.get_player_place(player_1)
-        player_2_place = tournament.get_player_place(player_2)
+        if player_1 is not None:
+            player_1_place = tournament.get_player_place(player_1)
+        else:
+            player_1_place = None
+        if player_2 is not None:
+            player_2_place = tournament.get_player_place(player_2)
+        else:
+            player_2_place = None
         tournament.draw.add_players_to_match(match_id,
                                              player_1_place,
                                              player_2_place,

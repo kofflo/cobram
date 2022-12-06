@@ -254,6 +254,7 @@ class DrawRoundRobin(Draw):
     _NUMBER_MATCHES_FOR_ROUND = [6, 6, 2, 1]
     INVALID_GROUP = "Invalid group"
     PLAYER_NOT_YET_ADDED_TO_GROUP = "Player not yet added to group"
+    PLAYERS_MUST_BE_DISTINCT = "Players must be distinct"
     PLAYERS_NOT_IN_SAME_GROUP = "Players not in the same group"
     PLAYERS_NOT_IN_SAME_GROUP_AS_MATCH = "Players not in the same group as match"
     PLAYERS_COME_FROM_SAME_GROUP = "Players come from the same group"
@@ -313,6 +314,8 @@ class DrawRoundRobin(Draw):
             self._players[round_index][match_index] = [player_1_place, player_2_place]
 
     def _check_valid_players(self, round_index, player_1_place, player_2_place):
+        if player_1_place == player_2_place:
+            raise DrawError(DrawRoundRobin.PLAYERS_MUST_BE_DISTINCT)
         if round_index in [0, 1]:
             if self._get_group(player_1_place) != self._get_group(player_2_place):
                 raise DrawError(DrawRoundRobin.PLAYERS_NOT_IN_SAME_GROUP)

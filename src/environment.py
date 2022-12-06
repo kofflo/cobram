@@ -436,7 +436,7 @@ def update_tournament_match(*, league_index, tournament_index, match_id, players
         else:
             player_2 = None
         league.add_players_to_match(tournament_id=tournament_id, match_id=match_id,
-                                    player_1=player_1, player_2=player_2)
+                                    player_1=player_1, player_2=player_2, force=True)
     if score is not None:
         league.set_match_score(tournament_id=tournament_id, match_id=match_id, score=score, force=True)
     if bets_closed is not None:
