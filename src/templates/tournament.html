@@ -493,6 +493,9 @@
             const table = document.getElementById("tableMatchesBody");
             table.innerText = "";
             for (const key in matches) {
+                if ((matches[key]["players"]["player_1"] == null) || (matches[key]["players"]["player_2"] == null)) {
+                    continue;
+                }
                 const row = table.insertRow();
                 const idCell = row.insertCell();
                 idCell.innerText = key;
