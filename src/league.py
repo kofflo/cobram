@@ -345,6 +345,10 @@ class League(Entity):
         elif is_active is False:
             if gambler not in self._inactive_gamblers:
                 self._inactive_gamblers.append(gambler)
+                for _, bet_tournament in self._bet_tournaments.items():
+                    if gambler in bet_tournament.get_gamblers():
+                        if bet_tournament.is_open:
+                            bet_tournament.remove_gambler(gambler)
                 self._compute_league_ranking()
         if credit_change is not None:
             credit_change = to_float(credit_change)
