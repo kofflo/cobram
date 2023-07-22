@@ -465,8 +465,13 @@ def get_tournament_bets(*, league_index, tournament_index, gambler_index):
     return return_structure
 
 
+def update_tournament_bet_admin(*, league_index, tournament_index, gambler_index, match_id, bet=None):
+    return update_tournament_bet(league_index=league_index, tournament_index=tournament_index,
+                                 gambler_index=gambler_index, match_id=match_id, bet=bet, is_admin=True)
+
+
 @_autosave
-def update_tournament_bet(*, league_index, tournament_index, gambler_index, match_id, bet=None):
+def update_tournament_bet(*, league_index, tournament_index, gambler_index, match_id, bet=None, is_admin=False):
     league = _get_league(league_index)
     tournament_id = league.get_tournament_id(tournament_index=tournament_index)
     gambler = _get_gambler(gambler_index)
@@ -479,7 +484,7 @@ def update_tournament_bet(*, league_index, tournament_index, gambler_index, matc
         joker = bet['joker']
         joker = to_boolean(joker)
         league.set_match_score(tournament_id=tournament_id, gambler=gambler,
-                               match_id=match_id, score=score, joker=joker)
+                               match_id=match_id, score=score, joker=joker, force=is_admin)
     bet = league.get_match(tournament_id=tournament_id, gambler=gambler, match_id=match_id)
     bet_dictionary = _create_bet_dictionary(bet)
     bet_dictionary['joker'] = bet['joker']

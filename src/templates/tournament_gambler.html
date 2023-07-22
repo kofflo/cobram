@@ -13,9 +13,11 @@
     let nations;
     let ranking;
     let tournaments;
+    let tournamentInfo;
     let tournamentPlayers;
     let matches;
     let bets;
+    let adminOverride = false;
     function updatePage() {
         Promise.all([
             sendRequest("GET", "/leagues"),
@@ -24,6 +26,7 @@
             sendRequest("GET", "/nations"),
             sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/ranking"),
             sendRequest("GET", "/leagues/{{ league_index }}/tournaments"),
+            sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}"),
             sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/players"),
             sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/matches"),
             sendRequest("GET", "/leagues/{{ league_index }}/tournaments/{{ tournament_index }}/gamblers/{{ gambler_index }}/matches")
@@ -34,9 +37,10 @@
             nations = JSON.parse(values[3]);
             ranking = JSON.parse(values[4]);
             tournaments = JSON.parse(values[5]);
-            tournamentPlayers = JSON.parse(values[6]);
-            matches = JSON.parse(values[7]);
-            bets = JSON.parse(values[8]);
+            tournamentInfo = JSON.parse(values[6]);
+            tournamentPlayers = JSON.parse(values[7]);
+            matches = JSON.parse(values[8]);
+            bets = JSON.parse(values[9]);
             updateTitles();
             updateMatches();
         }).catch(function (reason) {
@@ -55,6 +59,13 @@
         document.title = tournaments[{{ tournament_index }}]["name"] + "  " + tournaments[{{ tournament_index }}]["year"] + " - scommesse";
     }
     function updateMatches() {
+        {% if is_admin %}
+        if (tournamentInfo["is_open"]) {
+            adminOverride = true;
+        } else {
+            adminOverride = false;
+        }
+        {% endif %}
         const table = document.getElementById("matches");
         table.innerText = "";
         let anyOpenMatch = false;
@@ -62,7 +73,7 @@
             const row = table.insertRow();
             const idCell = row.insertCell();
             idCell.innerText = key;
-            if (matches[key]["bets_closed"]) {
+            if (matches[key]["bets_closed"] && !adminOverride) {
                 const lock = document.createElement("img");
                 lock.src = "/static/lock.png";
                 idCell.innerText += "   ";
@@ -167,7 +178,7 @@
             const row = table.insertRow();
             const idCell = row.insertCell();
             idCell.innerText = key;
-            if (matches[key]["bets_closed"]) {
+            if (matches[key]["bets_closed"] && !adminOverride) {
                 const lock = document.createElement("img");
                 lock.src = "/static/lock.png";
                 idCell.innerText += "   ";
@@ -196,7 +207,7 @@
                 seedString = "";
             }
             player2Cell.innerText = players[matches[key]["players"]["player_2"]]["surname"] + seedString;
-            if (matches[key]["bets_closed"]) {
+            if (matches[key]["bets_closed"] && !adminOverride) {
                 scoreCell.innerText = formatScore(bets[key]["score"]);
                 if (bets["joker"] === key) {
                     const jokerImage = document.createElement("img");
@@ -244,7 +255,7 @@
                     forms[key] = form;
                     scoreCell.appendChild(form);
                 }
-                if (bets["joker"] == null || !matches[bets["joker"]]["bets_closed"]) {
+                if (bets["joker"] == null || !matches[bets["joker"]]["bets_closed"] || adminOverride) {
                     const checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkboxes[key] = checkbox;

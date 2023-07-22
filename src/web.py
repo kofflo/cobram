@@ -374,8 +374,11 @@ def _manage_tournament_bets(**kwargs):
 def _manage_tournament_bet(**kwargs):
     is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME or environment.check_current_user(current_user,
                                                                                     request.view_args['gambler_index'])
+    is_admin = current_user.nickname == gambler.ADMIN_NICKNAME
     if not is_privileged:
         return str("Unauthorized"), 401
+    if is_admin:
+        return _redirect_to_function(environment.update_tournament_bet_admin, 'JSON')
     return _redirect_to_function(environment.update_tournament_bet, 'JSON')
 
 
@@ -464,9 +467,10 @@ def _manage_web_tournament_gambler(league_index, tournament_index, gambler_index
     _check_args(request.json, [])
     _check_args(request.args, [])
     is_privileged = current_user.nickname == gambler.ADMIN_NICKNAME or environment.check_current_user(current_user, gambler_index)
+    is_admin = current_user.nickname == gambler.ADMIN_NICKNAME
     return render_template('tournament_gambler.html',
                            league_index=league_index, tournament_index=tournament_index, gambler_index=gambler_index,
-                           is_privileged=is_privileged)
+                           is_privileged=is_privileged, is_admin=is_admin)
 
 
 @app.route('/', methods=['GET'])
